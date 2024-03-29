@@ -1,0 +1,10 @@
+set(BINARY ${CMAKE_PROJECT_NAME})
+
+file(GLOB_RECURSE ENGINE_SOURCES LIST_DIRECTORIES false *.cpp)
+
+list(FILTER ENGINE_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
+
+add_library(${BINARY}STATIC STATIC ${ENGINE_SOURCES})
+
+add_executable(${BINARY} main.cpp)
+target_link_libraries(${BINARY} PRIVATE ${BINARY}STATIC)

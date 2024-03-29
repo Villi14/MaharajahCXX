@@ -5,35 +5,23 @@
 
 build/
 cmake-build-debug/
+build-ninja/
 out/
-src/maharajah.dSYM
-src/maharajah
+sources/maharajah.dSYM
+sources/maharajah
 
 # Node artifact files
 node_modules/
 dist/
 
-# Compiled Java class files
-*.class
-
-# Compiled Python bytecode
-*.py[cod]
-
 # Log files
 *.log
 
-# Package files
-*.jar
-
-# Maven
-target/
-dist/
-
-# JetBrains IDE
-.idea/
-
 # Visul Studio
 .vs/
+
+# CLion
+.idea/
 
 # VSCode 
 .cache/

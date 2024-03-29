@@ -1,0 +1,82 @@
+// stringstream ss;
+// ofstream fs("bishop_attacks_on_the_fly.txt");
+// for(const squares square : all_squares) {
+//   ss << "{";
+//   u64 attack_mask = mask_bishop_attacks(squares(square));
+//   for(int index{}; index < 1 << bishop_relevant_bits[square]; index++) {
+//     u64 occupancies = set_occupancy(index, bishop_relevant_bits[square], attack_mask);
+//     ss << print_bitboard(bishop_attacks_on_the_fly(squares(square), occupancies), true);
+//   }
+//   ss << "},\n";
+// }
+// fs << ss.str();
+// fs.close();
+
+// stringstream ss;
+// ofstream fs("rook_attacks.txt");
+// bool bishop = false;
+// for(const squares square : all_squares) {
+//   const u64 attack_mask = bishop ? bishop_masks[square] = mask_bishop_attacks(square) : rook_masks[square] = mask_rook_attacks(square);
+//   const int relevant_bits_count = count_bits(attack_mask);
+//   const int occupancy_indices = (1 << relevant_bits_count);
+//    ss << "{\n";
+//   for(int index{}; index < occupancy_indices; index++) {
+//     if(bishop) {
+//       const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+//       const u64 magic_index = (occupancy * bishop_magic_numbers[square]) >> (end_bit - bishop_relevant_bits[square]);
+//       bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
+//       ss << print_bitboard(bishop_attacks[square][magic_index], true);
+//     } else {
+//       const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+//       const u64 magic_index = (occupancy * rook_magic_numbers[square]) >> (end_bit - rook_relevant_bits[square]);
+//       rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
+//       ss << print_bitboard(rook_attacks[square][magic_index], true);
+//     }
+//   }
+//   ss << "},\n";
+// }
+// fs << ss.str();
+// fs.close();
+  
+void game::magic_to_file() {
+    stringstream ss_bishop;
+    stringstream ss_rook;
+    ofstream fs_bishop("bishop_magics.txt");
+    ofstream fs_rook("rook_magics.txt");
+    ss_bishop << "{" << '\n' << std::hex;
+    ss_rook << "{" << '\n' << std::hex;
+      
+    for(const squares square : all_squares) {
+      const u64 magic_bishop = find_magic_number(square, bishop_relevant_bits[square], sliders::bishop);
+      ss_bishop <<"0x" << magic_bishop << ",";
+    if (square % 4 == 0 && square != 0)  
+      ss_bishop << '\n';
+  }
+
+  for(const squares square : all_squares) {
+    const u64 magic_rook = find_magic_number(square, rook_relevant_bits[square], sliders::rook);
+    ss_rook <<"0x" << magic_rook << ",";
+    if (square % 4 == 0 && square != 0)  
+      ss_rook << '\n';  
+  }
+  ss_bishop << "}\n";
+  ss_rook << "}\n";
+  fs_bishop << ss_bishop.str();
+  fs_bishop.close();
+  fs_rook << ss_rook.str();
+  fs_rook.close();
+}
+
+// void game::print_to_file() {
+//  stringstream ss;
+// ofstream fs("mask_bishop_attacks.txt");
+//  ss << "{" << std::hex ;
+// for(const squares square : all_squares) {
+//   u64 attack_mask = mask_bishop_attacks(square);
+//   ss << "0x";
+//   ss << attack_mask << ", ";
+// }
+// ss << "},\n";
+// fs << ss.str();
+// fs.close();
+// }

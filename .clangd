@@ -1,0 +1,18 @@
+CompileFlags:
+  CompilationDatabase: build
+  Add:
+    - -std=c++23
+    - -stdlib=libc++
+    - -I${workspaceFolder}/src
+  Remove:
+    - -W*
+
+Diagnostics:
+  UnusedIncludes: None
+  MissingIncludes: None
+  Suppress:
+    - unused-includes
+
+Index:
+  Background: Build
+

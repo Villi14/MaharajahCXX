@@ -10,30 +10,23 @@
 
 ### Evaluation
 
+## Build Commands
 
-## Build Comands
+### `mkdir build` or `md build`
 
-### md build
+### `cd build`
 
-### cd build
+### `cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..`
 
-### cmake -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Debug ..
+### `cmake -G "Visual Studio 18 2026" ..`
 
-### cmake --build .
-
-### src/maharajahCPP
-
-### tst/MaharajahCPP_tst
-
-
+### `cmake --build .`
 
 ## Links
 
 ### <https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs>
 
 ### <https://en.wikipedia.org/wiki/Bitboard>
-
-### <https://www.chessprogramming.org>
 
 ### <https://www.chessprogramming.org/Looking_for_Magics>
 

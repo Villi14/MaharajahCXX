@@ -1,15 +1,32 @@
-cmake_minimum_required(VERSION 3.13)
-project(MaharajahCPP VERSION 0.1.0)
+cmake_minimum_required(VERSION 3.25)
 
-include_directories(src)
+project(Maharajah VERSION 0.1.0 LANGUAGES CXX)
 
-add_subdirectory(src)
-add_subdirectory(tst)
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_CXX_EXTENSIONS OFF)
+
+enable_testing()
+
+if (MSVC)
+  add_compile_options(/W4)
+else()
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
+
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+  message(FATAL_ERROR "This project requires a 64-bit compiler.")
+endif()
 
 include(FetchContent)
-FetchContent_Declare(googletest
-	GIT_REPOSITORY https://github.com/google/googletest
-	GIT_TAG v1.14.0)
-FetchContent_GetProperties(googletest)
-FetchContent_Populate(googletest)
-add_subdirectory(${googletest_SOURCE_DIR} ${googletest_BUILD_DIR})
+
+fetchcontent_declare(
+  googletest
+  GIT_REPOSITORY https://github.com/google/googletest
+  GIT_TAG v1.17.0
+)
+
+fetchcontent_makeavailable(googletest)
+
+add_subdirectory(sources)
+add_subdirectory(tests)
