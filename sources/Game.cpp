@@ -71,11 +71,7 @@ string Game::print_board(const bool print_to_console) const {
           piece_int = static_cast<int>(piece);
       }
 
-#ifdef _MSC_VER
-      ss << format(" {}", (piece_int == -1) ? '.' : ascii_pieces[piece_int]);
-#else
-      ss << format(" {}", (piece_int == -1) ? "." : unicode_pieces[piece_int]);
-#endif
+      ss << format(" {}", (piece_int == -1) ? "." : display_pieces[piece_int]);
     }
     ss << "\n";
   }
@@ -243,27 +239,15 @@ void Game::print_move_list() {
   for(size_t move_count{}; move_count < board_.moves_list.size(); move_count++) {
     const int move = board_.moves_list[move_count];
 
-#ifdef _MSC_VER
     ss << format("      {}{}{}   {}         {}         {}         {}         {}\n",
                  square_to_coord[Move::get_move_source(move)],
                  square_to_coord[Move::get_move_target(move)],
                  Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)],
-                 ascii_pieces[Move::get_move_piece(move)],
+                 display_pieces[Move::get_move_piece(move)],
                  Move::get_move_capture(move) ? 1 : 0,
                  Move::get_move_double(move) ? 1 : 0,
                  Move::get_move_enpassant(move) ? 1 : 0,
                  Move::get_move_castling(move) ? 1 : 0);
-#else
-    ss << format("     {}{}{}   {}         {}         {}         {}         {}\n",
-                 square_to_coord[Move::get_move_source(move)],
-                 square_to_coord[Move::get_move_target(move)],
-                 Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)],
-                 unicode_pieces[Move::get_move_piece(move)],
-                 Move::get_move_capture(move) ? 1 : 0,
-                 Move::get_move_double(move) ? 1 : 0,
-                 Move::get_move_enpassant(move) ? 1 : 0,
-                 Move::get_move_castling(move) ? 1 : 0);
-#endif
   }
 
   ss << format("\n\n     Total number of moves: {}\n\n", board_.moves_list.size());

@@ -242,10 +242,13 @@ inline constexpr std::array<int, 64> rook_relevant_bits {
 	12, 11, 11, 11, 11, 11, 11, 12
 };
 
-// ASCII pieces
-inline constexpr std::array<const char, 12> ascii_pieces { 'P', 'N', 'B', 'R', 'Q', 'K', 'p', 'n', 'b', 'r', 'q', 'k' }; 
-// Unicode pieces
-inline constexpr std::array<const char*, 12> unicode_pieces {"♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚" }; 
+#ifdef _MSC_VER
+/** @brief Use ASCII pieces for display on MSVC. */
+inline constexpr std::array<const char*, 12> display_pieces { "P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k" };
+#else
+/** @brief Use Unicode pieces for display on other compilers. */
+inline constexpr std::array<const char*, 12> display_pieces { "♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚" };
+#endif
 
 inline constexpr std::string_view empty_board { "8/8/8/8/8/8/8/8 w - - " };
 inline constexpr std::string_view start_position { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 " };
