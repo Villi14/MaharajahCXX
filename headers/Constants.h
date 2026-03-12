@@ -25,22 +25,22 @@ constexpr int bishop_index{ 0x3 };
 constexpr int rook_index{ 0x4 };
 constexpr int king_index{ 0x5 };
 
-constexpr u64 white_pawns{ 0xFF00 };
-constexpr u64 white_knights{ 0x42 };
-constexpr u64 white_bishops{ 0x24 };
-constexpr u64 white_rooks{ 0x81 };
-constexpr u64 white_queen{ 0x8 };
-constexpr u64 white_king{ 0x10 };
-constexpr u64 black_pawns{ 0x00FF000000000000 };
-constexpr u64 black_knights{ 0x4200000000000000 };
-constexpr u64 black_bishops{ 0x2400000000000000 };
-constexpr u64 black_rooks{ 0x8100000000000000 };
-constexpr u64 black_queen{ 0x800000000000000 };
-constexpr u64 black_king{ 0x1000000000000000 };
+constexpr u64 initial_black_pawns{ 0xFF00 };
+constexpr u64 initial_black_knights{ 0x42 };
+constexpr u64 initial_black_bishops{ 0x24 };
+constexpr u64 initial_black_rooks{ 0x81 };
+constexpr u64 initial_black_queen{ 0x8 };
+constexpr u64 initial_black_king{ 0x10 };
+constexpr u64 initial_white_pawns{ 0xFF000000000000 };
+constexpr u64 initial_white_knights{ 0x4200000000000000 };
+constexpr u64 initial_white_bishops{ 0x2400000000000000 };
+constexpr u64 initial_white_rooks{ 0x8100000000000000 };
+constexpr u64 initial_white_queen{ 0x800000000000000 };
+constexpr u64 initial_white_king{ 0x1000000000000000 };
 
 constexpr u64 not_a_file{ 0xFEFEFEFEFEFEFEFE };
 constexpr u64 not_h_file{ 0x7F7F7F7F7F7F7F7F };
-constexpr u64 not_hg_file{ 0x3F3F3F3F3F3F3F3F };
+constexpr u64 not_gh_file{ 0x3F3F3F3F3F3F3F3F };
 constexpr u64 not_ab_file{ 0xFCFCFCFCFCFCFCFC };
 
 enum Colors : int { white, black, both };
@@ -106,6 +106,38 @@ enum Squares : int {
     return no_square;
 
   return to_square(value);
+}
+
+/**
+ * @brief Pre-increment for Squares enum.
+ *
+ * @param square The Squares enum value to be incremented.
+ * @return Reference to the incremented Squares value.
+ *
+ * @note If the result is out of range (>= no_square), it is clamped to no_square.
+ */
+inline Squares& operator++(Squares& square) {
+  int value = static_cast<int>(square) + 1;
+
+  if(value >= no_square)
+    value = no_square;
+
+  square = to_square(value);
+  return square;
+}
+
+/**
+ * @brief Post-increment for Squares enum.
+ *
+ * @param square The Squares enum value to be incremented.
+ * @return The original Squares value before increment.
+ *
+ * @note If the result is out of range (>= no_square), it is clamped to no_square.
+ */
+inline Squares operator++(Squares& square, int) {
+  Squares old = square;
+  ++square;
+  return old;
 }
 
 enum Pieces : int { P, N, B, R, Q, K, p, n, b, r, q, k, no_pieces };
@@ -194,19 +226,8 @@ inline constexpr std::array<char, 128> promoted_pieces = [] {
 }();
 
 inline constexpr std::array<u64, 2> board {
-	black_pawns | black_knights | black_bishops | black_rooks | black_queen | black_king,
-	white_pawns | white_knights | white_bishops | white_rooks | white_queen | white_king
-};
-
-inline constexpr std::array<Squares, 64> all_squares {
-  a8, b8, c8, d8, e8, f8, g8, h8,
-  a7, b7, c7, d7, e7, f7, g7, h7,
-  a6, b6, c6, d6, e6, f6, g6, h6,
-  a5, b5, c5, d5, e5, f5, g5, h5,
-  a4, b4, c4, d4, e4, f4, g4, h4,
-  a3, b3, c3, d3, e3, f3, g3, h3,
-  a2, b2, c2, d2, e2, f2, g2, h2,
-  a1, b1, c1, d1, e1, f1, g1, h1,
+	initial_white_pawns | initial_white_knights | initial_white_bishops | initial_white_rooks | initial_white_queen | initial_white_king,
+  initial_black_pawns | initial_black_knights | initial_black_bishops | initial_black_rooks | initial_black_queen | initial_black_king
 };
 
 inline constexpr std::array<const char*, 64> square_to_coord {

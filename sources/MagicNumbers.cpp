@@ -113,7 +113,7 @@ u64 find_magic_number(const Squares square, const int relevant_bits, const Slide
  * stored in the rook_magic_numbers and bishop_magic_numbers arrays.
  */
 void init_magic_numbers() {
-  for (const squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
    rook_magic_numbers[square] = find_magic_number(square, rook_relevant_bits[square], sliders::rook);
    bishop_magic_numbers[square] = find_magic_number(square, bishop_relevant_bits[square], sliders::bishop);
   }

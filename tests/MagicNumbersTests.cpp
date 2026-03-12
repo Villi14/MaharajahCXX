@@ -56,7 +56,7 @@ bool test_magic_square(Squares square, u64 magic, int relevant_bits, bool bishop
  * If any magic number is zero, the test fails.
  */
 TEST_F(magic_numbers_test_fixture, magic_numbers_nonzero) {
-  for(const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_NE(bishop_magic_numbers_table[square], 0ULL);
     EXPECT_NE(rook_magic_numbers_table[square], 0ULL);
   }
@@ -71,7 +71,7 @@ TEST_F(magic_numbers_test_fixture, magic_numbers_nonzero) {
  * that occupancy. If a collision is found, the test fails.
  */
 TEST_F(magic_numbers_test_fixture, bishop_magics_are_collision_free) {
-  for(const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     ASSERT_TRUE(test_magic_square(square, bishop_magic_numbers_table[square], bishop_relevant_bits[square], true))
         << "Bishop magic collision at square " << square;
   }
@@ -86,7 +86,7 @@ TEST_F(magic_numbers_test_fixture, bishop_magics_are_collision_free) {
  * that occupancy. If a collision is found, the test fails.
  */
 TEST_F(magic_numbers_test_fixture, rook_magics_are_collision_free) {
-  for(const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     ASSERT_TRUE(test_magic_square(square, rook_magic_numbers_table[square], rook_relevant_bits[square], false)) << "Rook magic collision at square " << square;
   }
 }

@@ -57,7 +57,7 @@ u64 mask_knight_attacks(const Squares square) {
     attacks |= (bitboard >> 17);
   if((bitboard >> 15) & not_a_file)
     attacks |= (bitboard >> 15);
-  if((bitboard >> 10) & not_hg_file)
+  if((bitboard >> 10) & not_gh_file)
     attacks |= (bitboard >> 10);
   if((bitboard >> 6) & not_ab_file)
     attacks |= (bitboard >> 6);
@@ -67,7 +67,7 @@ u64 mask_knight_attacks(const Squares square) {
     attacks |= (bitboard << 15);
   if((bitboard << 10) & not_ab_file)
     attacks |= (bitboard << 10);
-  if((bitboard << 6) & not_hg_file)
+  if((bitboard << 6) & not_gh_file)
     attacks |= (bitboard << 6);
 
   return attacks;
@@ -254,7 +254,7 @@ u64 rook_attacks_on_the_fly(const Squares square, const u64 block) {
  * This function should be called once, at the beginning of the program.
  */
 void init_leapers_attacks() {
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     pawn_attacks[white][square] = mask_pawn_attacks(white, square);
     pawn_attacks[black][square] = mask_pawn_attacks(black, square);
     knight_attacks[square] = mask_knight_attacks(square);
@@ -291,7 +291,7 @@ u64 set_occupancy(const int index, const int bits_in_mask, u64 attack_mask) {
  * @param bishop The slider to initialize the attack tables for.
  */
 void init_sliders_attacks(const Sliders bishop) {
-  for(const Squares square : all_squares) {
+ for(Squares square{ a8 }; square < no_square; ++square) {
     const u64 attack_mask = bishop == Sliders::bishop ? bishop_masks[square] = mask_bishop_attacks(square) : rook_masks[square] = mask_rook_attacks(square);
     const int relevant_bits_count = count_bits(attack_mask);
     const int occupancy_indices = (1 << relevant_bits_count);

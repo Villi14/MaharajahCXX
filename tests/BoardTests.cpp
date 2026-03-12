@@ -17,7 +17,7 @@ class board_test_fixture : public testing::Test {
   public:
   Board board{};
 
-  /**
+/**
  * Resets a board to its initial state.
  *
  * @param board The board to reset
@@ -31,7 +31,7 @@ class board_test_fixture : public testing::Test {
     board.state.occupancies.fill(zero);
   }
 
-/**
+ /**
  * Checks if a given move is present in a MoveList.
  *
  * @param list The MoveList to search in
@@ -46,7 +46,7 @@ class board_test_fixture : public testing::Test {
     return false;
   }
 
-/**
+ /**
  * Dumps a MoveList to a string, with each move represented as a two-character string
  * (source square followed by target square) followed by a space. If the move is a promotion,
  * the promoted piece is appended to the string. For example, the string "e2e4"
@@ -202,7 +202,7 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
   for(const auto side : { white, black }) {
     for(const auto& test_case : cases) {
       const Pieces piece = (side == white) ? test_case.piece_white : test_case.piece_black;
-      for(const auto square : all_squares) {
+      for(Squares square{ a8 }; square < no_square; ++square) {
         reset_board(board, side);
         board.state.bitboards[piece] = (one << square);
         board.update_occupancies();
@@ -222,14 +222,13 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
           expected = king_attacks[square];
         }
 
-        for(const auto target : all_squares) {
-          const bool exp = (expected & (one << target)) != zero;
-          SCOPED_TRACE(testing::Message()
-            << "side=" << (side == white ? "white" : "black")
-            << " piece=" << test_case.name
-            << " from=" << square_to_coord[square] 
-            << " to=" << square_to_coord[target]);
-          EXPECT_EQ(board.is_square_attacked(target, side), exp);
+        for(Squares square{ a8 }; square < no_square; ++square) {
+          {
+            const bool exp = (expected & (one << square)) != zero;
+            SCOPED_TRACE(testing::Message() << "side=" << (side == white ? "white" : "black") << " piece=" << test_case.name
+                                            << " from=" << square_to_coord[square] << " to=" << square_to_coord[square]);
+            EXPECT_EQ(board.is_square_attacked(square, side), exp);
+          }
         }
       }
     }
@@ -272,7 +271,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   };
 
   // Pawns: all squares (empty board, no captures)
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     vector<int> expected{};
     set_single_piece(white, P, square);
 
@@ -295,7 +294,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
     expect_moves(expected);
   }
 
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     vector<int> expected{};
     set_single_piece(black, p, square);
 
@@ -319,7 +318,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   }
 
   // Knights
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, N, square);
     vector<int> expected{};
     u64 attacks = knight_attacks[square] & ~board.state.occupancies[white];
@@ -331,7 +330,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
     expect_moves(expected);
   }
 
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, n, square);
     vector<int> expected{};
     u64 attacks = knight_attacks[square] & ~board.state.occupancies[black];
@@ -345,7 +344,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
 
   // Bishops, rooks, queens
   for(const Pieces piece : { B, R, Q }) {
-    for(const Squares square : all_squares) {
+    for(Squares square{ a8 }; square < no_square; ++square) {
       set_single_piece(white, piece, square);
       vector<int> expected{};
       u64 attacks = build_slider_attacks(piece, square) & ~board.state.occupancies[white];
@@ -359,7 +358,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   }
 
   for(const Pieces piece : { b, r, q }) {
-    for(const Squares square : all_squares) {
+    for(Squares square{ a8 }; square < no_square; ++square) {
       set_single_piece(black, piece, square);
       vector<int> expected{};
       u64 attacks = build_slider_attacks(piece, square) & ~board.state.occupancies[black];
@@ -373,7 +372,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   }
 
   // Kings (castling is covered elsewhere)
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, K, square);
     vector<int> expected{};
     u64 attacks = king_attacks[square] & ~board.state.occupancies[white];
@@ -385,7 +384,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
     expect_moves(expected);
   }
 
-  for(const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, k, square);
     vector<int> expected{};
     u64 attacks = king_attacks[square] & ~board.state.occupancies[black];

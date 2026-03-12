@@ -1,9 +1,9 @@
+#include "../headers/Bitboard.h"
 #include "../headers/tables/AtacksTable.h"
 #include "../headers/tables/BishopFlyAttacksTable.h"
 #include "../headers/tables/OccupancyBishopTable.h"
 #include "../headers/tables/OccupancyRookTable.h"
 #include "../headers/tables/RookFlyAttacksTable.h"
-#include "../headers/Bitboard.h"
 #include "gtest/gtest.h"
 
 using namespace std;
@@ -25,8 +25,8 @@ void bitboard_test_fixture::SetUp() {
  * Tests whether the bitboards are initialized correctly.
  */
 TEST_F(bitboard_test_fixture, board_test) {
-  EXPECT_EQ(board[0], 0xFFFF000000000000);
-  EXPECT_EQ(board[1], 0xFFFF);
+  EXPECT_EQ(board[white], 0xFFFF000000000000);
+  EXPECT_EQ(board[black], 0xFFFF);
 }
 
 /**
@@ -40,7 +40,7 @@ TEST_F(bitboard_test_fixture, board_test) {
  */
 TEST_F(bitboard_test_fixture, set_bit_test) {
   u64 bitboard{ zero };
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_bit(bitboard, square);
     EXPECT_EQ(bitboard, (one << square));
     bitboard = zero;
@@ -57,7 +57,7 @@ TEST_F(bitboard_test_fixture, set_bit_test) {
  */
 TEST_F(bitboard_test_fixture, get_bit_test) {
   u64 bitboard{ zero };
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_bit(bitboard, square);
     EXPECT_EQ(get_bit(bitboard, square), true);
     bitboard = zero;
@@ -73,7 +73,7 @@ TEST_F(bitboard_test_fixture, get_bit_test) {
  */
 TEST_F(bitboard_test_fixture, get_bit_false_on_empty_board) {
   constexpr u64 bitboard{ zero };
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_FALSE(get_bit(bitboard, square));
   }
 }
@@ -88,8 +88,8 @@ TEST_F(bitboard_test_fixture, get_bit_false_on_empty_board) {
  * iteration.
  */
 TEST_F(bitboard_test_fixture, pop_bit_test) {
-  u64 bitboard{ zero};
-  for (const auto square : all_squares) {
+  u64 bitboard{ zero };
+  for(Squares square{ a8 }; square < no_square; ++square) {
     set_bit(bitboard, square);
     EXPECT_EQ(pop_bit(bitboard, square), zero);
     EXPECT_EQ(bitboard, zero);
@@ -124,8 +124,9 @@ TEST_F(bitboard_test_fixture, pop_bit_preserves_other_bits) {
  * square index. The bitboard is then reset to zero before the next iteration.
  */
 TEST_F(bitboard_test_fixture, count_bits_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(square, count_bits((one << square) - 1));
+  }
 }
 
 /**
@@ -149,10 +150,10 @@ TEST_F(bitboard_test_fixture, count_bits_edge_cases) {
  * bitboard is set to one shifted to the left by the square index.
  */
 TEST_F(bitboard_test_fixture, get_ls1b_index_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(square, get_ls1b_index(one << square));
+  }
 }
-
 /**
  * Tests whether the get_ls1b_index function works correctly when the bitboard has multiple bits set.
  *
@@ -173,7 +174,7 @@ TEST_F(bitboard_test_fixture, get_ls1b_index_multiple_bits) {
  * mask_pawn_attacks with the correct attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, mask_pawn_attacks_test) {
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[white_pawn_index][square], mask_pawn_attacks(white, square));
     EXPECT_EQ(attacks_table[black_pawn_index][square], mask_pawn_attacks(black, square));
   }
@@ -188,11 +189,10 @@ TEST_F(bitboard_test_fixture, mask_pawn_attacks_test) {
  * attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, mask_knight_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[knight_index][square], mask_knight_attacks(square));
+  }
 }
-
-
 /**
  * Tests whether the mask_king_attacks function works correctly.
  *
@@ -202,8 +202,9 @@ TEST_F(bitboard_test_fixture, mask_knight_attacks_test) {
  * attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, mask_king_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[king_index][square], mask_king_attacks(square));
+  }
 }
 
 /**
@@ -213,8 +214,9 @@ TEST_F(bitboard_test_fixture, mask_king_attacks_test) {
  * white_pawn_attacks table contains the correct attack mask for white pawns.
  */
 TEST_F(bitboard_test_fixture, white_pawn_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[white_pawn_index][square], pawn_attacks[white][square]);
+  }
 }
 
 /**
@@ -224,10 +226,10 @@ TEST_F(bitboard_test_fixture, white_pawn_attacks_test) {
  * black_pawn_attacks table contains the correct attack mask for black pawns.
  */
 TEST_F(bitboard_test_fixture, black_pawn_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[black_pawn_index][square], pawn_attacks[black][square]);
+  }
 }
-
 /**
  * Tests whether the knight_attacks table was correctly initialized.
  *
@@ -235,10 +237,10 @@ TEST_F(bitboard_test_fixture, black_pawn_attacks_test) {
  * knight_attacks table contains the correct attack mask for knights.
  */
 TEST_F(bitboard_test_fixture, knight_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[knight_index][square], knight_attacks[square]);
+  }
 }
-
 /**
  * Tests whether the mask_bishop_attacks function works correctly.
  *
@@ -248,10 +250,10 @@ TEST_F(bitboard_test_fixture, knight_attacks_test) {
  * attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, mask_bishop_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[bishop_index][square], mask_bishop_attacks(square));
+  }
 }
-
 /**
  * Tests whether the mask_rook_attacks function works correctly.
  *
@@ -261,10 +263,10 @@ TEST_F(bitboard_test_fixture, mask_bishop_attacks_test) {
  * attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, mask_rook_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[rook_index][square], mask_rook_attacks(square));
+  }
 }
-
 /**
  * Tests whether the king_attacks array is correctly generated for all squares.
  *
@@ -274,10 +276,10 @@ TEST_F(bitboard_test_fixture, mask_rook_attacks_test) {
  * the correct attack mask in the attacks_table.
  */
 TEST_F(bitboard_test_fixture, king_attacks_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(attacks_table[king_index][square], king_attacks[square]);
+  }
 }
-
 /**
  * Tests whether the bishop fly attacks table is correctly generated for a given square.
  *
@@ -288,25 +290,24 @@ TEST_F(bitboard_test_fixture, king_attacks_test) {
  * bishop_fly_attacks_table.
  */
 TEST_F(bitboard_test_fixture, bishop_fly_attacks_test) {
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << bishop_relevant_bits[square] };
     const u64 attack_mask{ mask_bishop_attacks(square) };
-    for (int index{}; index < count; index++) {
+    for(int index{}; index < count; index++) {
       const u64 occupancies = set_occupancy(index, bishop_relevant_bits[square], attack_mask);
       EXPECT_EQ(bishop_fly_attacks_table[square][index], bishop_attacks_on_the_fly(square, occupancies));
     }
   }
 }
 
-
 /**
  * @brief Tests whether the rook fly attacks table is correctly generated for a given square.
  */
 TEST_F(bitboard_test_fixture, rook_fly_attacks_test) {
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << rook_relevant_bits[square] };
     const u64 attack_mask{ mask_rook_attacks(square) };
-    for (int index{}; index < count; index++) {
+    for(int index{}; index < count; index++) {
       const u64 occupancies{ set_occupancy(index, rook_relevant_bits[square], attack_mask) };
       EXPECT_EQ(rook_fly_attacks_table[square][index], rook_attacks_on_the_fly(square, occupancies));
     }
@@ -321,10 +322,10 @@ TEST_F(bitboard_test_fixture, rook_fly_attacks_test) {
  * table, square_to_coord.
  */
 TEST_F(bitboard_test_fixture, square_to_coordinates_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(square_to_coord[square], square_to_coord[get_ls1b_index(one << square)]);
+  }
 }
-
 /**
  * @brief Tests whether the set_occupancy function produces the correct occupancy table for a rook on a given square.
  *
@@ -334,9 +335,9 @@ TEST_F(bitboard_test_fixture, square_to_coordinates_test) {
  * The occupancy table is compared with the precomputed table, occupancy_rook_table.
  */
 TEST_F(bitboard_test_fixture, set_occupancy_rook_test) {
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << rook_relevant_bits[square] };
-    for (int index{}; index < count; index++) {
+    for(int index{}; index < count; index++) {
       const u64 attack_mask{ mask_rook_attacks(square) };
       EXPECT_EQ(occupancy_rook_table[square][index], set_occupancy(index, count_bits(attack_mask), attack_mask));
     }
@@ -352,9 +353,9 @@ TEST_F(bitboard_test_fixture, set_occupancy_rook_test) {
  * The occupancy table is compared with the precomputed table, occupancy_bishop_table.
  */
 TEST_F(bitboard_test_fixture, set_occupancy_bishop_test) {
-  for (const auto square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << bishop_relevant_bits[square] };
-    for (int index{}; index < count; index++) {
+    for(int index{}; index < count; index++) {
       const u64 attack_mask{ mask_bishop_attacks(square) };
       EXPECT_EQ(occupancy_bishop_table[square][index], set_occupancy(index, count_bits(attack_mask), attack_mask));
     }
@@ -368,10 +369,10 @@ TEST_F(bitboard_test_fixture, set_occupancy_bishop_test) {
  * It does this by checking whether the bitwise AND of the occupancy table and the bitwise complement of the attack mask is zero.
  */
 TEST_F(bitboard_test_fixture, set_occupancy_is_subset_of_mask) {
-  for (constexpr array<Squares, 3> sample{ a8, d4, h1 }; const auto square : sample) {
+  for(constexpr array<Squares, 3> sample{ a8, d4, h1 }; const auto square : sample) {
     const u64 attack_mask = mask_rook_attacks(square);
     const int count = 1 << rook_relevant_bits[square];
-    for (int index{}; index < count; ++index) {
+    for(int index{}; index < count; ++index) {
       const u64 occupancy = set_occupancy(index, count_bits(attack_mask), attack_mask);
       EXPECT_EQ(occupancy & ~attack_mask, zero);
     }
@@ -385,10 +386,10 @@ TEST_F(bitboard_test_fixture, set_occupancy_is_subset_of_mask) {
  * that given square is correctly initialized in the bishop_relevant_bits table.
  */
 TEST_F(bitboard_test_fixture, bishop_relevant_bits_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(bishop_relevant_bits[square], count_bits(mask_bishop_attacks(square)));
+  }
 }
-
 /**
  * @brief Tests whether the number of relevant bits for each square is correctly initialized.
  *
@@ -396,10 +397,10 @@ TEST_F(bitboard_test_fixture, bishop_relevant_bits_test) {
  * that given square is correctly initialized in the rook_relevant_bits table.
  */
 TEST_F(bitboard_test_fixture, rook_relevant_bits_test) {
-  for (const auto square : all_squares)
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(rook_relevant_bits[square], count_bits(mask_rook_attacks(square)));
+  }
 }
-
 /**
  * @brief Tests whether the rook attacks for each square and occupancy are correctly initialized.
  *
@@ -407,10 +408,10 @@ TEST_F(bitboard_test_fixture, rook_relevant_bits_test) {
  * given square and occupancy are correctly initialized in the rook_attacks table.
  */
 TEST_F(bitboard_test_fixture, init_rook_sliders_attacks_test) {
-  for (const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << rook_relevant_bits[square] };
 
-    for (int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; index++) {
       const u64 occupancy{ occupancy_rook_table[square][index] };
       const u64 magic_index{ (occupancy * rook_magic_numbers_table[square]) >> (end_bit - rook_relevant_bits[square]) };
       EXPECT_EQ(rook_attacks[square][magic_index], rook_attacks_on_the_fly(square, occupancy));
@@ -426,10 +427,10 @@ TEST_F(bitboard_test_fixture, init_rook_sliders_attacks_test) {
  * attacks for that given square and occupancy are equal to the bishop attacks on the fly for that given square and occupancy.
  */
 TEST_F(bitboard_test_fixture, init_bishop_sliders_attacks_test) {
-  for (const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << bishop_relevant_bits[square] };
 
-    for (int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; index++) {
       const u64 occupancy{ occupancy_bishop_table[square][index] };
       const u64 magic_index{ (occupancy * bishop_magic_numbers_table[square]) >> (end_bit - bishop_relevant_bits[square]) };
       EXPECT_EQ(bishop_attacks[square][magic_index], bishop_attacks_on_the_fly(square, occupancy));
@@ -445,10 +446,10 @@ TEST_F(bitboard_test_fixture, init_bishop_sliders_attacks_test) {
  * correct rook attacks for all occupancies of the board.
  */
 TEST_F(bitboard_test_fixture, get_rook_attacks_test) {
-  for (const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << rook_relevant_bits[square] };
 
-    for (int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; index++) {
       const u64 occupancy{ occupancy_rook_table[square][index] };
       const u64 magic_index{ (occupancy * rook_magic_numbers_table[square]) >> (end_bit - rook_relevant_bits[square]) };
       EXPECT_EQ(rook_attacks[square][magic_index], get_rook_attacks(square, occupancy));
@@ -464,10 +465,10 @@ TEST_F(bitboard_test_fixture, get_rook_attacks_test) {
  * and finally shifting the occupancy to the right by the number of relevant bits for the bishop.
  */
 TEST_F(bitboard_test_fixture, get_bishop_attacks_test) {
-  for (const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << bishop_relevant_bits[square] };
 
-    for (int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; index++) {
       const u64 occupancy{ occupancy_bishop_table[square][index] };
       const u64 magic_index{ (occupancy * bishop_magic_numbers_table[square]) >> (end_bit - bishop_relevant_bits[square]) };
       EXPECT_EQ(bishop_attacks[square][magic_index], get_bishop_attacks(square, occupancy));
@@ -483,7 +484,7 @@ TEST_F(bitboard_test_fixture, get_bishop_attacks_test) {
  * of the bitwise OR operation of the get_bishop_attacks and get_rook_attacks functions for the given square and occupancy.
  */
 TEST_F(bitboard_test_fixture, get_queen_attacks_test) {
-  for (const Squares square : all_squares) {
+  for(Squares square{ a8 }; square < no_square; ++square) {
     EXPECT_EQ(get_bishop_attacks(square, zero) | get_rook_attacks(square, zero), get_queen_attacks(square, zero));
   }
 }
