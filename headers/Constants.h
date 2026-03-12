@@ -123,7 +123,37 @@ enum Pieces : int { P, N, B, R, Q, K, p, n, b, r, q, k, no_pieces };
   return static_cast<Pieces>(value);
 }
 
-inline constexpr std::array<Pieces, 12> all_pieces{ P, N, B, R, Q, K, p, n, b, r, q, k };
+/**
+ * @brief Pre-increment for Pieces enum.
+ *
+ * @param piece The Pieces enum value to be incremented.
+ * @return Reference to the incremented Pieces value.
+ *
+ * @note If the result is out of range (>= no_pieces), it is clamped to no_pieces.
+ */
+ inline Pieces& operator++(Pieces& piece) {
+  int value = static_cast<int>(piece) + 1;
+
+  if(value >= no_pieces)
+    value = no_pieces;
+
+  piece = to_piece(value);
+  return piece;
+}
+
+/**
+ * @brief Post-increment for Pieces enum.
+ *
+ * @param piece The Pieces enum value to be incremented.
+ * @return The original Pieces value before increment.
+ *
+ * @note If the result is out of range (>= no_pieces), it is clamped to no_pieces.
+ */
+inline Pieces operator++(Pieces& piece, int) {
+  Pieces old = piece;
+  ++piece;
+  return old;
+}
 
 // convert ASCII character pieces to encoded constants
 inline constexpr std::array<char, 128> char_pieces = [] {

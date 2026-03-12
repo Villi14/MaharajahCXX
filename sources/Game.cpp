@@ -64,17 +64,17 @@ string Game::print_board(const bool print_to_console) const {
       if(!file)
         ss << " " << 8 - rank << " ";
 
-      int piece{ -1 };
+      int piece_int{ -1 };
 
-      for(const Pieces bb_piece : all_pieces) {
-        if(get_bit(board_.state.bitboards[bb_piece], to_square(square)))
-          piece = bb_piece;
+      for(Pieces piece{ P }; piece < no_pieces; piece++) {
+        if(get_bit(board_.state.bitboards[piece], to_square(square)))
+          piece_int = static_cast<int>(piece);
       }
 
 #ifdef _MSC_VER
-      ss << format(" {}", (piece == -1) ? '.' : ascii_pieces[piece]);
+      ss << format(" {}", (piece_int == -1) ? '.' : ascii_pieces[piece_int]);
 #else
-      ss << format(" {}", (piece == -1) ? "." : unicode_pieces[piece]);
+      ss << format(" {}", (piece_int == -1) ? "." : unicode_pieces[piece_int]);
 #endif
     }
     ss << "\n";
@@ -134,14 +134,14 @@ void Game::parse_fen(const string_view fen) {
       const char c2 = fen_char(index);
       if(c2 >= '0' && c2 <= '9') {
         int offset{ c2 - '0' };
-        int piece{ -1 };
+        int piece_int{ -1 };
 
-        for(const Pieces bb_piece : all_pieces) {
-          if(get_bit(board_.state.bitboards[bb_piece], square))
-            piece = bb_piece;
+         for(Pieces piece{ P }; piece < no_pieces; piece++) {
+          if(get_bit(board_.state.bitboards[piece], square))
+            piece_int = static_cast<int>(piece);
         }
 
-        if(piece == -1)
+        if(piece_int == -1)
           file--;
 
         file += offset;
@@ -193,10 +193,10 @@ void Game::parse_fen(const string_view fen) {
     board_.state.en_passant = no_square;
   }
 
-  for(int piece{ P }; piece <= K; piece++)
+  for(Pieces piece{ P }; piece <= K; piece++)
     board_.state.occupancies[white] |= board_.state.bitboards[piece];
 
-  for(int piece = p; piece <= k; piece++)
+  for(Pieces piece{ p }; piece <= k; piece++)
     board_.state.occupancies[black] |= board_.state.bitboards[piece];
 
   board_.state.occupancies[both] |= board_.state.occupancies[white];

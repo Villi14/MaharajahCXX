@@ -184,7 +184,7 @@ void Board::generate_moves() {
   Squares source_square{ no_square }, target_square{ no_square };
   u64 bitboard{}, attacks{};
 
-  for(const Pieces piece : all_pieces) {
+  for(Pieces piece{ P }; piece < no_pieces; piece++) {
     bitboard = state.bitboards[piece];
 
     if(state.side == white) {
@@ -225,7 +225,6 @@ void Board::generate_moves() {
           }
 
           if(state.en_passant != no_square) {
-
             if(const u64 en_passant_attacks = pawn_attacks[state.side][source_square] & (one << state.en_passant)) {
               const auto target_en_passant = get_ls1b_index(en_passant_attacks);
               moves_list.add(Move::encode_move(Move(source_square, target_en_passant, piece, no_pieces, true, false, true, false)));

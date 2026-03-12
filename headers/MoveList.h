@@ -20,7 +20,7 @@ struct MoveList {
     moves[count++] = move;
   }
 
-  [[nodiscard]] size_t size() const {
+  [[nodiscard]] std::size_t size() const {
     return count;
   }
 
@@ -32,11 +32,11 @@ struct MoveList {
     return moves[index];
   }
 
-  int operator[](const size_t index) const {
+  int operator[](const std::size_t index) const {
     return moves[index];
   }
 
-  int& operator[](const size_t index) {
+  int& operator[](const std::size_t index) {
     return moves[index];
   }
 };
