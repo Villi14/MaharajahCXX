@@ -271,7 +271,7 @@ void Game::play() {
       continue;
     }
 
-    string str = print_board();
+    str = print_board();
     //getchar();
 
     board_.take_back();
