@@ -123,13 +123,13 @@ u64 mask_bishop_attacks(const Squares square) {
   const int target_rank = square / rank_bit;
   const int target_file = square % file_bit;
 
-  for(rank = target_rank + 1, file = target_file + 1; rank <= 6 && file <= 6; rank++, file++)
+  for(rank = target_rank + 1, file = target_file + 1; rank <= 6 && file <= 6; ++rank, ++file)
     attacks |= (one << (rank * file_bit + file));
-  for(rank = target_rank - 1, file = target_file + 1; rank >= 1 && file <= 6; rank--, file++)
+  for(rank = target_rank - 1, file = target_file + 1; rank >= 1 && file <= 6; --rank, ++file)
     attacks |= (one << (rank * file_bit + file));
-  for(rank = target_rank + 1, file = target_file - 1; rank <= 6 && file >= 1; rank++, file--)
+  for(rank = target_rank + 1, file = target_file - 1; rank <= 6 && file >= 1; ++rank, --file)
     attacks |= (one << (rank * file_bit + file));
-  for(rank = target_rank - 1, file = target_file - 1; rank >= 1 && file >= 1; rank--, file--)
+  for(rank = target_rank - 1, file = target_file - 1; rank >= 1 && file >= 1; --rank, --file)
     attacks |= (one << (rank * file_bit + file));
 
   return attacks;
@@ -150,13 +150,13 @@ u64 mask_rook_attacks(const Squares square) {
   const int target_rank = square / rank_bit;
   const int target_file = square % file_bit;
 
-  for(rank = target_rank + 1; rank <= 6; rank++)
+  for(rank = target_rank + 1; rank <= 6; ++rank)
     attacks |= (one << (rank * file_bit + target_file));
-  for(rank = target_rank - 1; rank >= 1; rank--)
+  for(rank = target_rank - 1; rank >= 1; --rank)
     attacks |= (one << (rank * file_bit + target_file));
-  for(file = target_file + 1; file <= 6; file++)
+  for(file = target_file + 1; file <= 6; ++file)
     attacks |= (one << (target_rank * file_bit + file));
-  for(file = target_file - 1; file >= 1; file--)
+  for(file = target_file - 1; file >= 1; --file)
     attacks |= (one << (target_rank * file_bit + file));
 
   return attacks;
@@ -179,25 +179,25 @@ u64 bishop_attacks_on_the_fly(const Squares square, const u64 block) {
   const int target_rank = square / rank_bit;
   const int target_file = square % file_bit;
 
-  for(rank = target_rank + 1, file = target_file + 1; rank <= 7 && file <= 7; rank++, file++) {
+  for(rank = target_rank + 1, file = target_file + 1; rank <= 7 && file <= 7; ++rank, ++file) {
     attacks |= (one << (rank * file_bit + file));
     if((one << (rank * file_bit + file)) & block)
       break;
   }
 
-  for(rank = target_rank - 1, file = target_file + 1; rank >= 0 && file <= 7; rank--, file++) {
+  for(rank = target_rank - 1, file = target_file + 1; rank >= 0 && file <= 7; --rank, ++file) {
     attacks |= (one << (rank * file_bit + file));
     if((one << (rank * file_bit + file)) & block)
       break;
   }
 
-  for(rank = target_rank + 1, file = target_file - 1; rank <= 7 && file >= 0; rank++, file--) {
+  for(rank = target_rank + 1, file = target_file - 1; rank <= 7 && file >= 0; ++rank, --file) {
     attacks |= (one << (rank * file_bit + file));
     if((one << (rank * file_bit + file)) & block)
       break;
   }
 
-  for(rank = target_rank - 1, file = target_file - 1; rank >= 0 && file >= 0; rank--, file--) {
+  for(rank = target_rank - 1, file = target_file - 1; rank >= 0 && file >= 0; --rank, --file) {
     attacks |= (one << (rank * file_bit + file));
     if((one << (rank * file_bit + file)) & block)
       break;
@@ -222,25 +222,25 @@ u64 rook_attacks_on_the_fly(const Squares square, const u64 block) {
   const int target_rank = square / rank_bit;
   const int target_file = square % file_bit;
 
-  for(rank = target_rank + 1; rank <= 7; rank++) {
+  for(rank = target_rank + 1; rank <= 7; ++rank) {
     attacks |= (one << (rank * file_bit + target_file));
     if((one << (rank * file_bit + target_file)) & block)
       break;
   }
 
-  for(rank = target_rank - 1; rank >= 0; rank--) {
+  for(rank = target_rank - 1; rank >= 0; --rank) {
     attacks |= (one << (rank * file_bit + target_file));
     if((one << (rank * file_bit + target_file)) & block)
       break;
   }
 
-  for(file = target_file + 1; file <= 7; file++) {
+  for(file = target_file + 1; file <= 7; ++file) {
     attacks |= (one << (target_rank * file_bit + file));
     if((one << (target_rank * file_bit + file)) & block)
       break;
   }
 
-  for(file = target_file - 1; file >= 0; file--) {
+  for(file = target_file - 1; file >= 0; --file) {
     attacks |= (one << (target_rank * file_bit + file));
     if((one << (target_rank * file_bit + file)) & block)
       break;

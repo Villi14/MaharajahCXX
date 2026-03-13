@@ -99,7 +99,7 @@ void Board::make_move(const int move_int, const TypeMove move_flag) {
         end_piece = K;
       }
 
-      for(int bb_piece{ start_piece }; bb_piece <= end_piece; bb_piece++) {
+      for(int bb_piece{ start_piece }; bb_piece <= end_piece; ++bb_piece) {
         if(get_bit(state.bitboards[bb_piece], target_square)) {
           pop_bit(state.bitboards[bb_piece], target_square);
           break;
@@ -184,7 +184,7 @@ void Board::generate_moves() {
   Squares source_square{ no_square }, target_square{ no_square };
   u64 bitboard{}, attacks{};
 
-  for(Pieces piece{ P }; piece < no_pieces; piece++) {
+  for(Pieces piece{ P }; piece < no_pieces; ++piece) {
     bitboard = state.bitboards[piece];
 
     if(state.side == white) {

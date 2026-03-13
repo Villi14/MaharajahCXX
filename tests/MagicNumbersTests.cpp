@@ -33,7 +33,7 @@ bool test_magic_square(Squares square, u64 magic, int relevant_bits, bool bishop
   vector<u64> used(occ_count, 0ULL);
   vector<bool> filled(occ_count, false);
 
-  for(int i{}; i < occ_count; i++) {
+  for(int i{}; i < occ_count; ++i) {
     u64 occ = set_occupancy(i, relevant_bits, bishop ? bishop_masks[square] : rook_masks[square]);
 
     u64 attack = bishop ? bishop_attacks_on_the_fly(square, occ) : rook_attacks_on_the_fly(square, occ);

@@ -30,8 +30,8 @@ string Game::print_bitboard(const u64 bitboard, const bool print_to_console) {
   if(print_to_console) {
     ss << "0x" << hex << bitboard << ",";
   } else {
-    for(int rank{}; rank < rank_bit; rank++) {
-      for(int file{}; file < file_bit; file++) {
+    for(int rank{}; rank < rank_bit; ++rank) {
+      for(int file{}; file < file_bit; ++file) {
         const Squares square{ to_square(rank * rank_bit + file) };
 
         if(!file) {
@@ -58,15 +58,15 @@ string Game::print_bitboard(const u64 bitboard, const bool print_to_console) {
 string Game::print_board(const bool print_to_console) const {
   stringstream ss;
   ss << "\n";
-  for(int rank{}; rank < rank_bit; rank++) {
-    for(int file{}; file < file_bit; file++) {
+  for(int rank{}; rank < rank_bit; ++rank) {
+    for(int file{}; file < file_bit; ++file) {
       int square{ rank * rank_bit + file };
       if(!file)
         ss << " " << 8 - rank << " ";
 
       int piece_int{ -1 };
 
-      for(Pieces piece{ P }; piece < no_pieces; piece++) {
+      for(Pieces piece{ P }; piece < no_pieces; ++piece) {
         if(get_bit(board_.state.bitboards[piece], to_square(square)))
           piece_int = static_cast<int>(piece);
       }
@@ -115,8 +115,8 @@ void Game::parse_fen(const string_view fen) {
   board_.state.bitboards.fill(zero);
   board_.state.occupancies.fill(zero);
 
-  for(int rank{}; rank < rank_bit; rank++) {
-    for(int file{}; file < file_bit; file++) {
+  for(int rank{}; rank < rank_bit; ++rank) {
+    for(int file{}; file < file_bit; ++file) {
 
       auto square = to_square(rank * rank_bit + file);
       const char c1 = fen_char(index);
@@ -124,7 +124,7 @@ void Game::parse_fen(const string_view fen) {
       if((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
         int piece{ char_pieces[c1] };
         set_bit(board_.state.bitboards[piece], square);
-        index++;
+        ++index;
       }
 
       const char c2 = fen_char(index);
@@ -132,24 +132,24 @@ void Game::parse_fen(const string_view fen) {
         int offset{ c2 - '0' };
         int piece_int{ -1 };
 
-         for(Pieces piece{ P }; piece < no_pieces; piece++) {
+         for(Pieces piece{ P }; piece < no_pieces; ++piece) {
           if(get_bit(board_.state.bitboards[piece], square))
             piece_int = static_cast<int>(piece);
         }
 
         if(piece_int == -1)
-          file--;
+          --file;
 
         file += offset;
-        index++;
+        ++index;
       }
 
       if(fen_char(index) == '/')
-        index++;
+        ++index;
     }
   }
 
-  index++;
+  ++index;
   const char side_char = fen_char(index);
   (side_char == 'w') ? (board_.state.side = white) : (board_.state.side = black);
   index += 2;
@@ -175,10 +175,10 @@ void Game::parse_fen(const string_view fen) {
     case '-': default:
       break;
     }
-    index++;
+    ++index;
   }
 
-  index++;
+  ++index;
 
   if(fen_char(index) != '-') {
     const int file{ fen_char(index) - 'a' };
@@ -189,10 +189,10 @@ void Game::parse_fen(const string_view fen) {
     board_.state.en_passant = no_square;
   }
 
-  for(Pieces piece{ P }; piece <= K; piece++)
+  for(Pieces piece{ P }; piece < no_pieces; ++piece)
     board_.state.occupancies[white] |= board_.state.bitboards[piece];
 
-  for(Pieces piece{ p }; piece <= k; piece++)
+  for(Pieces piece{ P }; piece < no_pieces; ++piece)
     board_.state.occupancies[black] |= board_.state.bitboards[piece];
 
   board_.state.occupancies[both] |= board_.state.occupancies[white];
@@ -202,8 +202,8 @@ void Game::parse_fen(const string_view fen) {
 void Game::print_attacked_squares(Colors side) const {
   stringstream ss;
 
-  for(int rank{}; rank < rank_bit; rank++) {
-    for(int file{}; file < file_bit; file++) {
+  for(int rank{}; rank < rank_bit; ++rank) {
+    for(int file{}; file < file_bit; ++file) {
       const auto square = to_square(rank * rank_bit + file);
       if(!file)
         ss << " " << rank_bit - rank << " ";
@@ -236,7 +236,7 @@ void Game::print_move_list() {
 
   ss << "\n     move    piece     capture   double    enpass    castling\n\n";
 
-  for(size_t move_count{}; move_count < board_.moves_list.size(); move_count++) {
+  for(size_t move_count{}; move_count < board_.moves_list.size(); ++move_count) {
     const int move = board_.moves_list[move_count];
 
     ss << format("      {}{}{}   {}         {}         {}         {}         {}\n",

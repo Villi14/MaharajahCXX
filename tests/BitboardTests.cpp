@@ -293,7 +293,7 @@ TEST_F(bitboard_test_fixture, bishop_fly_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << bishop_relevant_bits[square] };
     const u64 attack_mask{ mask_bishop_attacks(square) };
-    for(int index{}; index < count; index++) {
+    for(int index{}; index < count; ++index) {
       const u64 occupancies = set_occupancy(index, bishop_relevant_bits[square], attack_mask);
       EXPECT_EQ(bishop_fly_attacks_table[square][index], bishop_attacks_on_the_fly(square, occupancies));
     }
@@ -307,7 +307,7 @@ TEST_F(bitboard_test_fixture, rook_fly_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << rook_relevant_bits[square] };
     const u64 attack_mask{ mask_rook_attacks(square) };
-    for(int index{}; index < count; index++) {
+    for(int index{}; index < count; ++index) {
       const u64 occupancies{ set_occupancy(index, rook_relevant_bits[square], attack_mask) };
       EXPECT_EQ(rook_fly_attacks_table[square][index], rook_attacks_on_the_fly(square, occupancies));
     }
@@ -337,7 +337,7 @@ TEST_F(bitboard_test_fixture, square_to_coordinates_test) {
 TEST_F(bitboard_test_fixture, set_occupancy_rook_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << rook_relevant_bits[square] };
-    for(int index{}; index < count; index++) {
+    for(int index{}; index < count; ++index) {
       const u64 attack_mask{ mask_rook_attacks(square) };
       EXPECT_EQ(occupancy_rook_table[square][index], set_occupancy(index, count_bits(attack_mask), attack_mask));
     }
@@ -355,7 +355,7 @@ TEST_F(bitboard_test_fixture, set_occupancy_rook_test) {
 TEST_F(bitboard_test_fixture, set_occupancy_bishop_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int count{ 1 << bishop_relevant_bits[square] };
-    for(int index{}; index < count; index++) {
+    for(int index{}; index < count; ++index) {
       const u64 attack_mask{ mask_bishop_attacks(square) };
       EXPECT_EQ(occupancy_bishop_table[square][index], set_occupancy(index, count_bits(attack_mask), attack_mask));
     }
@@ -411,7 +411,7 @@ TEST_F(bitboard_test_fixture, init_rook_sliders_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << rook_relevant_bits[square] };
 
-    for(int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; ++index) {
       const u64 occupancy{ occupancy_rook_table[square][index] };
       const u64 magic_index{ (occupancy * rook_magic_numbers_table[square]) >> (end_bit - rook_relevant_bits[square]) };
       EXPECT_EQ(rook_attacks[square][magic_index], rook_attacks_on_the_fly(square, occupancy));
@@ -430,7 +430,7 @@ TEST_F(bitboard_test_fixture, init_bishop_sliders_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << bishop_relevant_bits[square] };
 
-    for(int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; ++index) {
       const u64 occupancy{ occupancy_bishop_table[square][index] };
       const u64 magic_index{ (occupancy * bishop_magic_numbers_table[square]) >> (end_bit - bishop_relevant_bits[square]) };
       EXPECT_EQ(bishop_attacks[square][magic_index], bishop_attacks_on_the_fly(square, occupancy));
@@ -468,7 +468,7 @@ TEST_F(bitboard_test_fixture, get_bishop_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     const int occupancy_indices{ 1 << bishop_relevant_bits[square] };
 
-    for(int index{}; index < occupancy_indices; index++) {
+    for(int index{}; index < occupancy_indices; ++index) {
       const u64 occupancy{ occupancy_bishop_table[square][index] };
       const u64 magic_index{ (occupancy * bishop_magic_numbers_table[square]) >> (end_bit - bishop_relevant_bits[square]) };
       EXPECT_EQ(bishop_attacks[square][magic_index], get_bishop_attacks(square, occupancy));
