@@ -63,7 +63,7 @@ class board_test_fixture : public testing::Test {
       const auto src = Move::get_move_source(move);
       const auto dst = Move::get_move_target(move);
       const auto promo = Move::get_move_promoted(move);
-      out += string(square_to_coord[src]) + string(square_to_coord[dst]);
+      out += string(square_to_coordinates[src]) + string(square_to_coordinates[dst]);
       if(promo != no_pieces) {
         out += promoted_pieces[promo];
       }
@@ -226,7 +226,7 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
           {
             const bool exp = (expected & (one << square)) != zero;
             SCOPED_TRACE(testing::Message() << "side=" << (side == white ? "white" : "black") << " piece=" << test_case.name
-                                            << " from=" << square_to_coord[square] << " to=" << square_to_coord[square]);
+                                            << " from=" << square_to_coordinates[square] << " to=" << square_to_coordinates[square]);
             EXPECT_EQ(board.is_square_attacked(square, side), exp);
           }
         }
@@ -501,6 +501,7 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
 TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.castle = wk | wq;
   board.update_occupancies();
 
@@ -510,6 +511,8 @@ TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
 
   reset_board(board, white);
   board.state.bitboards[R] = (one << h1);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.castle = wk | wq;
   board.update_occupancies();
 
@@ -527,6 +530,7 @@ TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
 TEST_F(board_test_fixture, make_move_updates_black_castling_rights) {
   reset_board(board, black);
   board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[K] = (one << e1);
   board.state.castle = bk | bq;
   board.update_occupancies();
 
@@ -536,6 +540,8 @@ TEST_F(board_test_fixture, make_move_updates_black_castling_rights) {
 
   reset_board(board, black);
   board.state.bitboards[r] = (one << h8);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[K] = (one << e1);
   board.state.castle = bk | bq;
   board.update_occupancies();
 
@@ -543,6 +549,92 @@ TEST_F(board_test_fixture, make_move_updates_black_castling_rights) {
   board.make_move(rook_move, TypeMove::all_moves);
   EXPECT_EQ(board.state.castle & bk, 0);
   EXPECT_NE(board.state.castle & bq, 0);
+}
+
+/**
+ * @brief Tests that castling rights are updated when a rook is captured.
+ * @details This test checks that capturing a rook on a1/h1 removes the correct white castling rights.
+ */
+TEST_F(board_test_fixture, make_move_updates_white_castling_rights_on_rook_capture) {
+  // Capture rook on h1 -> lose wk
+  reset_board(board, black);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[b] = (one << d5);
+  board.state.bitboards[R] = (one << h1);
+  board.state.castle = wk | wq;
+  board.update_occupancies();
+
+  const int bishop_capture_h1 = Move::encode_move(Move{ d5, h1, b, no_pieces, true, false, false, false });
+  board.make_move(bishop_capture_h1, TypeMove::all_moves);
+  EXPECT_EQ(board.state.castle & wk, 0);
+  EXPECT_NE(board.state.castle & wq, 0);
+
+  // Capture rook on a1 -> lose wq
+  reset_board(board, black);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[b] = (one << d4);
+  board.state.bitboards[R] = (one << a1);
+  board.state.castle = wk | wq;
+  board.update_occupancies();
+
+  const int bishop_capture_a1 = Move::encode_move(Move{ d4, a1, b, no_pieces, true, false, false, false });
+  board.make_move(bishop_capture_a1, TypeMove::all_moves);
+  EXPECT_EQ(board.state.castle & wq, 0);
+  EXPECT_NE(board.state.castle & wk, 0);
+}
+
+/**
+ * @brief Tests that castling rights are updated when a rook is captured.
+ * @details This test checks that capturing a rook on a8/h8 removes the correct black castling rights.
+ */
+TEST_F(board_test_fixture, make_move_updates_black_castling_rights_on_rook_capture) {
+  // Capture rook on h8 -> lose bk
+  reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[Q] = (one << h5);
+  board.state.bitboards[r] = (one << h8);
+  board.state.castle = bk | bq;
+  board.update_occupancies();
+
+  const int queen_capture_h8 = Move::encode_move(Move{ h5, h8, Q, no_pieces, true, false, false, false });
+  board.make_move(queen_capture_h8, TypeMove::all_moves);
+  EXPECT_EQ(board.state.castle & bk, 0);
+  EXPECT_NE(board.state.castle & bq, 0);
+
+  // Capture rook on a8 -> lose bq
+  reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[Q] = (one << a5);
+  board.state.bitboards[r] = (one << a8);
+  board.state.castle = bk | bq;
+  board.update_occupancies();
+
+  const int queen_capture_a8 = Move::encode_move(Move{ a5, a8, Q, no_pieces, true, false, false, false });
+  board.make_move(queen_capture_a8, TypeMove::all_moves);
+  EXPECT_EQ(board.state.castle & bq, 0);
+  EXPECT_NE(board.state.castle & bk, 0);
+}
+
+/**
+ * @brief Tests that castling rights are unchanged when capturing a non-rook.
+ * @details This test ensures that capturing a piece on a non-rook square does not alter castling rights.
+ */
+TEST_F(board_test_fixture, make_move_does_not_update_castling_rights_on_non_rook_capture) {
+  reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
+  board.state.bitboards[Q] = (one << h5);
+  board.state.bitboards[p] = (one << h7);
+  board.state.castle = wk | wq | bk | bq;
+  board.update_occupancies();
+
+  const int queen_capture_h7 = Move::encode_move(Move{ h5, h7, Q, no_pieces, true, false, false, false });
+  board.make_move(queen_capture_h7, TypeMove::all_moves);
+  EXPECT_EQ(board.state.castle, wk | wq | bk | bq);
 }
 
 /**
@@ -760,6 +852,8 @@ TEST_F(board_test_fixture, is_square_attacked_by_sliders) {
  */
 TEST_F(board_test_fixture, make_move_capture) {
   reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[P] = (one << e4);
   board.state.bitboards[p] = (one << d5);
   board.update_occupancies();
@@ -773,6 +867,8 @@ TEST_F(board_test_fixture, make_move_capture) {
   EXPECT_EQ(board.state.en_passant, no_square);
 
   reset_board(board, black);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[p] = (one << d5);
   board.state.bitboards[P] = (one << e4);
   board.update_occupancies();
@@ -795,6 +891,8 @@ TEST_F(board_test_fixture, make_move_capture) {
  */
 TEST_F(board_test_fixture, make_move_en_passant) {
   reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[P] = (one << e5);
   board.state.bitboards[p] = (one << d5);
   board.state.en_passant = d6;
@@ -809,6 +907,8 @@ TEST_F(board_test_fixture, make_move_en_passant) {
   EXPECT_EQ(board.state.en_passant, no_square);
 
   reset_board(board, black);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[p] = (one << d4);
   board.state.bitboards[P] = (one << e4);
   board.state.en_passant = e3;
@@ -830,6 +930,8 @@ TEST_F(board_test_fixture, make_move_en_passant) {
  */
 TEST_F(board_test_fixture, make_move_promotion) {
   reset_board(board, white);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[P] = (one << a7);
   board.update_occupancies();
 
@@ -840,6 +942,8 @@ TEST_F(board_test_fixture, make_move_promotion) {
   EXPECT_TRUE(get_bit(board.state.bitboards[Q], a8));
 
   reset_board(board, black);
+  board.state.bitboards[K] = (one << e1);
+  board.state.bitboards[k] = (one << e8);
   board.state.bitboards[p] = (one << a2);
   board.update_occupancies();
 

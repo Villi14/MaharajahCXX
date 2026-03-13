@@ -1,4 +1,5 @@
 #include "../headers/Game.h"
+#include "TestAccess.h"
 #include "gtest/gtest.h"
 
 #include <map>
@@ -219,6 +220,26 @@ TEST_F(game_test_fixture, fen_parsing_test) {
     game.parse_fen(fen);
     EXPECT_STREQ(board_str.c_str(), game.print_board(false).c_str());
   }
+}
+
+TEST_F(game_test_fixture, fen_parsing_sets_occupancies) {
+  game.parse_fen(start_position);
+
+  const Board& board = GameTestAccess::board(game);
+  u64 expected_white{};
+  for(Pieces piece{ P }; piece <= K; ++piece) {
+    expected_white |= board.state.bitboards[piece];
+  }
+
+  u64 expected_black{};
+  for(Pieces piece{ p }; piece <= k; ++piece) {
+    expected_black |= board.state.bitboards[piece];
+  }
+
+  EXPECT_EQ(board.state.occupancies[white], expected_white);
+  EXPECT_EQ(board.state.occupancies[black], expected_black);
+  EXPECT_EQ(board.state.occupancies[both], (expected_white | expected_black));
+  EXPECT_NE(board.state.occupancies[white], board.state.occupancies[black]);
 }
 
 TEST_F(game_test_fixture, parse_fen_throws_on_invalid_input) {

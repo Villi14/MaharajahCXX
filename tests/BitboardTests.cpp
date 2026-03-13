@@ -319,11 +319,11 @@ TEST_F(bitboard_test_fixture, rook_fly_attacks_test) {
  *
  * The test loops over all squares on the board and checks whether the square_to_coordinates function
  * correctly maps the square to its coordinates. The coordinates are compared with the precomputed
- * table, square_to_coord.
+ * table, square_to_coordinates.
  */
 TEST_F(bitboard_test_fixture, square_to_coordinates_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
-    EXPECT_EQ(square_to_coord[square], square_to_coord[get_ls1b_index(one << square)]);
+    EXPECT_EQ(square_to_coordinates[square], square_to_coordinates[get_ls1b_index(one << square)]);
   }
 }
 /**

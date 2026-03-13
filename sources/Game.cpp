@@ -79,7 +79,7 @@ string Game::print_board(const bool print_to_console) const {
   ss << "\n    a b c d e f g h\n\n";
   ss << format("    Side:     {}\n", board_.state.side ? "black" : "white");
   ss << format("    En passant:  {}\n",
-               (board_.state.en_passant != no_square) ? square_to_coord[board_.state.en_passant] : "no");
+               (board_.state.en_passant != no_square) ? square_to_coordinates[board_.state.en_passant] : "no");
   ss << format("    Castling:  {}{}{}{}\n",
                (board_.state.castle & wk) ? 'K' : '-',
                (board_.state.castle & wq) ? 'Q' : '-',
@@ -119,17 +119,17 @@ void Game::parse_fen(const string_view fen) {
     for(int file{}; file < file_bit; ++file) {
 
       auto square = to_square(rank * rank_bit + file);
-      const char c1 = fen_char(index);
+      const char ch1 = fen_char(index);
 
-      if((c1 >= 'a' && c1 <= 'z') || (c1 >= 'A' && c1 <= 'Z')) {
-        int piece{ char_pieces[c1] };
+      if((ch1 >= 'a' && ch1 <= 'z') || (ch1 >= 'A' && ch1 <= 'Z')) {
+        int piece{ char_pieces[ch1] };
         set_bit(board_.state.bitboards[piece], square);
         ++index;
       }
 
-      const char c2 = fen_char(index);
-      if(c2 >= '0' && c2 <= '9') {
-        int offset{ c2 - '0' };
+      const char ch2 = fen_char(index);
+      if(ch2 >= '0' && ch2 <= '9') {
+        int offset{ ch2 - '0' };
         int piece_int{ -1 };
 
          for(Pieces piece{ P }; piece < no_pieces; ++piece) {
@@ -189,10 +189,10 @@ void Game::parse_fen(const string_view fen) {
     board_.state.en_passant = no_square;
   }
 
-  for(Pieces piece{ P }; piece < no_pieces; ++piece)
+  for(Pieces piece{ P }; piece <= K; ++piece)
     board_.state.occupancies[white] |= board_.state.bitboards[piece];
 
-  for(Pieces piece{ P }; piece < no_pieces; ++piece)
+  for(Pieces piece{ p }; piece <= k; ++piece)
     board_.state.occupancies[black] |= board_.state.bitboards[piece];
 
   board_.state.occupancies[both] |= board_.state.occupancies[white];
@@ -221,8 +221,8 @@ void Game::print_move(const int move) {
   const char promo_char = (promoted == no_pieces) ? ' ' : promoted_pieces[promoted];
 
   cout << format("{}{}{}\n",
-                 square_to_coord[Move::get_move_source(move)],
-                 square_to_coord[Move::get_move_target(move)],
+                 square_to_coordinates[Move::get_move_source(move)],
+                 square_to_coordinates[Move::get_move_target(move)],
                  promo_char);
 }
 
@@ -240,8 +240,8 @@ void Game::print_move_list() {
     const int move = board_.moves_list[move_count];
 
     ss << format("      {}{}{}   {}         {}         {}         {}         {}\n",
-                 square_to_coord[Move::get_move_source(move)],
-                 square_to_coord[Move::get_move_target(move)],
+                 square_to_coordinates[Move::get_move_source(move)],
+                 square_to_coordinates[Move::get_move_target(move)],
                  Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)],
                  display_pieces[Move::get_move_piece(move)],
                  Move::get_move_capture(move) ? 1 : 0,
@@ -257,9 +257,28 @@ void Game::print_move_list() {
 
 void Game::play() {
   game_state_ = play_game;
+  init_all();
 
-  parse_fen(killer_position);
+  parse_fen("r3k2r/p1ppRpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1 ");
   string str = print_board();
+  board_.generate_moves();
+
+  for(size_t move_count{}; move_count < board_.moves_list.size(); ++move_count) {
+    const int move = board_.moves_list[move_count];
+    board_.copy_board();
+
+    if(!board_.make_move(move, TypeMove::all_moves)) {
+      continue;
+    }
+
+    string str = print_board();
+    //getchar();
+
+    board_.take_back();
+    str = print_board();
+    //getchar();
+  }
+
 }
 
 } // namespace maharajah

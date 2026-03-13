@@ -67,27 +67,27 @@ void Board::update_occupancies() {
  *
  * This function makes a move on the board. It first checks if the move is of type all_moves, and if so, it makes a copy of the current board state. It then gets the source square, target square, piece, promoted piece, capture, double push, en passant, and castling flags from the move. It then handles the move by moving the piece, handling capture, promotion, en passant, and castling. Finally, it updates the occupancies and en passant, and changes the side of the board state.
  *
- * @param move_int The move to make.
+ * @param move_encode The move to make.
  * @param move_flag The type of move to make.
  */
-void Board::make_move(const int move_int, const TypeMove move_flag) {
+bool Board::make_move(const int move_encode, const TypeMove move_flag) {
   if(move_flag == TypeMove::all_moves) {
     copy_board();
 
-    const Squares source_square = Move::get_move_source(move_int);
-    const Squares target_square = Move::get_move_target(move_int);
-    const Pieces piece = Move::get_move_piece(move_int);
-    const Pieces promoted = Move::get_move_promoted(move_int);
-    const bool capture = Move::get_move_capture(move_int);
-    const bool double_push = Move::get_move_double(move_int);
-    const bool enpassant = Move::get_move_enpassant(move_int);
-    const bool castling = Move::get_move_castling(move_int);
+    const Squares source_square = Move::get_move_source(move_encode);
+    const Squares target_square = Move::get_move_target(move_encode);
+    const Pieces piece = Move::get_move_piece(move_encode);
+    const Pieces promoted = Move::get_move_promoted(move_encode);
+    const bool capture = Move::get_move_capture(move_encode);
+    const bool double_push = Move::get_move_double(move_encode);
+    const bool en_passant = Move::get_move_enpassant(move_encode);
+    const bool castling = Move::get_move_castling(move_encode);
 
-    // Move piece
+    // move piece
     pop_bit(state.bitboards[piece], source_square);
     set_bit(state.bitboards[piece], target_square);
 
-    // Handle capture
+    // handle capture
     if(capture) {
       int start_piece, end_piece;
 
@@ -107,14 +107,17 @@ void Board::make_move(const int move_int, const TypeMove move_flag) {
       }
     }
 
-    // Handle promotion
+    // handle promotion
     if(promoted != no_pieces) {
-      pop_bit(state.bitboards[piece], target_square);
+      // erase the pawn from the target square
+      pop_bit(state.bitboards[(state.side == white) ? P : p], target_square);
+      // set up promoted piece on chess board
       set_bit(state.bitboards[promoted], target_square);
     }
 
-    // Handle en passant
-    if(enpassant) {
+    // handle en passant
+    if(en_passant) {
+      // erase the pawn depending on side to move
       if(state.side == white) {
         pop_bit(state.bitboards[p], target_square + rank_bit);
       } else {
@@ -122,59 +125,78 @@ void Board::make_move(const int move_int, const TypeMove move_flag) {
       }
     }
 
-    // Handle castling
+    // reset enpassant square
+    state.en_passant = no_square;
+
+    // handle double pawn push
+    if(double_push) {
+      // set enpassant square depending on side to move
+      if(state.side == white) {
+        state.en_passant = target_square + rank_bit;
+      } else {
+        state.en_passant = target_square - rank_bit;
+      }
+    }
+
+    // handle castling
     if(castling) {
-      if(target_square == g1) { // White kingside
+      if(target_square == g1) { // white kingside
         pop_bit(state.bitboards[R], h1);
         set_bit(state.bitboards[R], f1);
-      } else if(target_square == c1) { // White queenside
+      } else if(target_square == c1) { // white queenside
         pop_bit(state.bitboards[R], a1);
         set_bit(state.bitboards[R], d1);
-      } else if(target_square == g8) { // Black kingside
+      } else if(target_square == g8) { // black kingside
         pop_bit(state.bitboards[r], h8);
         set_bit(state.bitboards[r], f8);
-      } else if(target_square == c8) { // Black queenside
+      } else if(target_square == c8) { // back queenside
         pop_bit(state.bitboards[r], a8);
         set_bit(state.bitboards[r], d8);
       }
     }
 
-    // Update occupancies
-    update_occupancies();
+    // update castling rights
+    state.castle &= castling_rights[source_square];
+    state.castle &= castling_rights[target_square];
 
-    // Update en passant (before side change)
-    if(double_push) {
-      state.en_passant = state.side == white ? target_square - rank_bit : target_square + rank_bit;
+    // update occupancies
+    state.occupancies.fill(zero);
+
+    for(Pieces bb_piece{ P }; bb_piece <= K; ++bb_piece)
+      // update white occupancies
+      state.occupancies[white] |= state.bitboards[bb_piece];
+
+    // loop over black pieces bitboards
+    for(Pieces bb_piece{ p }; bb_piece <= k; ++bb_piece)
+      // update black occupancies
+      state.occupancies[black] |= state.bitboards[bb_piece];
+
+    // update both sides occupancies
+    state.occupancies[both] |= state.occupancies[white];
+    state.occupancies[both] |= state.occupancies[black];
+
+    // change side
+    state.side = (state.side == white) ? black : white;
+
+    // make sure that king has not been exposed into a check
+    if(is_square_attacked((state.side == white) ? get_ls1b_index(state.bitboards[k]) : get_ls1b_index(state.bitboards[K]), state.side)) {
+      // take move back
+      take_back();
+
+      // return illegal move
+      return false;
     } else {
-      state.en_passant = no_square;
+      return true;
     }
+  } else {
+    // make sure move is the capture
+    if(Move::get_move_capture(move_encode)) {
+      return make_move(move_encode, TypeMove::all_moves);
 
-    // Update side
-    state.side == white ? state.side = black : state.side = white;
-
-    // Update castling rights
-    if(piece == K || source_square == e1 || target_square == e1) {
-      state.castle &= ~(wk | wq);
-    }
-
-    if(piece == k || source_square == e8 || target_square == e8) {
-      state.castle &= ~(bk | bq);
-    }
-
-    if(source_square == h1 || target_square == h1) {
-      state.castle &= ~wk;
-    }
-
-    if(source_square == a1 || target_square == a1) {
-      state.castle &= ~wq;
-    }
-
-    if(source_square == h8 || target_square == h8) {
-      state.castle &= ~bk;
-    }
-    
-    if(source_square == a8 || target_square == a8) {
-      state.castle &= ~bq;
+    // otherwise the move is not a capture
+     } else {
+      // return illegal move
+      return false;
     }
   }
 }

@@ -230,7 +230,7 @@ inline constexpr std::array<u64, 2> board {
   initial_black_pawns | initial_black_knights | initial_black_bishops | initial_black_rooks | initial_black_queen | initial_black_king
 };
 
-inline constexpr std::array<const char*, 64> square_to_coord {
+inline constexpr std::array<const char*, 64> square_to_coordinates {
 	"a8", "b8", "c8", "d8", "e8", "f8", "g8", "h8",
 	"a7", "b7", "c7", "d7", "e7", "f7", "g7", "h7",
 	"a6", "b6", "c6", "d6", "e6", "f6", "g6", "h6",
@@ -261,6 +261,32 @@ inline constexpr std::array<int, 64> rook_relevant_bits {
 	11, 10, 10, 10, 10, 10, 10, 11,
 	11, 10, 10, 10, 10, 10, 10, 11,
 	12, 11, 11, 11, 11, 11, 11, 12
+};
+
+/*
+                           castling   move     in      in
+                              right update     binary  decimal
+
+ king & rooks didn't move:     1111 & 1111  =  1111    15
+
+        white king  moved:     1111 & 1100  =  1100    12
+  white king's rook moved:     1111 & 1110  =  1110    14
+ white queen's rook moved:     1111 & 1101  =  1101    13
+
+         black king moved:     1111 & 0011  =  1011    3
+  black king's rook moved:     1111 & 1011  =  1011    11
+ black queen's rook moved:     1111 & 0111  =  0111    7
+*/
+
+inline constexpr std::array<int, 64> castling_rights {
+     7, 15, 15, 15,  3, 15, 15, 11,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    15, 15, 15, 15, 15, 15, 15, 15,
+    13, 15, 15, 15, 12, 15, 15, 14
 };
 
 #ifdef _MSC_VER
