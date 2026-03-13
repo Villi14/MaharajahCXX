@@ -27,6 +27,9 @@ dist/
 .cache/
 .vscode/
 
+# QT 
+.qtcreator/
+
 # Unit test reports
 TEST*.xml
 
