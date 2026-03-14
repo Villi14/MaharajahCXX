@@ -8,8 +8,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
     maharajah::Game game;
     game.play();
     const int score = game.shutdown();
-    cout << "Game State = " << game.state() << '\n';
-    cout << "Score = " << score << '\n';
+    // cout << "Game State = " << game.state() << '\n';
+    // cout << "Score = " << score << '\n';
   } catch(...) {
     return EXIT_FAILURE;
   }

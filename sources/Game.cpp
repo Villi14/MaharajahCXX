@@ -8,6 +8,12 @@
 #include <string_view>
 #include <stdexcept>
 
+#ifdef _MSC_VER
+#  include <windows.h>
+#else
+#  include <sys/time.h>
+#endif
+
 using namespace std;
 
 namespace maharajah {
@@ -255,6 +261,16 @@ void Game::print_move_list() {
   cout << ss.str();
 }
 
+int Game::get_time_ms() {
+#ifdef _MSC_VER
+  return GetTickCount();
+#else
+  struct timeval time_value;
+  gettimeofday(&time_value, NULL);
+  return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
+#endif
+}
+
 void Game::play() {
   game_state_ = play_game;
   init_all();
@@ -263,22 +279,15 @@ void Game::play() {
   string str = print_board();
   board_.generate_moves();
 
+  int start = get_time_ms();
+
   for(size_t move_count{}; move_count < board_.moves_list.size(); ++move_count) {
     const int move = board_.moves_list[move_count];
-    board_.copy_board();
-
-    if(!board_.make_move(move, TypeMove::all_moves)) {
-      continue;
-    }
-
-    str = print_board();
-    //getchar();
-
-    board_.take_back();
-    str = print_board();
-    //getchar();
+  
+    str = print_board(); 
   }
 
+  cout << "Time: " << get_time_ms() - start << " ms\n";
 }
 
 } // namespace maharajah
