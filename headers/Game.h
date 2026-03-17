@@ -21,6 +21,9 @@ struct Game {
   static void print_move(int move);
   void print_move_list();
   int get_time_ms();
+  void perft_driver(int depth);
+  [[nodiscard]] u64 perft(int depth);
+  void perft_divide(int depth);
 
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;
@@ -29,7 +32,8 @@ struct Game {
   private:
   Board board_{};
   GameState game_state_{ start_game };
-  int score_{ 0 };
+  int score_{};
+  long nodes_{};
 };
 
 } // namespace maharajah

@@ -7,9 +7,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
   try {
     maharajah::Game game;
     game.play();
-    const int score = game.shutdown();
-    // cout << "Game State = " << game.state() << '\n';
-    // cout << "Score = " << score << '\n';
+    game.shutdown();
   } catch(...) {
     return EXIT_FAILURE;
   }

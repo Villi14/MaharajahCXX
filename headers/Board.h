@@ -9,9 +9,8 @@ namespace maharajah {
 struct Board {
   BoardState state{};
   BoardState copy_state{};
-  Move move{};
   MoveList moves_list{};
-
+  
   void copy_board() {
     copy_state = state;
   }
@@ -21,7 +20,7 @@ struct Board {
   }
 
   [[nodiscard]] bool is_square_attacked(Squares square, Colors side) const;
-  bool make_move(int move, TypeMove move_flag);
+  bool make_move(int move, TypeMove type_move);
   void update_occupancies();
   void generate_moves();
 };

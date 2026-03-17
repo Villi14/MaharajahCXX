@@ -1,6 +1,6 @@
 #pragma once
 
-#include <array>
+#include <cstddef>
 #include <cassert>
 
 namespace maharajah {
@@ -8,37 +8,16 @@ namespace maharajah {
 constexpr int MAX_MOVES = 256;
 
 struct MoveList {
-  std::array<int, MAX_MOVES> moves{};
-  int count{};
-
-  void clear() {
-    count = 0;
-  }
-
+  int moves[MAX_MOVES];
+  int count;
+  void clear() { count = 0; }
   void add(int move) {
     assert(count < MAX_MOVES);
     moves[count++] = move;
   }
-
-  [[nodiscard]] std::size_t size() const {
-    return count;
-  }
-
-  int operator[](const int index) const {
-    return moves[index];
-  }
-
-  int& operator[](const int index) {
-    return moves[index];
-  }
-
-  int operator[](const std::size_t index) const {
-    return moves[index];
-  }
-
-  int& operator[](const std::size_t index) {
-    return moves[index];
-  }
+  std::size_t size() const { return static_cast<std::size_t>(count); }
+  int operator[](int idx) const { return moves[idx]; }
+  int& operator[](int idx) { return moves[idx]; }
 };
 
 } // namespace maharajah

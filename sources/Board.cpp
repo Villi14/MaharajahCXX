@@ -67,21 +67,21 @@ void Board::update_occupancies() {
  *
  * This function makes a move on the board. It first checks if the move is of type all_moves, and if so, it makes a copy of the current board state. It then gets the source square, target square, piece, promoted piece, capture, double push, en passant, and castling flags from the move. It then handles the move by moving the piece, handling capture, promotion, en passant, and castling. Finally, it updates the occupancies and en passant, and changes the side of the board state.
  *
- * @param move_encode The move to make.
+ * @param move The move to make.
  * @param move_flag The type of move to make.
  */
-bool Board::make_move(const int move_encode, const TypeMove move_flag) {
-  if(move_flag == TypeMove::all_moves) {
+bool Board::make_move(const int move, const TypeMove type_move) {
+  if(type_move == TypeMove::all_moves) {
     copy_board();
 
-    const Squares source_square = Move::get_move_source(move_encode);
-    const Squares target_square = Move::get_move_target(move_encode);
-    const Pieces piece = Move::get_move_piece(move_encode);
-    const Pieces promoted = Move::get_move_promoted(move_encode);
-    const bool capture = Move::get_move_capture(move_encode);
-    const bool double_push = Move::get_move_double(move_encode);
-    const bool en_passant = Move::get_move_enpassant(move_encode);
-    const bool castling = Move::get_move_castling(move_encode);
+    const Squares source_square = Move::get_move_source(move);
+    const Squares target_square = Move::get_move_target(move);
+    const Pieces piece = Move::get_move_piece(move);
+    const Pieces promoted = Move::get_move_promoted(move);
+    const bool capture = Move::get_move_capture(move);
+    const bool double_push = Move::get_move_double(move);
+    const bool en_passant = Move::get_move_enpassant(move);
+    const bool castling = Move::get_move_castling(move);
 
     // move piece
     pop_bit(state.bitboards[piece], source_square);
@@ -160,7 +160,7 @@ bool Board::make_move(const int move_encode, const TypeMove move_flag) {
     state.castle &= castling_rights[target_square];
 
     // update occupancies
-    state.occupancies.fill(zero);
+    memset(state.occupancies, zero, sizeof(state.occupancies));
 
     for(Pieces bb_piece{ P }; bb_piece <= K; ++bb_piece)
       // update white occupancies
@@ -190,8 +190,8 @@ bool Board::make_move(const int move_encode, const TypeMove move_flag) {
     }
   } else {
     // make sure move is the capture
-    if(Move::get_move_capture(move_encode)) {
-      return make_move(move_encode, TypeMove::all_moves);
+    if(Move::get_move_capture(move)) {
+      return make_move(move, TypeMove::all_moves);
 
     // otherwise the move is not a capture
      } else {
