@@ -117,8 +117,8 @@ void Game::parse_fen(const string_view fen) {
     return fen[idx];
   };
 
-  memset(board_.state.occupancies, zero, sizeof(board_.state.occupancies));
-  memset(board_.state.bitboards, zero, sizeof(board_.state.bitboards));
+  board_.state.bitboards.fill(zero);
+  board_.state.occupancies.fill(zero);
 
   for(int rank{}; rank < rank_bit; ++rank) {
     for(int file{}; file < file_bit; ++file) {

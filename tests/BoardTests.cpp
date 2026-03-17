@@ -27,8 +27,8 @@ class board_test_fixture : public testing::Test {
     board.state.side = side;
     board.state.en_passant = no_square;
     board.state.castle = 0;
-    memset(board.state.bitboards, zero, sizeof(board.state.bitboards));
-    memset(board.state.occupancies, zero, sizeof(board.state.occupancies));
+    board.state.bitboards.fill(zero);
+    board.state.occupancies.fill(zero);
   }
 
  /**

@@ -160,7 +160,7 @@ bool Board::make_move(const int move, const TypeMove type_move) {
     state.castle &= castling_rights[target_square];
 
     // update occupancies
-    memset(state.occupancies, zero, sizeof(state.occupancies));
+    state.occupancies.fill(zero);
 
     for(Pieces bb_piece{ P }; bb_piece <= K; ++bb_piece)
       // update white occupancies
