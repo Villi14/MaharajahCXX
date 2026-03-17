@@ -25,6 +25,7 @@ struct Game {
   [[nodiscard]] u64 perft(int depth);
   void perft_divide(int depth);
   void perft_test(int depth);
+  int parse_move(const char* move_string);
 
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;

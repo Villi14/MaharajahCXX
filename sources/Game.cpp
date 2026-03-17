@@ -15,6 +15,7 @@
 #endif
 
 using namespace std;
+using namespace maharajah;
 
 namespace maharajah {
 
@@ -287,8 +288,8 @@ void Game::perft_driver(int depth) {
   board_.generate_moves();
   const MoveList moves = board_.moves_list;
 
-  for(size_t move_count{}; move_count < moves.size(); ++move_count) {
-    if(!board_.make_move(moves[move_count], TypeMove::all_moves)) {
+  for(size_t i{}; i < moves.size(); ++i) {
+    if(!board_.make_move(moves[i], TypeMove::all_moves)) {
       continue;
     }
 
@@ -305,10 +306,10 @@ u64 Game::perft(int depth) {
 
 void Game::perft_divide(int depth) {
   board_.generate_moves();
-  const MoveList moves = board_.moves_list;
+  const MoveList moves_list = board_.moves_list;
 
-  for(size_t i{}; i < moves.size(); ++i) {
-    const int move = moves[i];
+  for(size_t i{}; i < moves_list.size(); ++i) {
+    const int move = moves_list[i];
 
     if(!board_.make_move(move, TypeMove::all_moves)) {
       continue;
@@ -316,7 +317,7 @@ void Game::perft_divide(int depth) {
 
     nodes_ = 0;
     perft_driver(depth - 1);
-   
+
     board_.pop_state();
 
     cout << square_to_coordinates[Move::get_move_source(move)] << square_to_coordinates[Move::get_move_target(move)]
@@ -328,14 +329,14 @@ void Game::perft_test(int depth) {
   cout << "\n      Performance test\n\n";
 
   board_.generate_moves();
-  const MoveList moves = board_.moves_list;
+  const MoveList moves_list = board_.moves_list;
 
   long start = get_time_ms();
 
-  for(size_t i{}; i < moves.size(); ++i) {
-    const int move = moves[i];
+  for(size_t i{}; i < moves_list.size(); ++i) {
+    const int move = moves_list[i];
 
-    if(!board_.make_move(move, TypeMove::all_moves)) {    
+    if(!board_.make_move(move, TypeMove::all_moves)) {
       continue;
     }
 
@@ -357,15 +358,77 @@ void Game::perft_test(int depth) {
   cout << "\n     Time: " << get_time_ms() - start << endl;
 }
 
+// parse user/GUI move string input (e.g. "e7e8q")
+int Game::parse_move(const char* move_string) {
+  board_.generate_moves();
+  const MoveList move_list = board_.moves_list;
+
+  // parse source square
+  int source_square = (move_string[0] - 'a') + (rank_bit - (move_string[1] - '0')) * rank_bit;
+
+  // parse target square
+  int target_square = (move_string[2] - 'a') + (rank_bit - (move_string[3] - '0')) * rank_bit;
+
+  // loop over the moves within a move list
+  for(size_t i{}; i < move_list.size(); ++i) {
+    // init move
+    int move = move_list[i];
+
+    // make sure source & target squares are available within the generated move
+    if(source_square == Move::get_move_source(move) && target_square == Move::get_move_target(move)) {
+      // init promoted piece
+      int promoted_piece = Move::get_move_promoted(move);
+
+      // promoted piece is available
+      if(promoted_piece != no_pieces) {
+        // promoted to queen
+        if((promoted_piece == Q || promoted_piece == q) && move_string[4] == 'q')
+          // return legal move
+          return move;
+
+        // promoted to rook
+        else if((promoted_piece == R || promoted_piece == r) && move_string[4] == 'r')
+          // return legal move
+          return move;
+
+        // promoted to bishop
+        else if((promoted_piece == B || promoted_piece == b) && move_string[4] == 'b')
+          // return legal move
+          return move;
+
+        // promoted to knight
+        else if((promoted_piece == N || promoted_piece == n) && move_string[4] == 'n')
+          // return legal move
+          return move;
+
+        // continue the loop on possible wrong promotions (e.g. "e7e8f")
+        continue;
+      }
+
+      // return legal move
+      return move;
+    }
+  }
+
+  // return illegal move
+  return 0;
+}
+
 void Game::play() {
   game_state_ = play_game;
   init_all();
 
-  parse_fen(tricky_position);
+  parse_fen("r3k2r/p11pqpb1/bn2pnp1/2pPN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq c6 0 1 ");
   string str = print_board();
 
-  perft_test(5);
-  getchar();
+  int move = parse_move("d5c6");
+
+  if(move) {
+    board_.make_move(move, TypeMove::all_moves);
+    str = print_board();
+  }
+  else
+    cout << "illegal move!\n";
 }
 
 } // namespace maharajah
