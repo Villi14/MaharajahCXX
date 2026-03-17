@@ -72,7 +72,7 @@ void Board::update_occupancies() {
  */
 bool Board::make_move(const int move, const TypeMove type_move) {
   if(type_move == TypeMove::all_moves) {
-    copy_board();
+    push_state();
 
     const Squares source_square = Move::get_move_source(move);
     const Squares target_square = Move::get_move_target(move);
@@ -181,7 +181,7 @@ bool Board::make_move(const int move, const TypeMove type_move) {
     // make sure that king has not been exposed into a check
     if(is_square_attacked((state.side == white) ? get_ls1b_index(state.bitboards[k]) : get_ls1b_index(state.bitboards[K]), state.side)) {
       // take move back
-      take_back();
+      pop_state();
 
       // return illegal move
       return false;

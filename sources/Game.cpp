@@ -223,6 +223,16 @@ void Game::print_attacked_squares(Colors side) const {
 }
 
 void Game::print_move(const int move) {
+  if(Move::get_move_promoted(move)) {
+    cout << format("{}{}{}\n",
+                   square_to_coordinates[Move::get_move_source(move)],
+                   square_to_coordinates[Move::get_move_target(move)],
+                   promoted_pieces[Move::get_move_promoted(move)]);
+
+  } else {
+    cout << format("{}{}\n", square_to_coordinates[Move::get_move_source(move)], square_to_coordinates[Move::get_move_target(move)]);
+  }
+
   const Pieces promoted = Move::get_move_promoted(move);
   const char promo_char = (promoted == no_pieces) ? ' ' : promoted_pieces[promoted];
 
@@ -278,18 +288,14 @@ void Game::perft_driver(int depth) {
   const MoveList moves = board_.moves_list;
 
   for(size_t move_count{}; move_count < moves.size(); ++move_count) {
-    const BoardState saved_state = board_.state;
-
     if(!board_.make_move(moves[move_count], TypeMove::all_moves)) {
-      board_.state = saved_state;
       continue;
     }
 
     perft_driver(depth - 1);
-    board_.state = saved_state;
+    board_.pop_state();
   }
 }
-// sources/Game.cpp
 
 u64 Game::perft(int depth) {
   nodes_ = 0;
@@ -301,44 +307,65 @@ void Game::perft_divide(int depth) {
   board_.generate_moves();
   const MoveList moves = board_.moves_list;
 
-  for(size_t i = 0; i < moves.size(); ++i) {
+  for(size_t i{}; i < moves.size(); ++i) {
     const int move = moves[i];
-    const BoardState saved_state = board_.state;
 
     if(!board_.make_move(move, TypeMove::all_moves)) {
-      board_.state = saved_state;
       continue;
     }
 
     nodes_ = 0;
     perft_driver(depth - 1);
-    const auto nodes_for_move = static_cast<u64>(nodes_);
+   
+    board_.pop_state();
 
-    board_.state = saved_state;
-
-    cout << square_to_coordinates[Move::get_move_source(move)]
-         << square_to_coordinates[Move::get_move_target(move)]
-         << (Move::get_move_promoted(move) == no_pieces
-               ? ' '
-               : promoted_pieces[Move::get_move_promoted(move)])
-         << ": " << nodes_for_move << '\n';
+    cout << square_to_coordinates[Move::get_move_source(move)] << square_to_coordinates[Move::get_move_target(move)]
+         << (Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)]) << ": " << nodes_ << '\n';
   }
+}
+
+void Game::perft_test(int depth) {
+  cout << "\n      Performance test\n\n";
+
+  board_.generate_moves();
+  const MoveList moves = board_.moves_list;
+
+  long start = get_time_ms();
+
+  for(size_t i{}; i < moves.size(); ++i) {
+    const int move = moves[i];
+
+    if(!board_.make_move(move, TypeMove::all_moves)) {    
+      continue;
+    }
+
+    long count_nodes = nodes_;
+    perft_driver(depth - 1);
+
+    long old_nodes = nodes_ - count_nodes;
+    board_.pop_state();
+
+    cout << format("      move: {}{}{}    nodes: {}\n",
+                   square_to_coordinates[Move::get_move_source(move)],
+                   square_to_coordinates[Move::get_move_target(move)],
+                   Move::get_move_promoted(move) ? promoted_pieces[Move::get_move_promoted(move)] : ' ',
+                   old_nodes);
+  }
+
+  cout << "\n    Depth: " << depth;
+  cout << "\n    Nodes: " << nodes_ << endl;
+  cout << "\n     Time: " << get_time_ms() - start << endl;
 }
 
 void Game::play() {
   game_state_ = play_game;
   init_all();
 
-  parse_fen(start_position);
+  parse_fen(tricky_position);
   string str = print_board();
 
-  int start = get_time_ms();
-
-  nodes_ = 0;
-  perft_driver(6);
-
-  cout << "time taken to execute: " << get_time_ms() - start << " ms\n";
-  cout << "nodes: " << nodes_ << '\n';
+  perft_test(5);
+  getchar();
 }
 
 } // namespace maharajah

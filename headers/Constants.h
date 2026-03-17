@@ -16,6 +16,8 @@ constexpr int rank_bit{ 0x8 };
 constexpr int file_bit{ 0x8 };
 constexpr int bishop_attacks_count{ 0x200 };
 constexpr int rook_attacks_count{ 0x1000 };
+constexpr int max_ply{ 256 };
+constexpr int max_moves{ 256 };
 
 constexpr int count_type_pieces{ 0x6 };
 constexpr int white_pawn_index{ 0x0 };
@@ -264,7 +266,7 @@ inline constexpr std::array<int, 64> rook_relevant_bits {
 };
 
 /*
-                           castling   move     in      in
+                           castling   move          in
                               right update     binary  decimal
 
  king & rooks didn't move:     1111 & 1111  =  1111    15

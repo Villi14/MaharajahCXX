@@ -5,10 +5,8 @@
 
 namespace maharajah {
 
-constexpr int MAX_MOVES = 256;
-
 struct MoveList {
-    std::array<int, MAX_MOVES> moves{};
+    std::array<int, max_moves> moves{};
   int count{};
 
   void clear() {
@@ -16,7 +14,7 @@ struct MoveList {
   };
 
   void add(int move) {
-    assert(count < MAX_MOVES);
+    assert(count < max_moves);
     moves[count++] = move;
   }
   

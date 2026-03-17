@@ -20,10 +20,11 @@ struct Game {
   static std::string print_bitboard(u64 bitboard, bool print_to_console = false);
   static void print_move(int move);
   void print_move_list();
-  int get_time_ms();
+  static int get_time_ms();
   void perft_driver(int depth);
   [[nodiscard]] u64 perft(int depth);
   void perft_divide(int depth);
+  void perft_test(int depth);
 
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;

@@ -4,19 +4,24 @@
 #include "Move.h"
 #include "MoveList.h"
 
+#include <cassert>
+
 namespace maharajah {
 
 struct Board {
   BoardState state{};
-  BoardState copy_state{};
+  std::array<BoardState, max_ply> history{};
+  int ply{};
   MoveList moves_list{};
-  
-  void copy_board() {
-    copy_state = state;
+
+  void push_state() {
+    assert(ply < max_ply);
+    history[ply++] = state;
   }
 
-  void take_back() {
-    state = copy_state;
+  void pop_state() {
+    assert(ply > 0);
+    state = history[--ply];
   }
 
   [[nodiscard]] bool is_square_attacked(Squares square, Colors side) const;
