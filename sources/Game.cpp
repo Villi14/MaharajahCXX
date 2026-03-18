@@ -1,5 +1,7 @@
 #include "../headers/Game.h"
 #include "../headers/Bitboard.h"
+#include <cstdlib>
+#include <cstring>
 #include <format>
 #include <fstream>
 #include <iostream>
@@ -224,16 +226,6 @@ void Game::print_attacked_squares(Colors side) const {
 }
 
 void Game::print_move(const int move) {
-  if(Move::get_move_promoted(move)) {
-    cout << format("{}{}{}\n",
-                   square_to_coordinates[Move::get_move_source(move)],
-                   square_to_coordinates[Move::get_move_target(move)],
-                   promoted_pieces[Move::get_move_promoted(move)]);
-
-  } else {
-    cout << format("{}{}\n", square_to_coordinates[Move::get_move_source(move)], square_to_coordinates[Move::get_move_target(move)]);
-  }
-
   const Pieces promoted = Move::get_move_promoted(move);
   const char promo_char = (promoted == no_pieces) ? ' ' : promoted_pieces[promoted];
 
@@ -245,6 +237,7 @@ void Game::print_move_list() {
 
   if(board_.moves_list.size() == 0) {
     ss << "\n     No move in the move list!\n";
+    cout << ss.str();
     return;
   }
 
@@ -331,6 +324,7 @@ void Game::perft_test(int depth) {
   board_.generate_moves();
   const MoveList moves_list = board_.moves_list;
 
+  nodes_ = 0;
   long start = get_time_ms();
 
   for(size_t i{}; i < moves_list.size(); ++i) {
@@ -360,6 +354,15 @@ void Game::perft_test(int depth) {
 
 // parse user/GUI move string input (e.g. "e7e8q")
 int Game::parse_move(const char* move_string) {
+  if(!move_string) {
+    return 0;
+  }
+
+  const size_t move_length = std::strlen(move_string);
+  if(move_length < 4) {
+    return 0;
+  }
+
   board_.generate_moves();
   const MoveList move_list = board_.moves_list;
 
@@ -381,6 +384,9 @@ int Game::parse_move(const char* move_string) {
 
       // promoted piece is available
       if(promoted_piece != no_pieces) {
+        if(move_length < 5) {
+          return 0;
+        }
         // promoted to queen
         if((promoted_piece == Q || promoted_piece == q) && move_string[4] == 'q')
           // return legal move
@@ -582,6 +588,44 @@ int Game::evaluate() {
       piece = bb_piece;
       square = get_ls1b_index(bitboard);
       score += material_score[piece];
+
+      // score positional piece scores
+      switch(piece) {
+      // evaluate white pieces
+      case P:
+        score += pawn_score[square];
+        break;
+      case N:
+        score += knight_score[square];
+        break;
+      case B:
+        score += bishop_score[square];
+        break;
+      case R:
+        score += rook_score[square];
+        break;
+      case K:
+        score += king_score[square];
+        break;
+
+      // evaluate black pieces
+      case p:
+        score -= pawn_score[mirror_score[square]];
+        break;
+      case n:
+        score -= knight_score[mirror_score[square]];
+        break;
+      case b:
+        score -= bishop_score[mirror_score[square]];
+        break;
+      case r:
+        score -= rook_score[mirror_score[square]];
+        break;
+      case k:
+        score -= king_score[mirror_score[square]];
+        break;
+      }
+
       pop_bit(bitboard, square);
     }
   }
@@ -597,7 +641,7 @@ void Game::play() {
   bool debug = true;
 
   if(debug) {
-    parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ");
+    parse_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1 ");
     print_board();
     printf("score: %d\n", evaluate());
   } else

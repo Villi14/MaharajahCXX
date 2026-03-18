@@ -3,6 +3,7 @@
 #include "../headers/Board.h"
 
 #include <iostream>
+#include <cstring>
 #include <string>
 #include <string_view>
 
@@ -32,9 +33,9 @@ struct Game {
   void parse_position(char* command);
   void uci_loop();
 
-  void print_uci_info() const {
+  static void print_uci_info() {
     std::cout << "id name Maharajah\n";
-    std::cout << "id name Villi\n";
+    std::cout << "id author Villi\n";
     std::cout << "uciok\n";
   }
 
