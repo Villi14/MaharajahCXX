@@ -414,21 +414,164 @@ int Game::parse_move(const char* move_string) {
   return 0;
 }
 
+// search position for the best move
+void Game::search_position(int depth) {
+  printf("bestmove d2d4\n");
+}
+
+// parse UCI "go" command
+void Game::parse_go(const char* command) {
+  int depth = 6; // default
+
+  const char* ptr = std::strstr(command, "depth");
+  if(ptr) {
+    ptr += strlen("depth"); // +6
+
+    // skip ' '
+    while(*ptr == ' ')
+      ptr++;
+
+    if(*ptr >= '0' && *ptr <= '9') {
+      depth = atoi(ptr);
+    }
+  }
+
+  cout << "depth: " << depth << endl;
+}
+
+/*
+    Example UCI commands to init position on chess board
+
+    // init start position
+    position startpos
+
+    // init start position and make the moves on chess board
+    position startpos moves e2e4 e7e5
+
+    // init position from FEN string
+    position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1
+
+    // init position from fen string and make moves on chess board
+    position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves e2a6 e8g8
+*/
+
+void Game::parse_position(char* command) {
+  char* ptr = command;
+
+  if(strncmp(ptr, "position", 8) == 0) {
+    ptr += 8;
+  }
+
+  while(*ptr == ' ')
+    ptr++;
+
+  if(strncmp(ptr, "startpos", 8) == 0) {
+    parse_fen(start_position);
+    ptr += 8;
+  }
+
+  else if(strncmp(ptr, "fen", 3) == 0) {
+    ptr += 3;
+
+    while(*ptr == ' ')
+      ptr++;
+
+    parse_fen(ptr);
+  } else {
+    parse_fen(start_position);
+  }
+
+  char* moves_ptr = strstr(ptr, "moves");
+
+  if(moves_ptr) {
+    ptr = moves_ptr + 5;
+
+    while(*ptr == ' ')
+      ptr++;
+
+    while(*ptr) {
+      int move = parse_move(ptr);
+
+      if(move == 0)
+        break;
+
+      board_.make_move(move, TypeMove::all_moves);
+
+      while(*ptr && *ptr != ' ')
+        ptr++;
+
+      while(*ptr == ' ')
+        ptr++;
+    }
+  }
+
+  print_board();
+}
+
+void Game::uci_loop() {
+  std::ios::sync_with_stdio(false);
+  std::cin.tie(nullptr);
+
+  char input[2000];
+
+  print_uci_info();
+
+  while(true) {
+    if(!std::cin.getline(input, sizeof(input)))
+      break;
+
+    if(input[0] == '\0')
+      continue;
+
+    // isready
+    if(starts_with(input, "isready")) {
+      std::cout << "readyok\n";
+    }
+
+    // position
+    else if(starts_with(input, "position")) {
+      parse_position(input);
+    }
+
+    // ucinewgame
+    else if(starts_with(input, "ucinewgame")) {
+      char start[] = "position startpos";
+      parse_position(start);
+    }
+
+    // go
+    else if(is_token(input, "go")) {
+      parse_go(input);
+    }
+
+    // stop
+    else if(starts_with(input, "stop")) {
+      // TODO: search_stop = true;
+    }
+
+    // quit
+    else if(starts_with(input, "quit")) {
+      break;
+    }
+
+    // uci
+    else if(starts_with(input, "uci")) {
+      print_uci_info();
+    }
+  }
+}
+
 void Game::play() {
   game_state_ = play_game;
   init_all();
 
-  parse_fen("r3k2r/p11pqpb1/bn2pnp1/2pPN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq c6 0 1 ");
-  string str = print_board();
+  bool debug = true;
 
-  int move = parse_move("d5c6");
-
-  if(move) {
-    board_.make_move(move, TypeMove::all_moves);
-    str = print_board();
-  }
-  else
-    cout << "illegal move!\n";
+  if(debug) {
+    parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ");
+    print_board();
+  } else
+    uci_loop();
 }
 
 } // namespace maharajah
