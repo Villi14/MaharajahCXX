@@ -561,6 +561,35 @@ void Game::uci_loop() {
   }
 }
 
+// position evaluation
+int Game::evaluate() {
+  // static evaluation score
+  int score = 0;
+
+  // current pieces bitboard copy
+  u64 bitboard;
+
+  Pieces piece;
+  Squares square;
+
+  // loop over piece bitboards
+  for(Pieces bb_piece{ P }; bb_piece <= k; ++bb_piece) {
+    // init piece bitboard copy
+    bitboard = board_.state.bitboards[bb_piece];
+
+    // loop over pieces within a bitboard
+    while(bitboard) {
+      piece = bb_piece;
+      square = get_ls1b_index(bitboard);
+      score += material_score[piece];
+      pop_bit(bitboard, square);
+    }
+  }
+
+  // return final evaluation based on side
+  return (board_.state.side == white) ? score : -score;
+}
+
 void Game::play() {
   game_state_ = play_game;
   init_all();
@@ -570,6 +599,7 @@ void Game::play() {
   if(debug) {
     parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 ");
     print_board();
+    printf("score: %d\n", evaluate());
   } else
     uci_loop();
 }

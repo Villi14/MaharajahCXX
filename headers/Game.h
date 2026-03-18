@@ -51,6 +51,8 @@ struct Game {
     return std::strncmp(str, token, len) == 0 && (str[len] == ' ' || str[len] == '\n' || str[len] == '\0');
   }
 
+  int evaluate();
+
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;
 #endif

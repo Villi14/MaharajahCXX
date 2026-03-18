@@ -46,6 +46,7 @@ constexpr u64 not_gh_file{ 0x3F3F3F3F3F3F3F3F };
 constexpr u64 not_ab_file{ 0xFCFCFCFCFCFCFCFC };
 
 enum Colors : int { white, black, both };
+enum Pieces : int { P, N, B, R, Q, K, p, n, b, r, q, k, no_pieces };
 enum Castling : int { wk = 0b1, wq = 0b10, bk = 0b100, bq = 0b1000 };
 enum class Sliders : int { rook, bishop};
 enum class TypeMove : int { all_moves, only_captures };
@@ -141,8 +142,6 @@ inline Squares operator++(Squares& square, int) {
   ++square;
   return old;
 }
-
-enum Pieces : int { P, N, B, R, Q, K, p, n, b, r, q, k, no_pieces };
 
 /**
  * @brief Converts an integer to a Pieces enum value.
@@ -265,8 +264,7 @@ inline constexpr std::array<int, 64> rook_relevant_bits {
 	12, 11, 11, 11, 11, 11, 11, 12
 };
 
-/*
-                           castling   move          in
+ /*                        castling   move          in
                               right update     binary  decimal
 
  king & rooks didn't move:     1111 & 1111  =  1111    15
@@ -279,7 +277,6 @@ inline constexpr std::array<int, 64> rook_relevant_bits {
   black king's rook moved:     1111 & 1011  =  1011    11
  black queen's rook moved:     1111 & 0111  =  0111    7
 */
-
 inline constexpr std::array<int, 64> castling_rights {
      7, 15, 15, 15,  3, 15, 15, 11,
     15, 15, 15, 15, 15, 15, 15, 15,
@@ -289,6 +286,29 @@ inline constexpr std::array<int, 64> castling_rights {
     15, 15, 15, 15, 15, 15, 15, 15,
     15, 15, 15, 15, 15, 15, 15, 15,
     13, 15, 15, 15, 12, 15, 15, 14
+};
+
+// material scrore
+/*  ♙ =   100   = ♙
+    ♘ =   300   = ♙ * 3
+    ♗ =   350   = ♙ * 3 + ♙ * 0.5
+    ♖ =   500   = ♙ * 5
+    ♕ =   1000  = ♙ * 10
+    ♔ =   10000 = ♙ * 100 
+*/
+inline constexpr std::array<int, 12> material_score {
+    100,      // white pawn score
+    300,      // white knight scrore
+    350,      // white bishop score
+    500,      // white rook score
+   1000,      // white queen score
+  10000,      // white king score
+   -100,      // black pawn score
+   -300,      // black knight scrore
+   -350,      // black bishop score
+   -500,      // black rook score
+  -1000,      // black queen score
+ -10000,      // black king score
 };
 
 #ifdef _MSC_VER
