@@ -33,6 +33,7 @@ struct Game {
   void parse_position(char* command);
   void uci_loop();
   int negamax(int alpha, int beta, int depth);
+  int quiescence(int alpha, int beta);
 
   static void print_uci_info() {
     std::cout << "id name Maharajah\n";

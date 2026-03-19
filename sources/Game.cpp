@@ -106,6 +106,7 @@ void Game::parse_fen(const string_view fen) {
   board_.state.side = white;
   board_.state.en_passant = no_square;
   board_.state.castle = 0;
+  board_.ply = 0; // Reset ply on new game
   int index = 0;
   const auto fen_size = static_cast<int>(fen.size());
 
@@ -422,7 +423,17 @@ int Game::parse_move(const char* move_string) {
 
 // search position for the best move
 void Game::search_position(int depth) {
-  printf("bestmove d2d4\n");
+  board_.best_move = 0; // Reset best move before search
+  // find best move within a given position
+  int score = negamax(-50000, 50000, depth);
+
+  if(board_.best_move) {
+    cout << format("info score cp {} depth {} nodes {}\n", score, depth, nodes_);
+    // best move placeholder
+    cout << "bestmove ";
+    print_move(board_.best_move);
+    cout << endl;
+  }
 }
 
 // parse UCI "go" command
@@ -637,13 +648,19 @@ int Game::negamax(int alpha, int beta, int depth) {
   // recurrsion escapre condition
   if(depth == 0)
     // return evaluation
-    return evaluate();
+    return quiescence(alpha, beta);
 
   // increment nodes count
   nodes_++;
 
+  // is king in check
+  int in_check = board_.is_square_attacked((board_.state.side == white) ? get_ls1b_index(board_.state.bitboards[K]) : get_ls1b_index(board_.state.bitboards[k]),
+                                           (board_.state.side == white) ? black : white);
+  // legal moves counter
+  int legal_moves = 0;
+
   // best move so far
-  int best_sofar;
+  int best_sofar = 0;
 
   // old value of alpha
   int old_alpha = alpha;
@@ -654,15 +671,17 @@ int Game::negamax(int alpha, int beta, int depth) {
 
   // loop over moves within a movelist
   for(size_t i{}; i < moves_list.size(); ++i) {
-    // preserve board state
-    board_.push_state();
+    // preserve board state handled by make_move
 
     const int move = moves_list[i];
     // make sure to make only legal moves
     if(board_.make_move(move, TypeMove::all_moves) == 0) {
-      board_.ply--;
+      // make_move handles popping if illegal
       continue;
     }
+
+    // increment legal moves
+    legal_moves++;
 
     // score current move
     int score = -negamax(-beta, -alpha, depth - 1);
@@ -688,10 +707,80 @@ int Game::negamax(int alpha, int beta, int depth) {
     }
   }
 
+  // we don't have any legal moves to make in the current postion
+  if(legal_moves == 0) {
+    // king is in check
+    if(in_check)
+      // return mating score (assuming closest distance to mating position)
+      return -49000 + board_.ply;
+    // king is not in check
+    else
+      // return stalemate score
+      return 0;
+  }
+
   // found better move
-  if(old_alpha != alpha)
+  if(old_alpha != alpha) {
     // init best move
-    board_.best_move = best_sofar;
+    if(board_.ply == 0)
+      board_.best_move = best_sofar;
+  }
+
+  // node (move) fails low
+  return alpha;
+}
+
+// quiescence search
+int Game::quiescence(int alpha, int beta) {
+  // evaluate position
+  int evaluation = evaluate();
+
+  // fail-hard beta cutoff
+  if(evaluation >= beta) {
+    // node (move) fails high
+    return beta;
+  }
+
+  // found a better move
+  if(evaluation > alpha) {
+    // PV node (move)
+    alpha = evaluation;
+  }
+
+  // generate moves
+  board_.generate_moves();
+
+  const MoveList moves_list = board_.moves_list;
+
+  // loop over moves within a movelist
+  for(size_t i{}; i < moves_list.size(); ++i) {
+    // preserve board state handled by make_move
+
+    const int move = moves_list[i];
+
+    // make sure to make only legal moves
+    if(board_.make_move(move, TypeMove::only_captures) == 0) {
+      // make_move returns false and does not push state if not capture or illegal
+      continue;
+    }
+
+    // score current move
+    int score = -quiescence(-beta, -alpha);
+
+    board_.pop_state();
+
+    // fail-hard beta cutoff
+    if(score >= beta) {
+      // node (move) fails high
+      return beta;
+    }
+
+    // found a better move
+    if(score > alpha) {
+      // PV node (move)
+      alpha = score;
+    }
+  }
 
   // node (move) fails low
   return alpha;
