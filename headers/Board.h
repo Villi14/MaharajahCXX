@@ -9,10 +9,11 @@
 namespace maharajah {
 
 struct Board {
-  BoardState state{};
-  std::array<BoardState, max_ply> history{};
   int ply{};
+  int best_move{};
+  BoardState state{};
   MoveList moves_list{};
+  std::array<BoardState, max_ply> history{};
 
   void push_state() {
     assert(ply < max_ply);

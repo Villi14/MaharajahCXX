@@ -445,8 +445,7 @@ void Game::parse_go(const char* command) {
   cout << "depth: " << depth << endl;
 }
 
-/*
-    Example UCI commands to init position on chess board
+/*  Example UCI commands to init position on chess board
 
     // init start position
     position startpos
@@ -460,7 +459,6 @@ void Game::parse_go(const char* command) {
     // init position from fen string and make moves on chess board
     position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves e2a6 e8g8
 */
-
 void Game::parse_position(char* command) {
   char* ptr = command;
 
@@ -634,6 +632,71 @@ int Game::evaluate() {
   return (board_.state.side == white) ? score : -score;
 }
 
+// negamax alpha beta search
+int Game::negamax(int alpha, int beta, int depth) {
+  // recurrsion escapre condition
+  if(depth == 0)
+    // return evaluation
+    return evaluate();
+
+  // increment nodes count
+  nodes_++;
+
+  // best move so far
+  int best_sofar;
+
+  // old value of alpha
+  int old_alpha = alpha;
+
+  // generate moves
+  board_.generate_moves();
+  const MoveList moves_list = board_.moves_list;
+
+  // loop over moves within a movelist
+  for(size_t i{}; i < moves_list.size(); ++i) {
+    // preserve board state
+    board_.push_state();
+
+    const int move = moves_list[i];
+    // make sure to make only legal moves
+    if(board_.make_move(move, TypeMove::all_moves) == 0) {
+      board_.ply--;
+      continue;
+    }
+
+    // score current move
+    int score = -negamax(-beta, -alpha, depth - 1);
+
+    // take move back
+    board_.pop_state();
+
+    // fail-hard beta cutoff
+    if(score >= beta) {
+      // node (move) fails high
+      return beta;
+    }
+
+    // found a better move
+    if(score > alpha) {
+      // PV node (move)
+      alpha = score;
+
+      // if root move
+      if(board_.ply == 0)
+        // associate best move with the best score
+        best_sofar = move;
+    }
+  }
+
+  // found better move
+  if(old_alpha != alpha)
+    // init best move
+    board_.best_move = best_sofar;
+
+  // node (move) fails low
+  return alpha;
+}
+
 void Game::play() {
   game_state_ = play_game;
   init_all();
@@ -641,9 +704,9 @@ void Game::play() {
   bool debug = true;
 
   if(debug) {
-    parse_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R w KQkq - 0 1 ");
+    parse_fen(start_position);
     print_board();
-    printf("score: %d\n", evaluate());
+    search_position(2);
   } else
     uci_loop();
 }

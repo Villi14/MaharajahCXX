@@ -6,9 +6,9 @@
 namespace maharajah {
 
 struct MoveList {
-    std::array<int, max_moves> moves{};
   int count{};
-
+  std::array<int, max_moves> moves{};
+  
   void clear() {
     count = 0;
   };
@@ -37,7 +37,6 @@ struct MoveList {
   int& operator[](const std::size_t index) {
     return moves[index];
   }
-
 };
 
 } // namespace maharajah
