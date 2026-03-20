@@ -423,6 +423,7 @@ int Game::parse_move(const char* move_string) {
 
 // search position for the best move
 void Game::search_position(int depth) {
+  nodes_ = 0;
   board_.best_move = 0; // Reset best move before search
   // find best move within a given position
   int score = negamax(-50000, 50000, depth);
@@ -454,6 +455,7 @@ void Game::parse_go(const char* command) {
   }
 
   cout << "depth: " << depth << endl;
+  search_position(depth);
 }
 
 /*  Example UCI commands to init position on chess board
@@ -653,9 +655,11 @@ int Game::negamax(int alpha, int beta, int depth) {
   // increment nodes count
   nodes_++;
 
-  // is king in check
-  int in_check = board_.is_square_attacked((board_.state.side == white) ? get_ls1b_index(board_.state.bitboards[K]) : get_ls1b_index(board_.state.bitboards[k]),
-                                           (board_.state.side == white) ? black : white);
+  Colors side = (board_.state.side == white) ? white : black;
+
+  int in_check = board_.is_square_attacked((side == white) ? get_ls1b_index(board_.state.bitboards[K]) : get_ls1b_index(board_.state.bitboards[k]),
+                                           (side == white) ? black : white);
+  
   // legal moves counter
   int legal_moves = 0;
 
@@ -795,7 +799,7 @@ void Game::play() {
   if(debug) {
     parse_fen(start_position);
     print_board();
-    search_position(2);
+    search_position(6);
   } else
     uci_loop();
 }

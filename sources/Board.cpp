@@ -259,11 +259,11 @@ void Board::generate_moves() {
 
       if(piece == K) {
         if((state.castle & wk) && !get_bit(state.occupancies[both], f1) && !get_bit(state.occupancies[both], g1) && !is_square_attacked(e1, black) &&
-           !is_square_attacked(f1, black) && !is_square_attacked(g1, black))
+           !is_square_attacked(f1, black) /*&& !is_square_attacked(g1, black)*/)
           moves_list.add(Move::encode_move(Move(e1, g1, piece, no_pieces, false, false, false, true)));
 
         if((state.castle & wq) && !get_bit(state.occupancies[both], d1) && !get_bit(state.occupancies[both], c1) && !get_bit(state.occupancies[both], b1) &&
-           !is_square_attacked(e1, black) && !is_square_attacked(d1, black) && !is_square_attacked(c1, black))
+           !is_square_attacked(e1, black) && !is_square_attacked(d1, black) /*&& !is_square_attacked(c1, black)*/)
           moves_list.add(Move::encode_move(Move(e1, c1, piece, no_pieces, false, false, false, true)));
       }
     }
@@ -318,11 +318,11 @@ void Board::generate_moves() {
 
       if(piece == k) {
         if((state.castle & bk) && !get_bit(state.occupancies[both], f8) && !get_bit(state.occupancies[both], g8) && !is_square_attacked(e8, white) &&
-           !is_square_attacked(f8, white) && !is_square_attacked(g8, white))
+           !is_square_attacked(f8, white) /*&& !is_square_attacked(g8, white)*/)
           moves_list.add(Move::encode_move(Move(e8, g8, piece, no_pieces, false, false, false, true)));
 
         if((state.castle & bq) && !get_bit(state.occupancies[both], d8) && !get_bit(state.occupancies[both], c8) && !get_bit(state.occupancies[both], b8) &&
-           !is_square_attacked(e8, white) && !is_square_attacked(d8, white) && !is_square_attacked(c8, white))
+           !is_square_attacked(e8, white) && !is_square_attacked(d8, white) /*&& !is_square_attacked(c8, white)*/)
           moves_list.add(Move::encode_move(Move(e8, c8, piece, no_pieces, false, false, false, true)));
       }
     }

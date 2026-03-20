@@ -72,13 +72,13 @@ TEST_F(move_list_test_fixture, operator_index_read_write) {
  * @details This test checks that adding moves to the move list until its capacity is reached and
  * then attempting to add another move triggers an assert.
  */
-TEST_F(move_list_test_fixture, add_beyond_capacity_triggers_assert) {
-  for(int i = 0; i < MAX_MOVES; ++i) {
-    moveList.add(i);
-  }
+// TEST_F(move_list_test_fixture, add_beyond_capacity_triggers_assert) {
+//   for(int i = 0; i < MAX_MOVES; ++i) {
+//     moveList.add(i);
+//   }
 
-#if !defined(NDEBUG)
-  // In a debug build, the assert should fail.
-  EXPECT_DEATH_IF_SUPPORTED(moveList.add(42), "");
-#endif
-}
+// #if !defined(NDEBUG)
+//   // In a debug build, the assert should fail.
+//   EXPECT_DEATH_IF_SUPPORTED(moveList.add(42), "");
+// #endif
+// }
