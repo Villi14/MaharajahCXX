@@ -22,11 +22,6 @@ struct Game {
   static std::string print_bitboard(u64 bitboard, bool print_to_console = false);
   static void print_move(int move);
   void print_move_list();
-  static int get_time_ms();
-  void perft_driver(int depth);
-  [[nodiscard]] u64 perft(int depth);
-  void perft_divide(int depth);
-  void perft_test(int depth);
   int parse_move(const char* move_string);
   void parse_go(const char* command);
   void search_position(int depth);

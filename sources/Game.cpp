@@ -1,5 +1,6 @@
 #include "../headers/Game.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Perft.h"
 #include <cstdlib>
 #include <cstring>
 #include <format>
@@ -9,12 +10,6 @@
 #include <stdexcept>
 #include <string>
 #include <string_view>
-
-#ifdef _MSC_VER
-#  include <windows.h>
-#else
-#  include <sys/time.h>
-#endif
 
 using namespace std;
 using namespace maharajah;
@@ -261,96 +256,6 @@ void Game::print_move_list() {
   ss << format("\n\n     Total number of moves: {}\n\n", board_.moves_list.size());
 
   cout << ss.str();
-}
-
-int Game::get_time_ms() {
-#ifdef _MSC_VER
-  return GetTickCount();
-#else
-  struct timeval time_value{};
-  gettimeofday(&time_value, nullptr);
-  return time_value.tv_sec * 1000 + time_value.tv_usec / 1000;
-#endif
-}
-
-void Game::perft_driver(int depth) {
-  if(depth == 0) {
-    nodes_++;
-    return;
-  }
-
-  board_.generate_moves();
-  const MoveList moves = board_.moves_list;
-
-  for(size_t i{}; i < moves.size(); ++i) {
-    if(!board_.make_move(moves[i], TypeMove::all_moves)) {
-      continue;
-    }
-
-    perft_driver(depth - 1);
-    board_.pop_state();
-  }
-}
-
-u64 Game::perft(int depth) {
-  nodes_ = 0;
-  perft_driver(depth);
-  return static_cast<u64>(nodes_);
-}
-
-void Game::perft_divide(int depth) {
-  board_.generate_moves();
-  const MoveList moves_list = board_.moves_list;
-
-  for(size_t i{}; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
-
-    if(!board_.make_move(move, TypeMove::all_moves)) {
-      continue;
-    }
-
-    nodes_ = 0;
-    perft_driver(depth - 1);
-
-    board_.pop_state();
-
-    cout << square_to_coordinates[Move::get_move_source(move)] << square_to_coordinates[Move::get_move_target(move)]
-         << (Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)]) << ": " << nodes_ << '\n';
-  }
-}
-
-void Game::perft_test(int depth) {
-  cout << "\n      Performance test\n\n";
-
-  board_.generate_moves();
-  const MoveList moves_list = board_.moves_list;
-
-  nodes_ = 0;
-  long start = get_time_ms();
-
-  for(size_t i{}; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
-
-    if(!board_.make_move(move, TypeMove::all_moves)) {
-      continue;
-    }
-
-    long count_nodes = nodes_;
-    perft_driver(depth - 1);
-
-    long old_nodes = nodes_ - count_nodes;
-    board_.pop_state();
-
-    cout << format("      move: {}{}{}    nodes: {}\n",
-                   square_to_coordinates[Move::get_move_source(move)],
-                   square_to_coordinates[Move::get_move_target(move)],
-                   Move::get_move_promoted(move) ? promoted_pieces[Move::get_move_promoted(move)] : ' ',
-                   old_nodes);
-  }
-
-  cout << "\n    Depth: " << depth;
-  cout << "\n    Nodes: " << nodes_ << endl;
-  cout << "\n     Time: " << get_time_ms() - start << endl;
 }
 
 // parse user/GUI move string input (e.g. "e7e8q")
