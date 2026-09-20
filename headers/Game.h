@@ -2,8 +2,8 @@
 
 #include "../headers/Board.h"
 
-#include <iostream>
 #include <cstring>
+#include <iostream>
 #include <string>
 #include <string_view>
 
@@ -13,7 +13,7 @@ enum GameState { start_game, play_game, end_game };
 
 struct Game {
   Game();
-  void play();
+  void play(bool debug = false);
   int shutdown();
   [[nodiscard]] GameState state() const;
   std::string print_board(bool print_to_console = true) const;
@@ -27,8 +27,6 @@ struct Game {
   void search_position(int depth);
   void parse_position(char* command);
   void uci_loop();
-  int negamax(int alpha, int beta, int depth);
-  int quiescence(int alpha, int beta);
 
   static void print_uci_info() {
     std::cout << "id name Maharajah\n";
@@ -49,17 +47,15 @@ struct Game {
     return std::strncmp(str, token, len) == 0 && (str[len] == ' ' || str[len] == '\n' || str[len] == '\0');
   }
 
-  int evaluate();
-
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;
 #endif
 
   private:
-  Board board_{};
+  Board board_{ };
   GameState game_state_{ start_game };
-  int score_{};
-  long nodes_{};
+  int score_{ };
+  bool verbose_{ false };
 };
 
 } // namespace maharajah

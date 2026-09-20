@@ -6,7 +6,12 @@ namespace maharajah {
 
 u64 find_magic_number(Squares square, int relevant_bits, Sliders figure);
 
-inline constexpr std::array<u64, end_bit> bishop_magic_numbers_table{
+struct MagicTables {
+  static constexpr int bishop_attacks_count{ 0x200 };
+  static constexpr int rook_attacks_count{ 0x1000 };
+
+  // clang-format off
+  static constexpr std::array<u64, BoardGeometry::squares> bishop_numbers{
   0x2240820840982,    0x204100093031010,  0x288908906000020,  0x1004104200090000, 0x2004042021000800,
   0x1010402404a1524,  0x1001009004200080, 0x1e02030101500204, 0x10440101424c080,  0x80100188008884,
   0x410304882014810,  0x80483000080,      0x211040034080,     0x200008210400042,  0x10020082094004,
@@ -22,7 +27,7 @@ inline constexpr std::array<u64, end_bit> bishop_magic_numbers_table{
   0x50d141020204104,  0x880046c018090908, 0x10440101424c080,  0x2240820840982,
 };
 
-inline constexpr std::array<u64, end_bit> rook_magic_numbers_table{
+  static constexpr std::array<u64, BoardGeometry::squares> rook_numbers{
   0x80102040008000,   0x100210040008010,  0x200102200804008,  0x180100018008005,  0x2080040080020800,
   0x500080400010002,  0x4100210004409200, 0x80002259000180,   0x250021800104c0,   0x2804002802004,
   0x2001001049002000, 0x8002000820120040, 0x8009000508010010, 0x5000204010028,    0x206006804014200,
@@ -37,5 +42,29 @@ inline constexpr std::array<u64, end_bit> rook_magic_numbers_table{
   0x4090880540200,    0x102841008001,     0x2000201040010081, 0x1805001008200041, 0x88100009000421,
   0x2000810200402,    0x2001001080402,    0x8100083002208104, 0x2a84410402,
 };
+
+static constexpr std::array<int, 64> bishop_relevant_bits {
+	6, 5, 5, 5, 5, 5, 5, 6,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	5, 5, 7, 7, 7, 7, 5, 5,
+	5, 5, 7, 9, 9, 7, 5, 5,
+	5, 5, 7, 9, 9, 7, 5, 5,
+	5, 5, 7, 7, 7, 7, 5, 5,
+	5, 5, 5, 5, 5, 5, 5, 5,
+	6, 5, 5, 5, 5, 5, 5, 6
+};
+
+static constexpr std::array<int, 64> rook_relevant_bits {
+	12, 11, 11, 11, 11, 11, 11, 12,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	11, 10, 10, 10, 10, 10, 10, 11,
+	12, 11, 11, 11, 11, 11, 11, 12
+};
+};
+// clang-format on
 
 } // namespace maharajah

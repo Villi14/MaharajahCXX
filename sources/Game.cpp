@@ -1,6 +1,10 @@
 #include "../headers/Game.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Notation.h"
 #include "../headers/Perft.h"
+#include "../headers/Search.h"
+#include <algorithm>
+#include <charconv>
 #include <cstdlib>
 #include <cstring>
 #include <format>
@@ -17,7 +21,7 @@ using namespace maharajah;
 namespace maharajah {
 
 Game::Game() {
-  init_all();
+  AttackTables::init();
 }
 
 GameState Game::state() const {
@@ -34,12 +38,12 @@ string Game::print_bitboard(const u64 bitboard, const bool print_to_console) {
   if(print_to_console) {
     ss << "0x" << hex << bitboard << ",";
   } else {
-    for(int rank{}; rank < rank_bit; ++rank) {
-      for(int file{}; file < file_bit; ++file) {
-        const Squares square{ to_square(rank * rank_bit + file) };
+    for(int rank{ }; rank < BoardGeometry::ranks; ++rank) {
+      for(int file{ }; file < BoardGeometry::files; ++file) {
+        const Squares square{ to_square(rank * BoardGeometry::ranks + file) };
 
         if(!file) {
-          string rank_string = to_string(rank_bit - rank);
+          string rank_string = to_string(BoardGeometry::ranks - rank);
           ss << format(" {} ", rank_string);
         }
         ss << " ";
@@ -62,9 +66,9 @@ string Game::print_bitboard(const u64 bitboard, const bool print_to_console) {
 string Game::print_board(const bool print_to_console) const {
   stringstream ss;
   ss << "\n";
-  for(int rank{}; rank < rank_bit; ++rank) {
-    for(int file{}; file < file_bit; ++file) {
-      int square{ rank * rank_bit + file };
+  for(int rank{ }; rank < BoardGeometry::ranks; ++rank) {
+    for(int file{ }; file < BoardGeometry::files; ++file) {
+      int square{ rank * BoardGeometry::ranks + file };
       if(!file)
         ss << " " << 8 - rank << " ";
 
@@ -75,14 +79,14 @@ string Game::print_board(const bool print_to_console) const {
           piece_int = static_cast<int>(piece);
       }
 
-      ss << format(" {}", (piece_int == -1) ? "." : display_pieces[piece_int]);
+      ss << format(" {}", (piece_int == -1) ? "." : Notation::display_pieces[piece_int]);
     }
     ss << "\n";
   }
 
   ss << "\n    a b c d e f g h\n\n";
   ss << format("    Side:     {}\n", board_.state.side ? "black" : "white");
-  ss << format("    En passant:  {}\n", (board_.state.en_passant != no_square) ? square_to_coordinates[board_.state.en_passant] : "no");
+  ss << format("    En passant:  {}\n", (board_.state.en_passant != no_square) ? Notation::square_to_coordinates[board_.state.en_passant] : "no");
   ss << format("    Castling:  {}{}{}{}\n",
                (board_.state.castle & wk) ? 'K' : '-',
                (board_.state.castle & wq) ? 'Q' : '-',
@@ -98,120 +102,96 @@ string Game::print_board(const bool print_to_console) const {
 }
 
 void Game::parse_fen(const string_view fen) {
-  board_.state.side = white;
-  board_.state.en_passant = no_square;
-  board_.state.castle = 0;
-  board_.ply = 0; // Reset ply on new game
-  int index = 0;
-  const auto fen_size = static_cast<int>(fen.size());
+  const auto invalid = [] { return runtime_error("Invalid FEN"); };
 
-  auto require_in_range = [fen_size](const int idx) {
-    if(idx < 0 || idx >= fen_size) {
-      throw runtime_error("Invalid FEN");
+  string placement, side_field, castle_field, en_passant_field, halfmove_field;
+  istringstream fields{ string(fen) };
+  if(!(fields >> placement >> side_field >> castle_field >> en_passant_field))
+    throw invalid();
+  fields >> halfmove_field; // optional, followed by the optional fullmove number
+
+  // parse into a temporary so a malformed FEN leaves the board untouched
+  BoardState parsed{ };
+
+  constexpr string_view piece_chars{ "PNBRQKpnbrqk" };
+  int rank{ }, file{ };
+  for(const char ch : placement) {
+    if(ch == '/') {
+      if(file != BoardGeometry::files || ++rank >= BoardGeometry::ranks)
+        throw invalid();
+      file = 0;
+    } else if(ch >= '1' && ch <= '8') {
+      file += ch - '0';
+      if(file > BoardGeometry::files)
+        throw invalid();
+    } else {
+      const auto piece = piece_chars.find(ch);
+      if(piece == string_view::npos || file >= BoardGeometry::files)
+        throw invalid();
+      set_bit(parsed.bitboards[piece], to_square(rank * BoardGeometry::ranks + file));
+      ++file;
     }
-  };
+  }
+  if(rank != BoardGeometry::ranks - 1 || file != BoardGeometry::files)
+    throw invalid();
 
-  auto fen_char = [&](int idx) -> char {
-    require_in_range(idx);
-    return fen[idx];
-  };
+  if(side_field == "w")
+    parsed.side = white;
+  else if(side_field == "b")
+    parsed.side = black;
+  else
+    throw invalid();
 
-  board_.state.bitboards.fill(zero);
-  board_.state.occupancies.fill(zero);
-
-  for(int rank{}; rank < rank_bit; ++rank) {
-    for(int file{}; file < file_bit; ++file) {
-
-      auto square = to_square(rank * rank_bit + file);
-      const char ch1 = fen_char(index);
-
-      if((ch1 >= 'a' && ch1 <= 'z') || (ch1 >= 'A' && ch1 <= 'Z')) {
-        int piece{ char_pieces[ch1] };
-        set_bit(board_.state.bitboards[piece], square);
-        ++index;
+  if(castle_field != "-") {
+    for(const char ch : castle_field) {
+      switch(ch) {
+      case 'K':
+        parsed.castle |= wk;
+        break;
+      case 'Q':
+        parsed.castle |= wq;
+        break;
+      case 'k':
+        parsed.castle |= bk;
+        break;
+      case 'q':
+        parsed.castle |= bq;
+        break;
+      default:
+        throw invalid();
       }
-
-      const char ch2 = fen_char(index);
-      if(ch2 >= '0' && ch2 <= '9') {
-        int offset{ ch2 - '0' };
-        int piece_int{ -1 };
-
-        for(Pieces piece{ P }; piece < no_pieces; ++piece) {
-          if(get_bit(board_.state.bitboards[piece], square))
-            piece_int = static_cast<int>(piece);
-        }
-
-        if(piece_int == -1)
-          --file;
-
-        file += offset;
-        ++index;
-      }
-
-      if(fen_char(index) == '/')
-        ++index;
     }
   }
 
-  ++index;
-  const char side_char = fen_char(index);
-  (side_char == 'w') ? (board_.state.side = white) : (board_.state.side = black);
-  index += 2;
-
-  while(true) {
-    const char c = fen_char(index);
-    if(c == ' ')
-      break;
-
-    switch(c) {
-    case 'K':
-      board_.state.castle |= wk;
-      break;
-    case 'Q':
-      board_.state.castle |= wq;
-      break;
-    case 'k':
-      board_.state.castle |= bk;
-      break;
-    case 'q':
-      board_.state.castle |= bq;
-      break;
-    case '-':
-    default:
-      break;
-    }
-    ++index;
+  if(en_passant_field != "-") {
+    if(en_passant_field.size() != 2 || en_passant_field[0] < 'a' || en_passant_field[0] > 'h' || en_passant_field[1] < '1' || en_passant_field[1] > '8')
+      throw invalid();
+    parsed.en_passant = to_square((BoardGeometry::ranks - (en_passant_field[1] - '0')) * BoardGeometry::ranks + (en_passant_field[0] - 'a'));
   }
 
-  ++index;
-
-  if(fen_char(index) != '-') {
-    const int file{ fen_char(index) - 'a' };
-    ++index;
-    const int rank{ rank_bit - (fen_char(index) - '0') };
-    board_.state.en_passant = to_square(rank * rank_bit + file);
-  } else {
-    board_.state.en_passant = no_square;
-  }
+  if(!halfmove_field.empty())
+    from_chars(halfmove_field.data(), halfmove_field.data() + halfmove_field.size(), parsed.halfmove);
 
   for(Pieces piece{ P }; piece <= K; ++piece)
-    board_.state.occupancies[white] |= board_.state.bitboards[piece];
+    parsed.occupancies[white] |= parsed.bitboards[piece];
 
   for(Pieces piece{ p }; piece <= k; ++piece)
-    board_.state.occupancies[black] |= board_.state.bitboards[piece];
+    parsed.occupancies[black] |= parsed.bitboards[piece];
 
-  board_.state.occupancies[both] |= board_.state.occupancies[white];
-  board_.state.occupancies[both] |= board_.state.occupancies[black];
+  parsed.occupancies[both] = parsed.occupancies[white] | parsed.occupancies[black];
+
+  board_.state = parsed;
+  board_.ply = 0; // Reset ply on new game
 }
 
 void Game::print_attacked_squares(Colors side) const {
   stringstream ss;
 
-  for(int rank{}; rank < rank_bit; ++rank) {
-    for(int file{}; file < file_bit; ++file) {
-      const auto square = to_square(rank * rank_bit + file);
+  for(int rank{ }; rank < BoardGeometry::ranks; ++rank) {
+    for(int file{ }; file < BoardGeometry::files; ++file) {
+      const auto square = to_square(rank * BoardGeometry::ranks + file);
       if(!file)
-        ss << " " << rank_bit - rank << " ";
+        ss << " " << BoardGeometry::ranks - rank << " ";
 
       ss << " " << (board_.is_square_attacked(square, side) ? 1 : 0);
     }
@@ -223,9 +203,10 @@ void Game::print_attacked_squares(Colors side) const {
 
 void Game::print_move(const int move) {
   const Pieces promoted = Move::get_move_promoted(move);
-  const char promo_char = (promoted == no_pieces) ? ' ' : promoted_pieces[promoted];
+  const char promo_char = (promoted == no_pieces) ? ' ' : Notation::promoted_pieces[promoted];
 
-  cout << format("{}{}{}\n", square_to_coordinates[Move::get_move_source(move)], square_to_coordinates[Move::get_move_target(move)], promo_char);
+  cout << format(
+      "{}{}{}\n", Notation::square_to_coordinates[Move::get_move_source(move)], Notation::square_to_coordinates[Move::get_move_target(move)], promo_char);
 }
 
 void Game::print_move_list() {
@@ -239,14 +220,14 @@ void Game::print_move_list() {
 
   ss << "\n     move    piece     capture   double    enpass    castling\n\n";
 
-  for(size_t move_count{}; move_count < board_.moves_list.size(); ++move_count) {
+  for(size_t move_count{ }; move_count < board_.moves_list.size(); ++move_count) {
     const int move = board_.moves_list[move_count];
 
     ss << format("      {}{}{}   {}         {}         {}         {}         {}\n",
-                 square_to_coordinates[Move::get_move_source(move)],
-                 square_to_coordinates[Move::get_move_target(move)],
-                 Move::get_move_promoted(move) == no_pieces ? ' ' : promoted_pieces[Move::get_move_promoted(move)],
-                 display_pieces[Move::get_move_piece(move)],
+                 Notation::square_to_coordinates[Move::get_move_source(move)],
+                 Notation::square_to_coordinates[Move::get_move_target(move)],
+                 Move::get_move_promoted(move) == no_pieces ? ' ' : Notation::promoted_pieces[Move::get_move_promoted(move)],
+                 Notation::display_pieces[Move::get_move_piece(move)],
                  Move::get_move_capture(move) ? 1 : 0,
                  Move::get_move_double(move) ? 1 : 0,
                  Move::get_move_enpassant(move) ? 1 : 0,
@@ -269,17 +250,17 @@ int Game::parse_move(const char* move_string) {
     return 0;
   }
 
-  board_.generate_moves();
-  const MoveList move_list = board_.moves_list;
+  MoveList move_list;
+  board_.generate_moves(move_list);
 
   // parse source square
-  int source_square = (move_string[0] - 'a') + (rank_bit - (move_string[1] - '0')) * rank_bit;
+  int source_square = (move_string[0] - 'a') + (BoardGeometry::ranks - (move_string[1] - '0')) * BoardGeometry::ranks;
 
   // parse target square
-  int target_square = (move_string[2] - 'a') + (rank_bit - (move_string[3] - '0')) * rank_bit;
+  int target_square = (move_string[2] - 'a') + (BoardGeometry::ranks - (move_string[3] - '0')) * BoardGeometry::ranks;
 
   // loop over the moves within a move list
-  for(size_t i{}; i < move_list.size(); ++i) {
+  for(size_t i{ }; i < move_list.size(); ++i) {
     // init move
     int move = move_list[i];
 
@@ -327,18 +308,15 @@ int Game::parse_move(const char* move_string) {
 }
 
 // search position for the best move
-void Game::search_position(int depth) {
-  nodes_ = 0;
-  board_.best_move = 0; // Reset best move before search
-  // find best move within a given position
-  int score = negamax(-50000, 50000, depth);
+void Game::search_position(const int depth) {
+  Search search(board_);
+  const SearchResult result = search.run(depth);
 
-  if(board_.best_move) {
-    cout << format("info score cp {} depth {} nodes {}\n", score, depth, nodes_);
-    // best move placeholder
+  if(result.best_move) {
+    cout << format("info score cp {} depth {} nodes {}\n", result.score, result.depth, result.nodes);
     cout << "bestmove ";
-    print_move(board_.best_move);
-    cout << endl;
+    print_move(result.best_move);
+    cout << flush;
   }
 }
 
@@ -359,7 +337,6 @@ void Game::parse_go(const char* command) {
     }
   }
 
-  cout << "depth: " << depth << endl;
   search_position(depth);
 }
 
@@ -387,20 +364,31 @@ void Game::parse_position(char* command) {
   while(*ptr == ' ')
     ptr++;
 
-  if(strncmp(ptr, "startpos", 8) == 0) {
-    parse_fen(start_position);
-    ptr += 8;
+  try {
+    if(strncmp(ptr, "startpos", 8) == 0) {
+      parse_fen(Fen::start_position);
+      ptr += 8;
+    }
+
+    else if(strncmp(ptr, "fen", 3) == 0) {
+      ptr += 3;
+
+      while(*ptr == ' ')
+        ptr++;
+
+      parse_fen(ptr);
+    } else {
+      parse_fen(Fen::start_position);
+    }
+  } catch(const runtime_error&) {
+    cout << "info string invalid fen\n";
+    return;
   }
 
-  else if(strncmp(ptr, "fen", 3) == 0) {
-    ptr += 3;
-
-    while(*ptr == ' ')
-      ptr++;
-
-    parse_fen(ptr);
-  } else {
-    parse_fen(start_position);
+  if(count_bits(board_.state.bitboards[K]) != 1 || count_bits(board_.state.bitboards[k]) != 1) {
+    cout << "info string invalid position: each side needs exactly one king\n";
+    parse_fen(Fen::start_position);
+    return;
   }
 
   char* moves_ptr = strstr(ptr, "moves");
@@ -417,7 +405,10 @@ void Game::parse_position(char* command) {
       if(move == 0)
         break;
 
-      board_.make_move(move, TypeMove::all_moves);
+      if(!board_.make_move(move, TypeMove::all_moves)) {
+        cout << "info string illegal move ignored\n";
+        break;
+      }
 
       while(*ptr && *ptr != ' ')
         ptr++;
@@ -427,7 +418,8 @@ void Game::parse_position(char* command) {
     }
   }
 
-  print_board();
+  if(verbose_)
+    print_board();
 }
 
 void Game::uci_loop() {
@@ -483,226 +475,13 @@ void Game::uci_loop() {
   }
 }
 
-// position evaluation
-int Game::evaluate() {
-  // static evaluation score
-  int score = 0;
-
-  // current pieces bitboard copy
-  u64 bitboard;
-
-  Pieces piece;
-  Squares square;
-
-  // loop over piece bitboards
-  for(Pieces bb_piece{ P }; bb_piece <= k; ++bb_piece) {
-    // init piece bitboard copy
-    bitboard = board_.state.bitboards[bb_piece];
-
-    // loop over pieces within a bitboard
-    while(bitboard) {
-      piece = bb_piece;
-      square = get_ls1b_index(bitboard);
-      score += material_score[piece];
-
-      // score positional piece scores
-      switch(piece) {
-      // evaluate white pieces
-      case P:
-        score += pawn_score[square];
-        break;
-      case N:
-        score += knight_score[square];
-        break;
-      case B:
-        score += bishop_score[square];
-        break;
-      case R:
-        score += rook_score[square];
-        break;
-      case K:
-        score += king_score[square];
-        break;
-
-      // evaluate black pieces
-      case p:
-        score -= pawn_score[mirror_score[square]];
-        break;
-      case n:
-        score -= knight_score[mirror_score[square]];
-        break;
-      case b:
-        score -= bishop_score[mirror_score[square]];
-        break;
-      case r:
-        score -= rook_score[mirror_score[square]];
-        break;
-      case k:
-        score -= king_score[mirror_score[square]];
-        break;
-      }
-
-      pop_bit(bitboard, square);
-    }
-  }
-
-  // return final evaluation based on side
-  return (board_.state.side == white) ? score : -score;
-}
-
-// negamax alpha beta search
-int Game::negamax(int alpha, int beta, int depth) {
-  // recurrsion escapre condition
-  if(depth == 0)
-    // return evaluation
-    return quiescence(alpha, beta);
-
-  // increment nodes count
-  nodes_++;
-
-  Colors side = (board_.state.side == white) ? white : black;
-
-  int in_check = board_.is_square_attacked((side == white) ? get_ls1b_index(board_.state.bitboards[K]) : get_ls1b_index(board_.state.bitboards[k]),
-                                           (side == white) ? black : white);
-  
-  // legal moves counter
-  int legal_moves = 0;
-
-  // best move so far
-  int best_sofar = 0;
-
-  // old value of alpha
-  int old_alpha = alpha;
-
-  // generate moves
-  board_.generate_moves();
-  const MoveList moves_list = board_.moves_list;
-
-  // loop over moves within a movelist
-  for(size_t i{}; i < moves_list.size(); ++i) {
-    // preserve board state handled by make_move
-
-    const int move = moves_list[i];
-    // make sure to make only legal moves
-    if(board_.make_move(move, TypeMove::all_moves) == 0) {
-      // make_move handles popping if illegal
-      continue;
-    }
-
-    // increment legal moves
-    legal_moves++;
-
-    // score current move
-    int score = -negamax(-beta, -alpha, depth - 1);
-
-    // take move back
-    board_.pop_state();
-
-    // fail-hard beta cutoff
-    if(score >= beta) {
-      // node (move) fails high
-      return beta;
-    }
-
-    // found a better move
-    if(score > alpha) {
-      // PV node (move)
-      alpha = score;
-
-      // if root move
-      if(board_.ply == 0)
-        // associate best move with the best score
-        best_sofar = move;
-    }
-  }
-
-  // we don't have any legal moves to make in the current postion
-  if(legal_moves == 0) {
-    // king is in check
-    if(in_check)
-      // return mating score (assuming closest distance to mating position)
-      return -49000 + board_.ply;
-    // king is not in check
-    else
-      // return stalemate score
-      return 0;
-  }
-
-  // found better move
-  if(old_alpha != alpha) {
-    // init best move
-    if(board_.ply == 0)
-      board_.best_move = best_sofar;
-  }
-
-  // node (move) fails low
-  return alpha;
-}
-
-// quiescence search
-int Game::quiescence(int alpha, int beta) {
-  // evaluate position
-  int evaluation = evaluate();
-
-  // fail-hard beta cutoff
-  if(evaluation >= beta) {
-    // node (move) fails high
-    return beta;
-  }
-
-  // found a better move
-  if(evaluation > alpha) {
-    // PV node (move)
-    alpha = evaluation;
-  }
-
-  // generate moves
-  board_.generate_moves();
-
-  const MoveList moves_list = board_.moves_list;
-
-  // loop over moves within a movelist
-  for(size_t i{}; i < moves_list.size(); ++i) {
-    // preserve board state handled by make_move
-
-    const int move = moves_list[i];
-
-    // make sure to make only legal moves
-    if(board_.make_move(move, TypeMove::only_captures) == 0) {
-      // make_move returns false and does not push state if not capture or illegal
-      continue;
-    }
-
-    // score current move
-    int score = -quiescence(-beta, -alpha);
-
-    board_.pop_state();
-
-    // fail-hard beta cutoff
-    if(score >= beta) {
-      // node (move) fails high
-      return beta;
-    }
-
-    // found a better move
-    if(score > alpha) {
-      // PV node (move)
-      alpha = score;
-    }
-  }
-
-  // node (move) fails low
-  return alpha;
-}
-
-void Game::play() {
+void Game::play(const bool debug) {
   game_state_ = play_game;
-  init_all();
-
-  bool debug = true;
+  AttackTables::init();
+  verbose_ = debug;
 
   if(debug) {
-    parse_fen(start_position);
+    parse_fen(Fen::start_position);
     print_board();
     search_position(6);
   } else

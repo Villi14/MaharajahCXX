@@ -6,7 +6,8 @@ namespace maharajah {
 
 class Perft {
   public:
-  explicit Perft(Board& board) : board_(board) {}
+  explicit Perft(Board& board)
+      : board_(board) { }
 
   static int get_time_ms();
   [[nodiscard]] u64 perft(int depth);

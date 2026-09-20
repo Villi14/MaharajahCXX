@@ -1,5 +1,6 @@
 #include "../headers/Game.h"
 #include "TestAccess.h"
+#include "TestPositions.h"
 #include "gtest/gtest.h"
 
 #include <map>
@@ -8,9 +9,8 @@ using namespace std;
 using namespace maharajah;
 
 map<string_view, string> test_fens = {
-
 #ifdef _MSC_VER
-  { empty_board,
+  { TestFen::empty_board,
     R"(
  8  . . . . . . . .
  7  . . . . . . . .
@@ -29,7 +29,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { start_position,
+  { Fen::start_position,
     R"(
  8  r n b q k b n r
  7  p p p p p p p p
@@ -48,7 +48,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { tricky_position,
+  { TestFen::tricky_position,
     R"(
  8  r . . . k . . r
  7  p . p p q p b .
@@ -67,7 +67,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { killer_position,
+  { TestFen::killer_position,
     R"(
  8  r n b q k b . r
  7  p p . p . p P p
@@ -86,7 +86,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { cmk_position,
+  { TestFen::cmk_position,
     R"(
  8  r . . q . r k .
  7  p p p . . p p p
@@ -105,7 +105,7 @@ map<string_view, string> test_fens = {
 
 )" }
 #else
-  { empty_board,
+  { TestFen::empty_board,
     R"(
  8  . . . . . . . .
  7  . . . . . . . .
@@ -124,7 +124,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { start_position,
+  { Fen::start_position,
     R"(
  8  ♜ ♞ ♝ ♛ ♚ ♝ ♞ ♜
  7  ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎ ♟︎
@@ -143,7 +143,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { tricky_position,
+  { TestFen::tricky_position,
     R"(
  8  ♜ . . . ♚ . . ♜
  7  ♟︎ . ♟︎ ♟︎ ♛ ♟︎ ♝ .
@@ -162,7 +162,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { killer_position,
+  { TestFen::killer_position,
     R"(
  8  ♜ ♞ ♝ ♛ ♚ ♝ . ♜
  7  ♟︎ ♟︎ . ♟︎ . ♟︎ ♙ ♟︎
@@ -181,7 +181,7 @@ map<string_view, string> test_fens = {
 
 )" },
 
-  { cmk_position,
+  { TestFen::cmk_position,
     R"(
  8  ♜ . . ♛ . ♜ ♚ .
  7  ♟︎ ♟︎ ♟︎ . . ♟︎ ♟︎ ♟︎
@@ -207,14 +207,11 @@ class game_test_fixture : public testing::Test {
   void SetUp() override;
 
   public:
-  Game game{};
+  Game game{ };
 };
 
 void game_test_fixture::SetUp() { }
 
-/**
- * @brief Unit test for parsing FEN strings and comparing with the expected board state.
- */
 TEST_F(game_test_fixture, fen_parsing_test) {
   for(const auto& [fen, board_str] : test_fens) {
     game.parse_fen(fen);
@@ -223,15 +220,15 @@ TEST_F(game_test_fixture, fen_parsing_test) {
 }
 
 TEST_F(game_test_fixture, fen_parsing_sets_occupancies) {
-  game.parse_fen(start_position);
+  game.parse_fen(Fen::start_position);
 
   const Board& board = GameTestAccess::board(game);
-  u64 expected_white{};
+  u64 expected_white{ };
   for(Pieces piece{ P }; piece <= K; ++piece) {
     expected_white |= board.state.bitboards[piece];
   }
 
-  u64 expected_black{};
+  u64 expected_black{ };
   for(Pieces piece{ p }; piece <= k; ++piece) {
     expected_black |= board.state.bitboards[piece];
   }
@@ -245,4 +242,35 @@ TEST_F(game_test_fixture, fen_parsing_sets_occupancies) {
 TEST_F(game_test_fixture, parse_fen_throws_on_invalid_input) {
   // Obviously incorrect FEN (too short, missing fields)
   EXPECT_THROW(game.parse_fen("invalid"), runtime_error);
+}
+
+TEST_F(game_test_fixture, parse_fen_rejects_malformed_fens_and_keeps_the_board) {
+  game.parse_fen(Fen::start_position);
+  const auto before = GameTestAccess::board(game).state;
+
+  for(const char* bad : {
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1", // 7 ranks
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w - - 0 1", // 9 ranks
+          "rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // 9 files
+          "rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // bad digit
+          "rnbqkbnx/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // bad piece
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x - - 0 1", // bad side
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQxq - 0 1", // bad castling
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - e9 0 1", // bad en passant
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w", // missing fields
+      }) {
+    EXPECT_THROW(game.parse_fen(bad), runtime_error) << bad;
+  }
+
+  EXPECT_EQ(GameTestAccess::board(game).state.bitboards, before.bitboards);
+  EXPECT_EQ(GameTestAccess::board(game).state.side, before.side);
+}
+
+TEST_F(game_test_fixture, parse_fen_reads_all_state_fields) {
+  game.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR b Kq e6 12 30");
+  const auto& state = GameTestAccess::board(game).state;
+  EXPECT_EQ(state.side, black);
+  EXPECT_EQ(state.castle, wk | bq);
+  EXPECT_EQ(state.en_passant, e6);
+  EXPECT_EQ(state.halfmove, 12);
 }

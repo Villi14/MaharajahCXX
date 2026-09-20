@@ -5,30 +5,17 @@ using namespace std;
 
 namespace maharajah {
 
-/**
- * @brief Checks if a given square is attacked by a given side.
- *
- * This function checks if a given square is attacked by a given side.
- * It does this by checking if any of the pieces of the given side can attack the given square.
- * The function first checks if the given square is attacked by pawns, then by knights, then by bishops, then by rooks, then by queens, and finally by kings.
- * If the given square is attacked by any of the pieces of the given side, the function returns true.
- * Otherwise, it returns false.
- *
- * @param square The square to check for attacks.
- * @param side The side to check for attacks.
- * @return true if the given square is attacked by the given side, false otherwise.
- */
 bool Board::is_square_attacked(const Squares square, const Colors side) const {
   // attacked by white pawns
-  if((side == white) && (pawn_attacks[black][square] & state.bitboards[P]))
+  if((side == white) && (AttackTables::pawn[black][square] & state.bitboards[P]))
     return true;
 
   // attacked by black pawns
-  if((side == black) && (pawn_attacks[white][square] & state.bitboards[p]))
+  if((side == black) && (AttackTables::pawn[white][square] & state.bitboards[p]))
     return true;
 
   // attacked by knights
-  if(knight_attacks[square] & ((side == white) ? state.bitboards[N] : state.bitboards[n]))
+  if(AttackTables::knight[square] & ((side == white) ? state.bitboards[N] : state.bitboards[n]))
     return true;
 
   // attacked by bishops
@@ -39,172 +26,159 @@ bool Board::is_square_attacked(const Squares square, const Colors side) const {
   if(get_rook_attacks(square, state.occupancies[both]) & ((side == white) ? state.bitboards[R] : state.bitboards[r]))
     return true;
 
-  // attacked by bishops
+  // attacked by queens
   if(get_queen_attacks(square, state.occupancies[both]) & ((side == white) ? state.bitboards[Q] : state.bitboards[q]))
     return true;
 
   // attacked by kings
-  if(king_attacks[square] & ((side == white) ? state.bitboards[K] : state.bitboards[k]))
+  if(AttackTables::king[square] & ((side == white) ? state.bitboards[K] : state.bitboards[k]))
     return true;
 
   return false;
 }
 
-/**
- * @brief Updates the occupancies of the board state.
- *
- * This function updates the occupancies of the board state by ORing all the bitboards of the pieces of each color together.
- * It first updates the occupancies of the white pieces, then the occupancies of the black pieces, and finally the occupancies of all pieces.
- */
 void Board::update_occupancies() {
   state.occupancies[white] = state.bitboards[P] | state.bitboards[N] | state.bitboards[B] | state.bitboards[R] | state.bitboards[Q] | state.bitboards[K];
   state.occupancies[black] = state.bitboards[p] | state.bitboards[n] | state.bitboards[b] | state.bitboards[r] | state.bitboards[q] | state.bitboards[k];
   state.occupancies[both] = state.occupancies[white] | state.occupancies[black];
 }
 
-/**
- * @brief Makes a move on the board.
- *
- * This function makes a move on the board. It first checks if the move is of type all_moves, and if so, it makes a copy of the current board state. It then gets the source square, target square, piece, promoted piece, capture, double push, en passant, and castling flags from the move. It then handles the move by moving the piece, handling capture, promotion, en passant, and castling. Finally, it updates the occupancies and en passant, and changes the side of the board state.
- *
- * @param move The move to make.
- * @param move_flag The type of move to make.
- */
 bool Board::make_move(const int move, const TypeMove type_move) {
-  if(type_move == TypeMove::all_moves) {
-    push_state();
+  if(type_move == TypeMove::only_captures && !Move::get_move_capture(move))
+    return false;
 
-    const Squares source_square = Move::get_move_source(move);
-    const Squares target_square = Move::get_move_target(move);
-    const Pieces piece = Move::get_move_piece(move);
-    const Pieces promoted = Move::get_move_promoted(move);
-    const bool capture = Move::get_move_capture(move);
-    const bool double_push = Move::get_move_double(move);
-    const bool en_passant = Move::get_move_enpassant(move);
-    const bool castling = Move::get_move_castling(move);
+  push_state();
 
-    // move piece
-    pop_bit(state.bitboards[piece], source_square);
-    set_bit(state.bitboards[piece], target_square);
+  const Squares source_square = Move::get_move_source(move);
+  const Squares target_square = Move::get_move_target(move);
+  const Pieces piece = Move::get_move_piece(move);
+  const Pieces promoted = Move::get_move_promoted(move);
+  const bool capture = Move::get_move_capture(move);
+  const bool double_push = Move::get_move_double(move);
+  const bool en_passant = Move::get_move_enpassant(move);
+  const bool castling = Move::get_move_castling(move);
 
-    // handle capture
-    if(capture) {
-      int start_piece, end_piece;
+  // move piece
+  pop_bit(state.bitboards[piece], source_square);
+  set_bit(state.bitboards[piece], target_square);
 
-      if(state.side == white) {
-        start_piece = p;
-        end_piece = k;
-      } else {
-        start_piece = P;
-        end_piece = K;
-      }
+  // handle capture
+  if(capture) {
+    int start_piece, end_piece;
 
-      for(int bb_piece{ start_piece }; bb_piece <= end_piece; ++bb_piece) {
-        if(get_bit(state.bitboards[bb_piece], target_square)) {
-          pop_bit(state.bitboards[bb_piece], target_square);
-          break;
-        }
-      }
-    }
-
-    // handle promotion
-    if(promoted != no_pieces) {
-      // erase the pawn from the target square
-      pop_bit(state.bitboards[(state.side == white) ? P : p], target_square);
-      // set up promoted piece on chess board
-      set_bit(state.bitboards[promoted], target_square);
-    }
-
-    // handle en passant
-    if(en_passant) {
-      // erase the pawn depending on side to move
-      if(state.side == white) {
-        pop_bit(state.bitboards[p], target_square + rank_bit);
-      } else {
-        pop_bit(state.bitboards[P], target_square - rank_bit);
-      }
-    }
-
-    // reset enpassant square
-    state.en_passant = no_square;
-
-    // handle double pawn push
-    if(double_push) {
-      // set enpassant square depending on side to move
-      if(state.side == white) {
-        state.en_passant = target_square + rank_bit;
-      } else {
-        state.en_passant = target_square - rank_bit;
-      }
-    }
-
-    // handle castling
-    if(castling) {
-      if(target_square == g1) { // white kingside
-        pop_bit(state.bitboards[R], h1);
-        set_bit(state.bitboards[R], f1);
-      } else if(target_square == c1) { // white queenside
-        pop_bit(state.bitboards[R], a1);
-        set_bit(state.bitboards[R], d1);
-      } else if(target_square == g8) { // black kingside
-        pop_bit(state.bitboards[r], h8);
-        set_bit(state.bitboards[r], f8);
-      } else if(target_square == c8) { // back queenside
-        pop_bit(state.bitboards[r], a8);
-        set_bit(state.bitboards[r], d8);
-      }
-    }
-
-    // update castling rights
-    state.castle &= castling_rights[source_square];
-    state.castle &= castling_rights[target_square];
-
-    // update occupancies
-    state.occupancies.fill(zero);
-
-    for(Pieces bb_piece{ P }; bb_piece <= K; ++bb_piece)
-      // update white occupancies
-      state.occupancies[white] |= state.bitboards[bb_piece];
-
-    // loop over black pieces bitboards
-    for(Pieces bb_piece{ p }; bb_piece <= k; ++bb_piece)
-      // update black occupancies
-      state.occupancies[black] |= state.bitboards[bb_piece];
-
-    // update both sides occupancies
-    state.occupancies[both] |= state.occupancies[white];
-    state.occupancies[both] |= state.occupancies[black];
-
-    // change side
-    state.side = (state.side == white) ? black : white;
-
-    // make sure that king has not been exposed into a check
-    if(is_square_attacked((state.side == white) ? get_ls1b_index(state.bitboards[k]) : get_ls1b_index(state.bitboards[K]), state.side)) {
-      // take move back
-      pop_state();
-
-      // return illegal move
-      return false;
+    if(state.side == white) {
+      start_piece = p;
+      end_piece = k;
     } else {
-      return true;
+      start_piece = P;
+      end_piece = K;
     }
-  } else {
-    // make sure move is the capture
-    if(Move::get_move_capture(move)) {
-      return make_move(move, TypeMove::all_moves);
 
-    // otherwise the move is not a capture
-     } else {
-      // return illegal move
-      return false;
+    for(int bb_piece{ start_piece }; bb_piece <= end_piece; ++bb_piece) {
+      if(get_bit(state.bitboards[bb_piece], target_square)) {
+        pop_bit(state.bitboards[bb_piece], target_square);
+        break;
+      }
     }
   }
+
+  // handle promotion
+  if(promoted != no_pieces) {
+    // erase the pawn from the target square
+    pop_bit(state.bitboards[(state.side == white) ? P : p], target_square);
+    // set up promoted piece on chess board
+    set_bit(state.bitboards[promoted], target_square);
+  }
+
+  // handle en passant
+  if(en_passant) {
+    // erase the pawn depending on side to move
+    if(state.side == white) {
+      pop_bit(state.bitboards[p], target_square + BoardGeometry::ranks);
+    } else {
+      pop_bit(state.bitboards[P], target_square - BoardGeometry::ranks);
+    }
+  }
+
+  // halfmove clock: reset on pawn move or capture
+  if(piece == P || piece == p || capture)
+    state.halfmove = 0;
+  else
+    ++state.halfmove;
+
+  // reset enpassant square
+  state.en_passant = no_square;
+
+  // handle double pawn push
+  if(double_push) {
+    // set enpassant square depending on side to move
+    if(state.side == white) {
+      state.en_passant = target_square + BoardGeometry::ranks;
+    } else {
+      state.en_passant = target_square - BoardGeometry::ranks;
+    }
+  }
+
+  // handle castling
+  if(castling) {
+    if(target_square == g1) { // white kingside
+      pop_bit(state.bitboards[R], h1);
+      set_bit(state.bitboards[R], f1);
+    } else if(target_square == c1) { // white queenside
+      pop_bit(state.bitboards[R], a1);
+      set_bit(state.bitboards[R], d1);
+    } else if(target_square == g8) { // black kingside
+      pop_bit(state.bitboards[r], h8);
+      set_bit(state.bitboards[r], f8);
+    } else if(target_square == c8) { // back queenside
+      pop_bit(state.bitboards[r], a8);
+      set_bit(state.bitboards[r], d8);
+    }
+  }
+
+  // update castling rights
+  state.castle &= CastlingRules::rights[source_square];
+  state.castle &= CastlingRules::rights[target_square];
+
+  // update occupancies
+  state.occupancies.fill(zero);
+
+  for(Pieces bb_piece{ P }; bb_piece <= K; ++bb_piece)
+    // update white occupancies
+    state.occupancies[white] |= state.bitboards[bb_piece];
+
+  // loop over black pieces bitboards
+  for(Pieces bb_piece{ p }; bb_piece <= k; ++bb_piece)
+    // update black occupancies
+    state.occupancies[black] |= state.bitboards[bb_piece];
+
+  // update both sides occupancies
+  state.occupancies[both] |= state.occupancies[white];
+  state.occupancies[both] |= state.occupancies[black];
+
+  // change side
+  state.side = (state.side == white) ? black : white;
+
+  // make sure that king has not been exposed into a check
+  if(is_square_attacked((state.side == white) ? get_ls1b_index(state.bitboards[k]) : get_ls1b_index(state.bitboards[K]), state.side)) {
+    // take move back
+    pop_state();
+
+    // return illegal move
+    return false;
+  }
+
+  return true;
 }
 
 void Board::generate_moves() {
+  generate_moves(moves_list);
+}
+
+void Board::generate_moves(MoveList& moves_list) const {
   moves_list.clear();
   Squares source_square{ no_square }, target_square{ no_square };
-  u64 bitboard{}, attacks{};
+  u64 bitboard{ }, attacks{ };
 
   for(Pieces piece{ P }; piece < no_pieces; ++piece) {
     bitboard = state.bitboards[piece];
@@ -213,7 +187,7 @@ void Board::generate_moves() {
       if(piece == P) {
         while(bitboard) {
           source_square = get_ls1b_index(bitboard);
-          target_square = source_square - rank_bit;
+          target_square = source_square - BoardGeometry::ranks;
 
           if((target_square != no_square) && !get_bit(state.occupancies[both], target_square)) {
             if(source_square >= a7 && source_square <= h7) {
@@ -223,13 +197,13 @@ void Board::generate_moves() {
               moves_list.add(Move::encode_move(Move(source_square, target_square, piece, N, false, false, false, false)));
             } else {
               moves_list.add(Move::encode_move(Move(source_square, target_square, piece, no_pieces, false, false, false, false)));
-              if((source_square >= a2 && source_square <= h2) && !get_bit(state.occupancies[both], target_square - rank_bit)) {
-                moves_list.add(Move::encode_move(Move(source_square, target_square - rank_bit, piece, no_pieces, false, true, false, false)));
+              if((source_square >= a2 && source_square <= h2) && !get_bit(state.occupancies[both], target_square - BoardGeometry::ranks)) {
+                moves_list.add(Move::encode_move(Move(source_square, target_square - BoardGeometry::ranks, piece, no_pieces, false, true, false, false)));
               }
             }
           }
 
-          attacks = pawn_attacks[state.side][source_square] & state.occupancies[black];
+          attacks = AttackTables::pawn[state.side][source_square] & state.occupancies[black];
 
           while(attacks) {
             target_square = get_ls1b_index(attacks);
@@ -247,7 +221,7 @@ void Board::generate_moves() {
           }
 
           if(state.en_passant != no_square) {
-            if(const u64 en_passant_attacks = pawn_attacks[state.side][source_square] & (one << state.en_passant)) {
+            if(const u64 en_passant_attacks = AttackTables::pawn[state.side][source_square] & (one << state.en_passant)) {
               const auto target_en_passant = get_ls1b_index(en_passant_attacks);
               moves_list.add(Move::encode_move(Move(source_square, target_en_passant, piece, no_pieces, true, false, true, false)));
             }
@@ -272,7 +246,7 @@ void Board::generate_moves() {
       if(piece == p) {
         while(bitboard) {
           source_square = get_ls1b_index(bitboard);
-          target_square = source_square + rank_bit;
+          target_square = source_square + BoardGeometry::ranks;
 
           if((target_square != no_square) && !get_bit(state.occupancies[both], target_square)) {
             if(source_square >= a2 && source_square <= h2) {
@@ -282,13 +256,13 @@ void Board::generate_moves() {
               moves_list.add(Move::encode_move(Move(source_square, target_square, piece, n, false, false, false, false)));
             } else {
               moves_list.add(Move::encode_move(Move(source_square, target_square, piece, no_pieces, false, false, false, false)));
-              if((source_square >= a7 && source_square <= h7) && !get_bit(state.occupancies[both], target_square + rank_bit)) {
-                moves_list.add(Move::encode_move(Move(source_square, target_square + rank_bit, piece, no_pieces, false, true, false, false)));
+              if((source_square >= a7 && source_square <= h7) && !get_bit(state.occupancies[both], target_square + BoardGeometry::ranks)) {
+                moves_list.add(Move::encode_move(Move(source_square, target_square + BoardGeometry::ranks, piece, no_pieces, false, true, false, false)));
               }
             }
           }
 
-          attacks = pawn_attacks[state.side][source_square] & state.occupancies[white];
+          attacks = AttackTables::pawn[state.side][source_square] & state.occupancies[white];
 
           while(attacks) {
             target_square = get_ls1b_index(attacks);
@@ -306,7 +280,7 @@ void Board::generate_moves() {
           }
 
           if(state.en_passant != no_square) {
-            if(const u64 enpassant_attacks = pawn_attacks[state.side][source_square] & (one << state.en_passant)) {
+            if(const u64 enpassant_attacks = AttackTables::pawn[state.side][source_square] & (one << state.en_passant)) {
               const Squares target_enpassant = get_ls1b_index(enpassant_attacks);
               moves_list.add(Move::encode_move(Move(source_square, target_enpassant, piece, no_pieces, true, false, true, false)));
             }
@@ -330,7 +304,7 @@ void Board::generate_moves() {
     if(const Pieces targetKnight = (state.side == white) ? N : n; piece == targetKnight) {
       while(bitboard) {
         source_square = get_ls1b_index(bitboard);
-        attacks = knight_attacks[source_square] & ((state.side == white) ? ~state.occupancies[white] : ~state.occupancies[black]);
+        attacks = AttackTables::knight[source_square] & ((state.side == white) ? ~state.occupancies[white] : ~state.occupancies[black]);
 
         while(attacks) {
           target_square = get_ls1b_index(attacks);
@@ -412,7 +386,7 @@ void Board::generate_moves() {
       while(bitboard) {
         source_square = get_ls1b_index(bitboard);
 
-        attacks = king_attacks[source_square] & ((state.side == white) ? ~state.occupancies[white] : ~state.occupancies[black]);
+        attacks = AttackTables::king[source_square] & ((state.side == white) ? ~state.occupancies[white] : ~state.occupancies[black]);
 
         while(attacks) {
           target_square = get_ls1b_index(attacks);

@@ -25,6 +25,7 @@ struct Move {
   bool enpassant;
   bool castling;
 
+  // clang-format off
   static int encode_move(const Move& move) {
     return move.source |
            (move.target << 6) |
@@ -46,6 +47,7 @@ struct Move {
                  (move & 0x400000) ? true : false,
                  (move & 0x800000) ? true : false };
   }
+  // clang-format on
 
   static Squares get_move_source(const int move) {
     return to_square(move & 0x3f);

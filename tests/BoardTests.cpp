@@ -1,5 +1,6 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Board.h"
+#include "../headers/Notation.h"
 #include "gtest/gtest.h"
 
 #include <array>
@@ -15,14 +16,8 @@ class board_test_fixture : public testing::Test {
   void SetUp() override;
 
   public:
-  Board board{};
+  Board board{ };
 
-/**
- * Resets a board to its initial state.
- *
- * @param board The board to reset
- * @param side The side to set for the board
- */
   static void reset_board(Board& board, const Colors side) {
     board.state.side = side;
     board.state.en_passant = no_square;
@@ -31,41 +26,24 @@ class board_test_fixture : public testing::Test {
     board.state.occupancies.fill(zero);
   }
 
- /**
- * Checks if a given move is present in a MoveList.
- *
- * @param list The MoveList to search in
- * @param move The move to search for
- * @return true if the move is present, false otherwise
- */
   static bool has_move(const MoveList& list, const int move) {
-    for(size_t i{}; i < list.size(); ++i) {
+    for(size_t i{ }; i < list.size(); ++i) {
       if(list[i] == move)
         return true;
     }
     return false;
   }
 
- /**
- * Dumps a MoveList to a string, with each move represented as a two-character string
- * (source square followed by target square) followed by a space. If the move is a promotion,
- * the promoted piece is appended to the string. For example, the string "e2e4"
- * represents the move from e2 to e4, while the string "e2e4q" represents the move
- * from e2 to e4, promoting to a queen.
- *
- * @param list The MoveList to dump
- * @return A string representation of the MoveList
- */
   static string dump_moves(const MoveList& list) {
     string out;
-    for(size_t i{}; i < list.size(); ++i) {
+    for(size_t i{ }; i < list.size(); ++i) {
       const int move = list[i];
       const auto src = Move::get_move_source(move);
       const auto dst = Move::get_move_target(move);
       const auto promo = Move::get_move_promoted(move);
-      out += string(square_to_coordinates[src]) + string(square_to_coordinates[dst]);
+      out += string(Notation::square_to_coordinates[src]) + string(Notation::square_to_coordinates[dst]);
       if(promo != no_pieces) {
-        out += promoted_pieces[promo];
+        out += Notation::promoted_pieces[promo];
       }
       out += " ";
     }
@@ -73,21 +51,10 @@ class board_test_fixture : public testing::Test {
   }
 };
 
-/**
- * Initializes all bitboards and attack tables.
- */
 void board_test_fixture::SetUp() {
-  init_all();
+  AttackTables::init();
 }
 
-/**
- * Tests that the copy_board method correctly copies the board state.
- *
- * This test initializes the board with all pieces on the board, then calls
- * the copy_board method. It then checks that the copy_state of the board
- * matches the current state of the board. Finally, it modifies the state of
- * the board and checks that the copy_state is not affected by the modifications.
- */
 TEST_F(board_test_fixture, copy_board_test) {
   board.state.bitboards[P] = 0x000000000000FF00ULL;
   board.state.bitboards[N] = 0x0000000000000042ULL;
@@ -129,14 +96,6 @@ TEST_F(board_test_fixture, copy_board_test) {
   // EXPECT_NE(board.copy_state.castle, board.state.castle);
 }
 
-/**
- * Tests that the take_back method correctly reverts the board state back to the copy_state.
- *
- * This test initializes the board with all pieces on the board, then calls
- * the copy_board method. It then modifies the state of the board and calls
- * the take_back method. Finally, it checks that the state of the board matches
- * the copy_state of the board.
- */
 TEST_F(board_test_fixture, take_back_test) {
   board.state.bitboards[P] = 0x000000000000FF00ULL;
   board.state.bitboards[N] = 0x0000000000000042ULL;
@@ -175,13 +134,6 @@ TEST_F(board_test_fixture, take_back_test) {
   // EXPECT_EQ(board.state.castle, board.copy_state.castle);
 }
 
-/**
- * @brief Checks if a given square is attacked by a given side.
- *
- * @param side The side to check for attacks.
- * @param square The square to check for attacks.
- * @return true if the given square is attacked by the given side, false otherwise.
- */
 TEST_F(board_test_fixture, is_square_attacked_test) {
   struct AttackCase {
     Pieces piece_white;
@@ -207,11 +159,11 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
         board.state.bitboards[piece] = (one << square);
         board.update_occupancies();
 
-        u64 expected{};
+        u64 expected{ };
         if(piece == P || piece == p) {
-          expected = pawn_attacks[side][square];
+          expected = AttackTables::pawn[side][square];
         } else if(piece == N || piece == n) {
-          expected = knight_attacks[square];
+          expected = AttackTables::knight[square];
         } else if(piece == B || piece == b) {
           expected = get_bishop_attacks(square, zero);
         } else if(piece == R || piece == r) {
@@ -219,14 +171,14 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
         } else if(piece == Q || piece == q) {
           expected = get_queen_attacks(square, zero);
         } else if(piece == K || piece == k) {
-          expected = king_attacks[square];
+          expected = AttackTables::king[square];
         }
 
         for(Squares square{ a8 }; square < no_square; ++square) {
           {
             const bool exp = (expected & (one << square)) != zero;
             SCOPED_TRACE(testing::Message() << "side=" << (side == white ? "white" : "black") << " piece=" << test_case.name
-                                            << " from=" << square_to_coordinates[square] << " to=" << square_to_coordinates[square]);
+                                            << " from=" << Notation::square_to_coordinates[square] << " to=" << Notation::square_to_coordinates[square]);
             EXPECT_EQ(board.is_square_attacked(square, side), exp);
           }
         }
@@ -235,18 +187,6 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
   }
 }
 
-/**
- * @brief Checks if the generate_moves() function correctly generates all possible moves for a given
- * board state.
- *
- * This test function checks if the generate_moves() function correctly generates all possible moves
- * for all pieces on the board. It does this by setting a single piece on the board and then
- * checking if the generate_moves() function correctly generates all possible moves for that piece.
- *
- * @details The test function first checks if the generate_moves() function correctly generates all
- * possible moves for pawns. It then checks if the generate_moves() function correctly generates all
- * possible moves for knights, bishops, rooks, queens, and kings.
- */
 TEST_F(board_test_fixture, generate_moves_test) {
   const auto expect_moves = [&](const vector<int>& expected) {
     EXPECT_EQ(board.moves_list.size(), expected.size()) << dump_moves(board.moves_list);
@@ -272,10 +212,10 @@ TEST_F(board_test_fixture, generate_moves_test) {
 
   // Pawns: all squares (empty board, no captures)
   for(Squares square{ a8 }; square < no_square; ++square) {
-    vector<int> expected{};
+    vector<int> expected{ };
     set_single_piece(white, P, square);
 
-    const Squares target = square - rank_bit;
+    const Squares target = square - BoardGeometry::ranks;
     if(target != no_square) {
       if(square >= a7 && square <= h7) {
         expected.push_back(Move::encode_move(Move{ square, target, P, Q, false, false, false, false }));
@@ -285,7 +225,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
       } else {
         expected.push_back(Move::encode_move(Move{ square, target, P, no_pieces, false, false, false, false }));
         if(square >= a2 && square <= h2) {
-          const Squares double_target = square - (rank_bit * 2);
+          const Squares double_target = square - (BoardGeometry::ranks * 2);
           expected.push_back(Move::encode_move(Move{ square, double_target, P, no_pieces, false, true, false, false }));
         }
       }
@@ -295,10 +235,10 @@ TEST_F(board_test_fixture, generate_moves_test) {
   }
 
   for(Squares square{ a8 }; square < no_square; ++square) {
-    vector<int> expected{};
+    vector<int> expected{ };
     set_single_piece(black, p, square);
 
-    const Squares target = square + rank_bit;
+    const Squares target = square + BoardGeometry::ranks;
     if(target != no_square) {
       if(square >= a2 && square <= h2) {
         expected.push_back(Move::encode_move(Move{ square, target, p, q, false, false, false, false }));
@@ -308,7 +248,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
       } else {
         expected.push_back(Move::encode_move(Move{ square, target, p, no_pieces, false, false, false, false }));
         if(square >= a7 && square <= h7) {
-          const Squares double_target = square + (rank_bit * 2);
+          const Squares double_target = square + (BoardGeometry::ranks * 2);
           expected.push_back(Move::encode_move(Move{ square, double_target, p, no_pieces, false, true, false, false }));
         }
       }
@@ -320,8 +260,8 @@ TEST_F(board_test_fixture, generate_moves_test) {
   // Knights
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, N, square);
-    vector<int> expected{};
-    u64 attacks = knight_attacks[square] & ~board.state.occupancies[white];
+    vector<int> expected{ };
+    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, N, no_pieces, false, false, false, false }));
@@ -332,8 +272,8 @@ TEST_F(board_test_fixture, generate_moves_test) {
 
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, n, square);
-    vector<int> expected{};
-    u64 attacks = knight_attacks[square] & ~board.state.occupancies[black];
+    vector<int> expected{ };
+    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, n, no_pieces, false, false, false, false }));
@@ -346,7 +286,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(const Pieces piece : { B, R, Q }) {
     for(Squares square{ a8 }; square < no_square; ++square) {
       set_single_piece(white, piece, square);
-      vector<int> expected{};
+      vector<int> expected{ };
       u64 attacks = build_slider_attacks(piece, square) & ~board.state.occupancies[white];
       while(attacks) {
         const Squares target = get_ls1b_index(attacks);
@@ -360,7 +300,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(const Pieces piece : { b, r, q }) {
     for(Squares square{ a8 }; square < no_square; ++square) {
       set_single_piece(black, piece, square);
-      vector<int> expected{};
+      vector<int> expected{ };
       u64 attacks = build_slider_attacks(piece, square) & ~board.state.occupancies[black];
       while(attacks) {
         const Squares target = get_ls1b_index(attacks);
@@ -374,8 +314,8 @@ TEST_F(board_test_fixture, generate_moves_test) {
   // Kings (castling is covered elsewhere)
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, K, square);
-    vector<int> expected{};
-    u64 attacks = king_attacks[square] & ~board.state.occupancies[white];
+    vector<int> expected{ };
+    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, K, no_pieces, false, false, false, false }));
@@ -386,8 +326,8 @@ TEST_F(board_test_fixture, generate_moves_test) {
 
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, k, square);
-    vector<int> expected{};
-    u64 attacks = king_attacks[square] & ~board.state.occupancies[black];
+    vector<int> expected{ };
+    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, k, no_pieces, false, false, false, false }));
@@ -397,10 +337,6 @@ TEST_F(board_test_fixture, generate_moves_test) {
   }
 }
 
-/**
- * @brief Test that the board generates the correct moves when castling by attacking a square.
- * @details Test that the board generates the correct moves when castling by attacking a square, and that it does not generate moves blocked by pieces of the same color.
- */
 TEST_F(board_test_fixture, generate_moves_white_castling) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -492,12 +428,6 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   EXPECT_FALSE(has_move(board.moves_list, e8c8));
 }
 
-/**
- * @brief Tests that the board updates the state correctly after a move that updates the castling rights.
- *
- * @details This test checks that the board updates the state correctly after a move that updates the castling rights.
- *              It checks that the castling rights are updated correctly after a king move and a rook move.
- */
 TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -522,11 +452,6 @@ TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
   EXPECT_NE(board.state.castle & wq, 0);
 }
 
-/**
- * @brief Tests that the board updates the state correctly after a move that updates the castling rights.
- * @details This test checks that the board updates the state correctly after a move that updates the castling rights.
- *              It checks that the castling rights are updated correctly after a king move and a rook move.
- */
 TEST_F(board_test_fixture, make_move_updates_black_castling_rights) {
   reset_board(board, black);
   board.state.bitboards[k] = (one << e8);
@@ -551,10 +476,6 @@ TEST_F(board_test_fixture, make_move_updates_black_castling_rights) {
   EXPECT_NE(board.state.castle & bq, 0);
 }
 
-/**
- * @brief Tests that castling rights are updated when a rook is captured.
- * @details This test checks that capturing a rook on a1/h1 removes the correct white castling rights.
- */
 TEST_F(board_test_fixture, make_move_updates_white_castling_rights_on_rook_capture) {
   // Capture rook on h1 -> lose wk
   reset_board(board, black);
@@ -585,10 +506,6 @@ TEST_F(board_test_fixture, make_move_updates_white_castling_rights_on_rook_captu
   EXPECT_NE(board.state.castle & wk, 0);
 }
 
-/**
- * @brief Tests that castling rights are updated when a rook is captured.
- * @details This test checks that capturing a rook on a8/h8 removes the correct black castling rights.
- */
 TEST_F(board_test_fixture, make_move_updates_black_castling_rights_on_rook_capture) {
   // Capture rook on h8 -> lose bk
   reset_board(board, white);
@@ -619,10 +536,6 @@ TEST_F(board_test_fixture, make_move_updates_black_castling_rights_on_rook_captu
   EXPECT_NE(board.state.castle & bk, 0);
 }
 
-/**
- * @brief Tests that castling rights are unchanged when capturing a non-rook.
- * @details This test ensures that capturing a piece on a non-rook square does not alter castling rights.
- */
 TEST_F(board_test_fixture, make_move_does_not_update_castling_rights_on_non_rook_capture) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -637,10 +550,6 @@ TEST_F(board_test_fixture, make_move_does_not_update_castling_rights_on_non_rook
   EXPECT_EQ(board.state.castle, wk | wq | bk | bq);
 }
 
-/**
- * @brief Tests that the board generates the correct moves when en passant is set.
- * @details Tests that the board generates the correct moves when en passant is set, and that it does not generate moves blocked by pieces of the same color.
- */
 TEST_F(board_test_fixture, generate_moves_white_en_passant) {
   reset_board(board, white);
   board.state.bitboards[P] = (one << e5);
@@ -653,10 +562,6 @@ TEST_F(board_test_fixture, generate_moves_white_en_passant) {
   EXPECT_TRUE(has_move(board.moves_list, e5d6));
 }
 
-/**
- * @brief Tests that the board generates the correct moves when en passant is set for black pieces.
- * @details Tests that the board generates the correct moves when en passant is set for black pieces, and that it does not generate moves blocked by pieces of the same color.
- */
 TEST_F(board_test_fixture, generate_moves_black_en_passant) {
   reset_board(board, black);
   board.state.bitboards[p] = (one << d4);
@@ -669,10 +574,6 @@ TEST_F(board_test_fixture, generate_moves_black_en_passant) {
   EXPECT_TRUE(has_move(board.moves_list, d4e3));
 }
 
-/**
- * @brief Tests that the board generates the correct moves when a pawn is blocked.
- * @details Tests that the board generates the correct moves when a pawn is blocked by a piece of the same color, and that it does not generate moves blocked by pieces of the same color.
- */
 TEST_F(board_test_fixture, generate_moves_blocked_white_pawn) {
   reset_board(board, white);
   board.state.bitboards[P] = (one << e2);
@@ -691,10 +592,6 @@ TEST_F(board_test_fixture, generate_moves_blocked_white_pawn) {
   EXPECT_EQ(board.moves_list.size(), 0);
 }
 
-/**
- * @brief Test that the board generates the correct moves for a pawn that captures a piece.
- * @details Test that the board generates the correct moves for a pawn that captures a piece, and that it does not generate moves blocked by pieces of the same color.
- */
 TEST_F(board_test_fixture, generate_moves_pawn_captures) {
   reset_board(board, white);
   board.state.bitboards[P] = (one << d4);
@@ -715,10 +612,6 @@ TEST_F(board_test_fixture, generate_moves_pawn_captures) {
   EXPECT_TRUE(has_move(board.moves_list, e5f4));
 }
 
-/**
- * @brief Test that the board generates the correct moves for a pawn that promotes to a different piece.
- * @details Test that the board generates the correct moves for a pawn that promotes to a different piece.
- */
 TEST_F(board_test_fixture, generate_moves_promotion) {
   reset_board(board, white);
   board.state.bitboards[P] = (one << a7);
@@ -743,10 +636,6 @@ TEST_F(board_test_fixture, generate_moves_promotion) {
   EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ h2, h1, p, n, false, false, false, false })));
 }
 
-/**
- * @brief Test that the board does not generate moves for a pawn that is blocked by pieces of the same color when castling.
- * @details Test that the board does not generate moves for a pawn that is blocked by pieces of the same color when castling.
- */
 TEST_F(board_test_fixture, generate_moves_castling_blocked_by_pieces) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -771,10 +660,6 @@ TEST_F(board_test_fixture, generate_moves_castling_blocked_by_pieces) {
   EXPECT_FALSE(has_move(board.moves_list, e8g8));
 }
 
-/**
- * @brief Tests that the board generates the correct moves for a slider (rook or bishop) when there are blockers on its path.
- * @details Test that the board generates the correct moves for a slider (rook or bishop) when there are blockers on its path.
- */
 TEST_F(board_test_fixture, generate_moves_sliders_with_blockers) {
   reset_board(board, white);
   board.state.bitboards[R] = (one << a1);
@@ -813,12 +698,6 @@ TEST_F(board_test_fixture, generate_moves_sliders_with_blockers) {
   EXPECT_FALSE(has_move(board.moves_list, c8d7));
 }
 
-/**
- * @brief Test that a square is attacked by a slider.
- *
- * @details This test checks that a square is attacked by a rook, bishop, or queen.
- *              It also checks that a square is not attacked by a piece of the opposite color.
- */
 TEST_F(board_test_fixture, is_square_attacked_by_sliders) {
   reset_board(board, white);
   board.state.bitboards[R] = (one << a1);
@@ -843,13 +722,6 @@ TEST_F(board_test_fixture, is_square_attacked_by_sliders) {
   EXPECT_FALSE(board.is_square_attacked(b7, white));
 }
 
-/**
- * @brief Test that the board updates the state correctly after a capture move.
- *
- * @details This test checks that the board updates the state correctly after a capture move.
- *          It checks that the capturing piece is moved to the destination square, that the captured piece is removed from the board,
- *          and that the side is updated correctly.
- */
 TEST_F(board_test_fixture, make_move_capture) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -882,13 +754,6 @@ TEST_F(board_test_fixture, make_move_capture) {
   EXPECT_EQ(board.state.en_passant, no_square);
 }
 
-/**
- * @brief Test that the board updates the state correctly after an en passant move.
- *
- * @details This test checks that the board updates the state correctly after an en passant move.
- *              It checks that the pawn is moved to the destination square, that the captured pawn is removed from the board,
- *              and that the side and en passant are updated correctly.
- */
 TEST_F(board_test_fixture, make_move_en_passant) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);
@@ -923,11 +788,6 @@ TEST_F(board_test_fixture, make_move_en_passant) {
   EXPECT_EQ(board.state.en_passant, no_square);
 }
 
-/**
- * @brief Tests that the board updates the state correctly after a promotion move.
- *              It checks that the pawn is moved to the destination square, that the captured pawn is removed from the board,
- *              and that the side is updated correctly.
- */
 TEST_F(board_test_fixture, make_move_promotion) {
   reset_board(board, white);
   board.state.bitboards[K] = (one << e1);

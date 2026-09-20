@@ -7,18 +7,18 @@
 namespace maharajah {
 
 struct MoveList {
-  int count{};
-  std::array<int, max_moves> moves{};
-  
+  int count{ };
+  std::array<int, Limits::max_moves> moves{ };
+
   void clear() {
     count = 0;
   };
 
   void add(int move) {
-    assert(count < max_moves);
+    assert(count < Limits::max_moves);
     moves[count++] = move;
   }
-  
+
   [[nodiscard]] std::size_t size() const {
     return count;
   }

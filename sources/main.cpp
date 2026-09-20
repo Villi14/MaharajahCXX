@@ -1,4 +1,5 @@
 #include "../headers/Game.h"
+#include "../headers/Perft.h"
 #include <iostream>
 
 using namespace std;

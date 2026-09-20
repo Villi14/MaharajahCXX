@@ -11,7 +11,7 @@ class board_state_test_fixture : public testing::Test {
   void SetUp() override;
 
   public:
-  BoardState board_state{};
+  BoardState board_state{ };
 };
 
 void board_state_test_fixture::SetUp() { }
@@ -33,11 +33,11 @@ TEST_F(board_state_test_fixture, test_initial_board_state) {
 }
 
 TEST_F(board_state_test_fixture, test_init) {
-    array<u64, 13> bitboards{
+  array<u64, 13> bitboards{
     0x000000000000FF00ULL, 0x00000000000000FFULL, zero, zero, zero, zero, 0x00FF000000000000ULL, zero, 0x0000000000018000ULL, 0x18000000000000ULL,
     0x80010000000000ULL,   0x01008000000000ULL,   zero
   };
-  
+
   array<u64, 3> occupancies{ 0xFFFFULL, 0xFFFFULL, 0x1FFFFULL };
   board_state = BoardState(black, e3, wk | bq, bitboards, occupancies);
 
@@ -49,7 +49,7 @@ TEST_F(board_state_test_fixture, test_init) {
 }
 
 TEST_F(board_state_test_fixture, default_constructed_state_is_independent) {
-  BoardState other{};
+  BoardState other{ };
   other.side = black;
   other.en_passant = e3;
   other.castle = wk | bq;

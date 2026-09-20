@@ -4,7 +4,17 @@
 
 namespace maharajah {
 
-inline constexpr std::array<std::array<u64, end_bit>, count_type_pieces>	attacks_table{{
+struct LeaperAttacks {
+  static constexpr int piece_types{ 0x6 };
+  static constexpr int white_pawn{ 0x0 };
+  static constexpr int black_pawn{ 0x1 };
+  static constexpr int knight{ 0x2 };
+  static constexpr int bishop{ 0x3 };
+  static constexpr int rook{ 0x4 };
+  static constexpr int king{ 0x5 };
+
+  // clang-format off
+  static constexpr std::array<std::array<u64, BoardGeometry::squares>, LeaperAttacks::piece_types>	table{{
 	{0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x0, 0x2, 0x5, 0xa, 0x14, 0x28, 0x50, 0xa0, 0x40, 0x200, 0x500, 0xa00, 0x1400,
 	0x2800, 0x5000, 0xa000, 0x4000, 0x20000, 0x50000, 0xa0000, 0x140000, 0x280000, 0x500000, 0xa00000, 0x400000,
 	0x2000000, 0x5000000, 0xa000000, 0x14000000, 0x28000000, 0x50000000, 0xa0000000, 0x40000000, 0x200000000,
@@ -62,5 +72,7 @@ inline constexpr std::array<std::array<u64, end_bit>, count_type_pieces>	attacks
 	0xc040c00000000000, 0x203000000000000, 0x507000000000000, 0xa0e000000000000, 0x141c000000000000,
 	0x2838000000000000, 0x5070000000000000, 0xa0e0000000000000, 0x40c0000000000000,},
 }};
+};
+// clang-format on
 
 } // namespace maharajah
