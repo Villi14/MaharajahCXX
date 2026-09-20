@@ -5,6 +5,9 @@
 using namespace std;
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char* argv[]) {
+  ios::sync_with_stdio(false);
+  cin.tie(nullptr);
+
   try {
     maharajah::Game game;
     game.play();

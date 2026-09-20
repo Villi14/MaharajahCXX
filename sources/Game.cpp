@@ -423,9 +423,6 @@ void Game::parse_position(char* command) {
 }
 
 void Game::uci_loop() {
-  std::ios::sync_with_stdio(false);
-  std::cin.tie(nullptr);
-
   char input[2000];
 
   print_uci_info();
