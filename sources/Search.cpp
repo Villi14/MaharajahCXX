@@ -40,7 +40,8 @@ void TimeControl::set_movetime(const int movetime_ms) {
 
 void Search::reset() {
   nodes_ = 0;
-  engine_.time_control.stopped = false;
+  if(!helper_)
+    engine_.time_control.stopped = false;
   follow_pv_ = false;
   score_pv_ = false;
   ply_ = 0;
@@ -55,6 +56,9 @@ void Search::reset() {
 }
 
 void Search::communicate() {
+  if(helper_)
+    return;
+
   TimeControl& time = engine_.time_control;
 
   if(time.timeset && now_ms() > time.stoptime)
@@ -150,17 +154,16 @@ SearchResult Search::run(const int depth, std::ostream* info) {
   int alpha = -infinity;
   int beta = infinity;
   const int max_depth = effective_depth(depth);
-  const TimeControl& time = engine_.time_control;
 
   // iterative deepening
   for(int current_depth{ 1 }; current_depth <= max_depth; ++current_depth) {
-    if(time.stopped)
+    if(stopped())
       break;
 
     follow_pv_ = true;
     const int score = negamax(alpha, beta, current_depth);
 
-    if(time.stopped)
+    if(stopped())
       break;
 
     // Aspiration window failed: re-search the same depth with a full window
@@ -271,7 +274,7 @@ int Search::negamax(int alpha, int beta, int depth) {
     board_.forget_position();
     board_.pop_state();
 
-    if(engine_.time_control.stopped)
+    if(stopped())
       return 0;
     if(score >= beta)
       return beta;
@@ -335,7 +338,7 @@ int Search::negamax(int alpha, int beta, int depth) {
     board_.forget_position();
     board_.pop_state();
 
-    if(engine_.time_control.stopped)
+    if(stopped())
       return 0;
 
     if(ply_ == 0 && root_count_ < Limits::max_moves) {
@@ -438,7 +441,7 @@ int Search::quiescence(int alpha, int beta) {
     board_.forget_position();
     board_.pop_state();
 
-    if(engine_.time_control.stopped)
+    if(stopped())
       return 0;
 
     if(score > alpha) {

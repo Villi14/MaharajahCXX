@@ -28,10 +28,12 @@ class Search {
       : Search(engine, engine.board) { }
 
   // Searches `board` (a copy of the engine's, for a helper thread) with the engine's
-  // hash table and settings.
-  Search(Engine& engine, Board& board)
+  // hash table and settings. Only the main search checks the clock and input and
+  // clears the stop flag; a helper just stops when the flag is set.
+  Search(Engine& engine, Board& board, const bool helper = false)
       : engine_(engine)
-      , board_(board) { }
+      , board_(board)
+      , helper_(helper) { }
 
   // Searches to `depth` plies (or until stopped). Writes UCI "info" lines to `info` if given.
   SearchResult run(int depth, std::ostream* info = nullptr);
@@ -58,6 +60,9 @@ class Search {
 
   void reset();
   void communicate();
+  [[nodiscard]] bool stopped() const {
+    return engine_.time_control.stopped.load(std::memory_order_relaxed);
+  }
   [[nodiscard]] int evaluate() const;
   [[nodiscard]] bool should_return_draw_score() const;
   [[nodiscard]] int effective_depth(int depth) const;
@@ -76,6 +81,7 @@ class Search {
 
   Engine& engine_;
   Board& board_;
+  bool helper_{ };
 
   u64 nodes_{ };
   int ply_{ };

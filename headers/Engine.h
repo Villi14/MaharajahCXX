@@ -6,6 +6,7 @@
 #include "Transposition.h"
 #include "Zobrist.h"
 
+#include <atomic>
 #include <functional>
 
 namespace maharajah {
@@ -14,7 +15,8 @@ struct TimeControl {
   bool timeset{ };
   int starttime{ };
   int stoptime{ };
-  bool stopped{ };
+  // set by the main search thread (time up, "stop") and read by every search thread
+  std::atomic<bool> stopped{ };
   bool quit{ };
   // check for "stop"/"quit" input while searching (UCI searches without a fixed depth)
   bool poll_input{ };
