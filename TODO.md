@@ -42,6 +42,12 @@ identical.
 - [ ] Port the remaining tools: `maharajah_tool` (`generate`, `selfplay`, `bench`,
       `legalmoves <fen>`, `uci` — the UCI-subset REPL over `mah_*` that Maharajah_lab
       uses against Fairy-Stockfish) and `ask_engine.py`.
+      Next to start. Maharajah_ffi also has shell smoke tests for it:
+      `maharajah_tool_bench_smoke.sh`, `maharajah_tool_selfplay_json.sh`.
+- [ ] Port the browser wrapper `src/wasm/maharajah_wasm.c` (7 `mah_wasm_*` functions
+      returning strings instead of filling buffers), built with Emscripten by
+      `Maharajah_ffi/tool/build_wasm.sh` for the web game. Needed before the C++
+      engine can replace the C one in the browser.
 - [ ] Add a `perft` UCI command (both engines lack one) and compare perft counts for
       variant positions.
 - [ ] Compare timed searches (`go movetime`, `mah_best_move_time`) — only fixed-depth
