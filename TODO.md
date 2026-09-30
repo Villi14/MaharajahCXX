@@ -1,8 +1,8 @@
 # TODO — port of MaharajahC
 
 Branch `port-maharajahc`. The engine, UCI, C interface (`mah_*`), custom-position
-generator, `maharajah_tool` and `ask_engine.py` are ported from MaharajahC; the engine
-plays identical moves.
+generator, browser wrapper (`mah_wasm_*`), `maharajah_tool` and `ask_engine.py` are
+ported from MaharajahC; the engine plays identical moves.
 
 The reference C engine is `Maharajah/Maharajah_ffi/src` in the monorepo (the one the app
 ships). `../MaharajahC` is a copy of it and must be kept in sync: port a change there
@@ -12,8 +12,9 @@ identical.
 
 ## Status (2026-09-30)
 
-- 268 tests pass in ctest (also under ASan/UBSan): 262 gtest cases (63 of them ported
-  from MaharajahC's `tests/*_smoke.c`), `uci_smoke.sh` and 5 `maharajah_tool` tests.
+- 273 tests pass in ctest (also under ASan/UBSan): 267 gtest cases (63 of them ported
+  from MaharajahC's `tests/*_smoke.c`, 5 for `mah_wasm_*`), `uci_smoke.sh` and 5
+  `maharajah_tool` tests.
 - `maharajah_tool` output matches the C tool's apart from timings and the `id name`
   version (0.1.0 vs 0.2.1): `generate` (300 FENs), `bench` (moves and node counts),
   `selfplay` (6 games at depth 3, text and JSON), `legalmoves` (1832 positions from 30
@@ -56,12 +57,32 @@ identical.
 - [ ] Not ported, probably not needed: `tools/probe_capture.c` (ad-hoc king-capture
       debug probe, not built by CMake); `Maharajah_ffi/tool/ffi_smoke.dart` belongs
       with the app hook-up below.
-- [ ] Point Maharajah_lab at the C++ `maharajah_tool` (`MAHARAJAH_TOOL_BIN`) and rerun
-      its FSF legal-move spike and an Elo match.
-- [ ] Port the browser wrapper `src/wasm/maharajah_wasm.c` (7 `mah_wasm_*` functions
-      returning strings instead of filling buffers), built with Emscripten by
-      `Maharajah_ffi/tool/build_wasm.sh` for the web game. Needed before the C++
-      engine can replace the C one in the browser.
+- [x] Point Maharajah_lab at the C++ `maharajah_tool` (`MAHARAJAH_TOOL_BIN`) and rerun
+      its FSF legal-move spike and an Elo match (2026-09-30): `flutter test test/fsf
+      test/elo` passes (47, none skipped; legal moves identical to FSF in all 8 variant
+      positions). `bash lab elo --levels=1,2,3,4,5 --opponents=elo:1350 --games=6
+      --movetime=200`, C++ vs C: L1 +1=4-1 / +2=3-1, L2 +4-2 / +4-2, L3 +5-1 / +6,
+      L4 and L5 +6 for both. Same strength within noise (timed games, 6 per level);
+      a larger run with a stronger anchor (elo:1800) would separate L3-L5.
+      Follow-up on the 3882 positions of those games: C and C++ FFI, fresh engine per
+      search, all 5 levels (L5 at depth 8) — 0 of 19410 moves differ. At `go movetime
+      100` both use the same time; C++ finishes one more iteration in ~12% of positions
+      and then plays a different move in ~1.3%. Head-to-head C++ vs C at L5, 100 ms/move,
+      531 start positions from those games, colours swapped: +338 =461 -263, +25 Elo
+      [+15, +34] (95%, clustered by start). The gain is speed only; L1-L4 are
+      depth-capped and play identically.
+- [x] Port the browser wrapper `src/wasm/maharajah_wasm.c` (2026-09-30):
+      `sources/wasm/MaharajahWasm.cpp`, `tools/build_wasm.sh` (Emscripten through CMake,
+      target `maharajah_engine`), `WasmApiTests.cpp` (native), `tools/compare_wasm.mjs`.
+      Against a fresh C module from Maharajah_ffi (emcc 6.0.10): 8432 checks over the 35
+      positions of `compare_engines.py` (depths 1-7, 80-ply self-play at depth 4, FEN,
+      status, rejected input) — 0 mismatches. Fixed depths in Node: C++ 1-14 % faster.
+      Differences from the C build: `-fwasm-exceptions` (the FEN parser throws), no
+      `-flto` (with it emcc 6.0.10 never catches the exception), `-sSTACK_SIZE=1MB`
+      (per-ply move lists live on the stack; the 64 KB default overflows). The module
+      is 319 KB of wasm (C: 91 KB). Not yet deployed: the web game
+      (`Maharajah_net/Maharajah.Api/wwwroot/assets/wasm`) still ships the C module,
+      built 2026-08-01, before the pawn-wall sync.
 - [ ] Add a `perft` UCI command (both engines lack one) and compare perft counts for
       variant positions.
 - [ ] Compare timed searches (`go movetime`, `mah_best_move_time`) — only fixed-depth

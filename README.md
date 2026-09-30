@@ -56,6 +56,20 @@ UCI options: `Hash` (4-128 MB) and `Skill Level` (1-10). `go` accepts `depth`, `
 
 `mah_generate_custom_position_fen(side, seed, ...)` generates a custom variant start.
 
+## Browser build
+
+`tools/build_wasm.sh [out_dir]` builds `maharajah_engine.js` + `.wasm` with Emscripten
+(`emcc` on `PATH`) into `build-wasm/out`. It is a drop-in replacement for the module
+MaharajahC builds for the web game: an ES6 factory `createMaharajahEngine` exporting the
+same `mah_wasm_*` functions ([headers/wasm/maharajah_wasm.h](headers/wasm/maharajah_wasm.h)),
+which return strings instead of filling buffers and are called through `cwrap`:
+
+```js
+const engine = await createMaharajahEngine();
+engine.cwrap('mah_wasm_init', 'number', [])();
+const bestMoveTime = engine.cwrap('mah_wasm_best_move_time', 'string', ['number']);
+```
+
 ## maharajah_tool
 
 `./build/tools/maharajah_tool` is a command-line tool that drives the engine through the

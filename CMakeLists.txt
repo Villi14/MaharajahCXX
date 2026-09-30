@@ -27,8 +27,16 @@ else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
 
-if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
+# Emscripten targets wasm32; the engine keeps its bitboards in u64 and does not
+# depend on the pointer size
+if (NOT CMAKE_SIZEOF_VOID_P EQUAL 8 AND NOT EMSCRIPTEN)
   message(FATAL_ERROR "This project requires a 64-bit compiler.")
+endif()
+
+# the browser build (tools/build_wasm.sh) needs only the engine module
+if (EMSCRIPTEN)
+  add_subdirectory(sources)
+  return()
 endif()
 
 include(FetchContent)

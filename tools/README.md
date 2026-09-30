@@ -8,6 +8,9 @@
   `selfplay`, `legalmoves`, `bench`, `uci`), a port of MaharajahC's
   `tools/maharajah_tool.c`; see the main [README](../README.md#maharajah_tool). Its
   smoke tests are in `tests/`.
+- `build_wasm.sh` — builds the browser module (`mah_wasm_*`) with Emscripten.
+- `compare_wasm.mjs` — loads MaharajahC's and this engine's browser modules in Node and
+  diffs the results of the same `mah_wasm_*` calls.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 
@@ -56,3 +59,23 @@ diff <($T legalmoves "<fen>") <(build/tools/maharajah_tool legalmoves "<fen>")
 Positions are sent as `position fen <FEN>` without a `moves` list, because MaharajahC
 misreads `moves` as extra FEN fields. Skill levels are compared through the FFI, as
 MaharajahC ignores the UCI `Skill Level` option.
+
+## Browser module
+
+Build this engine's module with `tools/build_wasm.sh`, and MaharajahC's with the flags
+of `Maharajah_ffi/tool/build_wasm.sh` but a different output (that script writes into
+Maharajah_net's `wwwroot`), plus the same `-include` workaround:
+
+```sh
+E=../Maharajah/Maharajah_ffi/src; OUT=/tmp/c-wasm; mkdir -p $OUT
+emcc $(find $E/src -name '*.c' ! -path '*/cli/main.c') -I$E/include \
+  -include $E/include/engine/Zobrist.h -include $E/include/engine/Attacks.h \
+  -O3 -flto -sALLOW_MEMORY_GROWTH=1 -sINITIAL_MEMORY=67108864 -sMODULARIZE=1 \
+  -sEXPORT_ES6=1 -sEXPORT_NAME=createMaharajahEngine -sENVIRONMENT=web,node \
+  -sNO_EXIT_RUNTIME=1 -sEXPORTED_RUNTIME_METHODS=cwrap \
+  -sEXPORTED_FUNCTIONS=_mah_wasm_init,_mah_wasm_set_position_fen,_mah_wasm_apply_move,_mah_wasm_game_status,_mah_wasm_get_fen,_mah_wasm_best_move_depth,_mah_wasm_best_move_time \
+  -o $OUT/maharajah_engine.js
+node tools/compare_wasm.mjs $OUT/maharajah_engine.js build-wasm/out/maharajah_engine.js [--quick]
+```
+
+It uses the position lists of `compare_engines.py`.

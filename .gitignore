@@ -4,6 +4,7 @@
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
 build/
+build-wasm/
 cmake-build-debug/
 build-ninja/
 out/
