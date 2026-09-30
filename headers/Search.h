@@ -42,6 +42,10 @@ class Search {
     return nodes_;
   }
 
+#ifdef MAHARAJAH_TESTING
+  friend struct SearchTestAccess;
+#endif
+
   private:
   static constexpr int full_depth_moves{ 4 };
   static constexpr int reduction_limit{ 3 };

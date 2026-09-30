@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../headers/Game.h"
+#include "../headers/Search.h"
 
 namespace maharajah {
 
@@ -14,6 +15,12 @@ struct GameTestAccess {
   }
   static const Board& board(const Game& game) {
     return game.engine_.board;
+  }
+};
+
+struct SearchTestAccess {
+  static bool root_move_repeats_position(Search& search, const int move) {
+    return search.root_move_repeats_position(move);
   }
 };
 

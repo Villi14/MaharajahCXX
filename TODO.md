@@ -1,7 +1,8 @@
 # TODO — port of MaharajahC
 
-Branch `port-maharajahc`. The engine, UCI, C interface (`mah_*`) and custom-position
-generator are ported from MaharajahC and play identical moves.
+Branch `port-maharajahc`. The engine, UCI, C interface (`mah_*`), custom-position
+generator, `maharajah_tool` and `ask_engine.py` are ported from MaharajahC; the engine
+plays identical moves.
 
 The reference C engine is `Maharajah/Maharajah_ffi/src` in the monorepo (the one the app
 ships). `../MaharajahC` is a copy of it and must be kept in sync: port a change there
@@ -11,7 +12,12 @@ identical.
 
 ## Status (2026-09-30)
 
-- 199 unit tests pass.
+- 268 tests pass in ctest (also under ASan/UBSan): 262 gtest cases (63 of them ported
+  from MaharajahC's `tests/*_smoke.c`), `uci_smoke.sh` and 5 `maharajah_tool` tests.
+- `maharajah_tool` output matches the C tool's apart from timings and the `id name`
+  version (0.1.0 vs 0.2.1): `generate` (300 FENs), `bench` (moves and node counts),
+  `selfplay` (6 games at depth 3, text and JSON), `legalmoves` (1832 positions from 30
+  self-play games plus standard ones) and a scripted `uci` session.
 - `tools/compare_engines.py` (full run, 2026-09-30, after the generator sync): 2047
   searches, 13 887 `info` lines — 0
   mismatches in score, depth, nodes, PV and `bestmove`. Covered: 24 standard and 11
@@ -39,11 +45,19 @@ identical.
       rank may double-step to the 8th rank without promoting and is stuck there
       (`Board::generate_moves`, same in MaharajahC `Moves.c`). Fix in both engines or
       forbid the double step onto the last rank.
-- [ ] Port the remaining tools: `maharajah_tool` (`generate`, `selfplay`, `bench`,
-      `legalmoves <fen>`, `uci` — the UCI-subset REPL over `mah_*` that Maharajah_lab
-      uses against Fairy-Stockfish) and `ask_engine.py`.
-      Next to start. Maharajah_ffi also has shell smoke tests for it:
-      `maharajah_tool_bench_smoke.sh`, `maharajah_tool_selfplay_json.sh`.
+- [x] Port `maharajah_tool` (`tools/maharajah_tool.cpp`, smoke tests in
+      `tools/tests/`) and `ask_engine.py` (2026-09-30).
+- [x] Port MaharajahC's smoke tests to gtest (2026-09-30): `RulesTests.cpp`
+      (compound_piece, engine_rules, special_moves, pawn_unmoved), `DrawRulesTests.cpp`,
+      `EvaluationTests.cpp` (evaluate_safety, see), `EngineConfigTests.cpp`
+      (engine_config, transposition), `CustomSetupTests.cpp`, `SearchSanityTests.cpp`,
+      `FfiApiTests.cpp`; `uci_smoke.sh` runs as is. `perft_smoke.c` is covered by
+      `PerftTests.cpp` (deeper). FENs kept verbatim.
+- [ ] Not ported, probably not needed: `tools/probe_capture.c` (ad-hoc king-capture
+      debug probe, not built by CMake); `Maharajah_ffi/tool/ffi_smoke.dart` belongs
+      with the app hook-up below.
+- [ ] Point Maharajah_lab at the C++ `maharajah_tool` (`MAHARAJAH_TOOL_BIN`) and rerun
+      its FSF legal-move spike and an Elo match.
 - [ ] Port the browser wrapper `src/wasm/maharajah_wasm.c` (7 `mah_wasm_*` functions
       returning strings instead of filling buffers), built with Emscripten by
       `Maharajah_ffi/tool/build_wasm.sh` for the web game. Needed before the C++
@@ -55,7 +69,8 @@ identical.
 - [ ] Hook the C++ `maharajah_ffi` library into the app instead of the C one and
       check it on the target platforms (Android page size flag is set in CMake).
 - [ ] Run the tests on Windows/MSVC (CI covers Ubuntu and macOS only); the stdin
-      polling there uses `PeekNamedPipe` and is untested.
+      polling there uses `PeekNamedPipe` and is untested. The `maharajah_tool` shell
+      smoke tests are skipped on Windows.
 
 ## Bugs found in MaharajahC (not fixed there)
 
@@ -67,11 +82,18 @@ identical.
 - [ ] Does not build with current clang (C23): missing `#include`s —
       `Zobrist.h`/`Attacks.h` in `src/ffi/maharajah_ffi.c`, `Utils.h` in
       `tools/maharajah_tool.c`.
+- [ ] `tests/see_smoke.c` uses a malformed FEN, `8/1k6/1b6/3N3/8/8/8/4K3` (7 squares
+      on rank 5); the lenient parser shifts the ranks below, putting the white king on
+      e2. The port uses `3N4`.
 - [ ] `parse_go`: the tiny-increment branch checks `depth == 64` before a missing
       depth is defaulted to 64, so it only fires for an explicit `go depth 64`
       (kept for parity in `Game::parse_go`).
 
 ## Differences from MaharajahC (intended)
+
+- `id name` reports this project's version (`Maharajah 0.1.0`, C: `0.2.1`), set once in
+  the root `CMakeLists.txt`. On `uci` the options are listed again (C repeats only
+  name, author and `uciok`).
 
 - UCI rejects a position without exactly one king per side and falls back to the
   start position (C searches it and answers `bestmove (none)`).
