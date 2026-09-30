@@ -14,6 +14,9 @@ struct Notation {
     t['B'] = B;
     t['R'] = R;
     t['Q'] = Q;
+    t['A'] = A;
+    t['C'] = C;
+    t['M'] = M;
     t['K'] = K;
 
     t['p'] = p;
@@ -21,6 +24,9 @@ struct Notation {
     t['b'] = b;
     t['r'] = r;
     t['q'] = q;
+    t['a'] = a;
+    t['c'] = c;
+    t['m'] = m;
     t['k'] = k;
 
     return t;
@@ -34,11 +40,17 @@ struct Notation {
     t[R] = 'r';
     t[B] = 'b';
     t[N] = 'n';
+    t[A] = 'a';
+    t[C] = 'c';
+    t[M] = 'm';
 
     t[q] = 'q';
     t[r] = 'r';
     t[b] = 'b';
     t[n] = 'n';
+    t[a] = 'a';
+    t[c] = 'c';
+    t[m] = 'm';
 
     return t;
   }();
@@ -57,12 +69,12 @@ struct Notation {
   
 
 #ifdef _MSC_VER
-  static constexpr std::array<const char*, 12> display_pieces{ 
-    "P", "N", "B", "R", "Q", "K", "p", "n", "b", "r", "q", "k" 
+  static constexpr std::array<const char*, 18> display_pieces{
+    "P", "N", "B", "R", "Q", "A", "C", "M", "K", "p", "n", "b", "r", "q", "a", "c", "m", "k"
   };
 #else
-  static constexpr std::array<const char*, 12> display_pieces{ 
-    "♙", "♘", "♗", "♖", "♕", "♔", "♟︎", "♞", "♝", "♜", "♛", "♚" 
+  static constexpr std::array<const char*, 18> display_pieces{
+    "♙", "♘", "♗", "♖", "♕", "A", "C", "M", "♔", "♟︎", "♞", "♝", "♜", "♛", "a", "c", "m", "♚"
   };
 #endif
   // clang-format on

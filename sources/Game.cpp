@@ -1,27 +1,86 @@
 #include "../headers/Game.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Clock.h"
 #include "../headers/Notation.h"
-#include "../headers/Perft.h"
 #include "../headers/Search.h"
-#include <algorithm>
-#include <charconv>
+
+#include <cstdio>
 #include <cstdlib>
-#include <cstring>
 #include <format>
-#include <fstream>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
 
+#if defined(_WIN32)
+#  include <windows.h>
+#else
+#  include <sys/select.h>
+#  include <unistd.h>
+#endif
+
 using namespace std;
 using namespace maharajah;
 
 namespace maharajah {
 
+namespace {
+
+// the console input buffer, before any redirection (tests swap std::cin's buffer)
+streambuf* const console_input = cin.rdbuf();
+
+// true when a line of input is waiting, so a running search can react to "stop"
+bool input_waiting() {
+  streambuf* const input = cin.rdbuf();
+  if(input->in_avail() > 0)
+    return true;
+  if(input != console_input)
+    return false;
+
+#if defined(_WIN32)
+  static const HANDLE handle = GetStdHandle(STD_INPUT_HANDLE);
+  static DWORD mode{ };
+  static const bool pipe = !GetConsoleMode(handle, &mode);
+  DWORD available{ };
+  if(pipe)
+    return !PeekNamedPipe(handle, nullptr, 0, nullptr, &available, nullptr) || available > 0;
+  GetNumberOfConsoleInputEvents(handle, &available);
+  return available > 1;
+#else
+  fd_set read_fds;
+  FD_ZERO(&read_fds);
+  FD_SET(STDIN_FILENO, &read_fds);
+  timeval timeout{ };
+  select(STDIN_FILENO + 1, &read_fds, nullptr, nullptr, &timeout);
+  return FD_ISSET(STDIN_FILENO, &read_fds);
+#endif
+}
+
+// Any input stops a running search; "quit" also ends the UCI loop.
+void poll_input(TimeControl& time) {
+  if(!input_waiting())
+    return;
+
+  time.stopped = true;
+
+  string line;
+  if(!getline(cin, line) || line.starts_with("quit"))
+    time.quit = true;
+}
+
+// integer following `name` in a "go" command, or `fallback` when absent
+int go_argument(const string_view command, const string_view name, const int fallback) {
+  const auto position = command.find(name);
+  if(position == string_view::npos)
+    return fallback;
+  return atoi(string(command.substr(position + name.size())).c_str());
+}
+
+} // namespace
+
 Game::Game() {
-  AttackTables::init();
+  engine_.time_control.poll = poll_input;
 }
 
 GameState Game::state() const {
@@ -75,7 +134,7 @@ string Game::print_board(const bool print_to_console) const {
       int piece_int{ -1 };
 
       for(Pieces piece{ P }; piece < no_pieces; ++piece) {
-        if(get_bit(board_.state.bitboards[piece], to_square(square)))
+        if(get_bit(engine_.board.state.bitboards[piece], to_square(square)))
           piece_int = static_cast<int>(piece);
       }
 
@@ -85,13 +144,13 @@ string Game::print_board(const bool print_to_console) const {
   }
 
   ss << "\n    a b c d e f g h\n\n";
-  ss << format("    Side:     {}\n", board_.state.side ? "black" : "white");
-  ss << format("    En passant:  {}\n", (board_.state.en_passant != no_square) ? Notation::square_to_coordinates[board_.state.en_passant] : "no");
+  ss << format("    Side:     {}\n", engine_.board.state.side ? "black" : "white");
+  ss << format("    En passant:  {}\n", (engine_.board.state.en_passant != no_square) ? Notation::square_to_coordinates[engine_.board.state.en_passant] : "no");
   ss << format("    Castling:  {}{}{}{}\n",
-               (board_.state.castle & wk) ? 'K' : '-',
-               (board_.state.castle & wq) ? 'Q' : '-',
-               (board_.state.castle & bk) ? 'k' : '-',
-               (board_.state.castle & bq) ? 'q' : '-');
+               (engine_.board.state.castle & wk) ? 'K' : '-',
+               (engine_.board.state.castle & wq) ? 'Q' : '-',
+               (engine_.board.state.castle & bk) ? 'k' : '-',
+               (engine_.board.state.castle & bq) ? 'q' : '-');
   ss << "\n";
 
   string str = ss.str();
@@ -102,86 +161,7 @@ string Game::print_board(const bool print_to_console) const {
 }
 
 void Game::parse_fen(const string_view fen) {
-  const auto invalid = [] { return runtime_error("Invalid FEN"); };
-
-  string placement, side_field, castle_field, en_passant_field, halfmove_field;
-  istringstream fields{ string(fen) };
-  if(!(fields >> placement >> side_field >> castle_field >> en_passant_field))
-    throw invalid();
-  fields >> halfmove_field; // optional, followed by the optional fullmove number
-
-  // parse into a temporary so a malformed FEN leaves the board untouched
-  BoardState parsed{ };
-
-  constexpr string_view piece_chars{ "PNBRQKpnbrqk" };
-  int rank{ }, file{ };
-  for(const char ch : placement) {
-    if(ch == '/') {
-      if(file != BoardGeometry::files || ++rank >= BoardGeometry::ranks)
-        throw invalid();
-      file = 0;
-    } else if(ch >= '1' && ch <= '8') {
-      file += ch - '0';
-      if(file > BoardGeometry::files)
-        throw invalid();
-    } else {
-      const auto piece = piece_chars.find(ch);
-      if(piece == string_view::npos || file >= BoardGeometry::files)
-        throw invalid();
-      set_bit(parsed.bitboards[piece], to_square(rank * BoardGeometry::ranks + file));
-      ++file;
-    }
-  }
-  if(rank != BoardGeometry::ranks - 1 || file != BoardGeometry::files)
-    throw invalid();
-
-  if(side_field == "w")
-    parsed.side = white;
-  else if(side_field == "b")
-    parsed.side = black;
-  else
-    throw invalid();
-
-  if(castle_field != "-") {
-    for(const char ch : castle_field) {
-      switch(ch) {
-      case 'K':
-        parsed.castle |= wk;
-        break;
-      case 'Q':
-        parsed.castle |= wq;
-        break;
-      case 'k':
-        parsed.castle |= bk;
-        break;
-      case 'q':
-        parsed.castle |= bq;
-        break;
-      default:
-        throw invalid();
-      }
-    }
-  }
-
-  if(en_passant_field != "-") {
-    if(en_passant_field.size() != 2 || en_passant_field[0] < 'a' || en_passant_field[0] > 'h' || en_passant_field[1] < '1' || en_passant_field[1] > '8')
-      throw invalid();
-    parsed.en_passant = to_square((BoardGeometry::ranks - (en_passant_field[1] - '0')) * BoardGeometry::ranks + (en_passant_field[0] - 'a'));
-  }
-
-  if(!halfmove_field.empty())
-    from_chars(halfmove_field.data(), halfmove_field.data() + halfmove_field.size(), parsed.halfmove);
-
-  for(Pieces piece{ P }; piece <= K; ++piece)
-    parsed.occupancies[white] |= parsed.bitboards[piece];
-
-  for(Pieces piece{ p }; piece <= k; ++piece)
-    parsed.occupancies[black] |= parsed.bitboards[piece];
-
-  parsed.occupancies[both] = parsed.occupancies[white] | parsed.occupancies[black];
-
-  board_.state = parsed;
-  board_.ply = 0; // Reset ply on new game
+  engine_.board.parse_fen(fen);
 }
 
 void Game::print_attacked_squares(Colors side) const {
@@ -193,7 +173,7 @@ void Game::print_attacked_squares(Colors side) const {
       if(!file)
         ss << " " << BoardGeometry::ranks - rank << " ";
 
-      ss << " " << (board_.is_square_attacked(square, side) ? 1 : 0);
+      ss << " " << (engine_.board.is_square_attacked(square, side) ? 1 : 0);
     }
     ss << "\n";
   }
@@ -202,17 +182,13 @@ void Game::print_attacked_squares(Colors side) const {
 }
 
 void Game::print_move(const int move) {
-  const Pieces promoted = Move::get_move_promoted(move);
-  const char promo_char = (promoted == no_pieces) ? ' ' : Notation::promoted_pieces[promoted];
-
-  cout << format(
-      "{}{}{}\n", Notation::square_to_coordinates[Move::get_move_source(move)], Notation::square_to_coordinates[Move::get_move_target(move)], promo_char);
+  cout << Board::move_to_string(move) << '\n';
 }
 
 void Game::print_move_list() {
   stringstream ss;
 
-  if(board_.moves_list.size() == 0) {
+  if(engine_.board.moves_list.size() == 0) {
     ss << "\n     No move in the move list!\n";
     cout << ss.str();
     return;
@@ -220,13 +196,11 @@ void Game::print_move_list() {
 
   ss << "\n     move    piece     capture   double    enpass    castling\n\n";
 
-  for(size_t move_count{ }; move_count < board_.moves_list.size(); ++move_count) {
-    const int move = board_.moves_list[move_count];
+  for(size_t move_count{ }; move_count < engine_.board.moves_list.size(); ++move_count) {
+    const int move = engine_.board.moves_list[move_count];
 
-    ss << format("      {}{}{}   {}         {}         {}         {}         {}\n",
-                 Notation::square_to_coordinates[Move::get_move_source(move)],
-                 Notation::square_to_coordinates[Move::get_move_target(move)],
-                 Move::get_move_promoted(move) == no_pieces ? ' ' : Notation::promoted_pieces[Move::get_move_promoted(move)],
+    ss << format("      {:5}   {}         {}         {}         {}         {}\n",
+                 Board::move_to_string(move),
                  Notation::display_pieces[Move::get_move_piece(move)],
                  Move::get_move_capture(move) ? 1 : 0,
                  Move::get_move_double(move) ? 1 : 0,
@@ -234,108 +208,68 @@ void Game::print_move_list() {
                  Move::get_move_castling(move) ? 1 : 0);
   }
 
-  ss << format("\n\n     Total number of moves: {}\n\n", board_.moves_list.size());
+  ss << format("\n\n     Total number of moves: {}\n\n", engine_.board.moves_list.size());
 
   cout << ss.str();
 }
 
 // parse user/GUI move string input (e.g. "e7e8q")
-int Game::parse_move(const char* move_string) {
-  if(!move_string) {
-    return 0;
-  }
-
-  const size_t move_length = std::strlen(move_string);
-  if(move_length < 4) {
-    return 0;
-  }
-
-  MoveList move_list;
-  board_.generate_moves(move_list);
-
-  // parse source square
-  int source_square = (move_string[0] - 'a') + (BoardGeometry::ranks - (move_string[1] - '0')) * BoardGeometry::ranks;
-
-  // parse target square
-  int target_square = (move_string[2] - 'a') + (BoardGeometry::ranks - (move_string[3] - '0')) * BoardGeometry::ranks;
-
-  // loop over the moves within a move list
-  for(size_t i{ }; i < move_list.size(); ++i) {
-    // init move
-    int move = move_list[i];
-
-    // make sure source & target squares are available within the generated move
-    if(source_square == Move::get_move_source(move) && target_square == Move::get_move_target(move)) {
-      // init promoted piece
-      int promoted_piece = Move::get_move_promoted(move);
-
-      // promoted piece is available
-      if(promoted_piece != no_pieces) {
-        if(move_length < 5) {
-          return 0;
-        }
-        // promoted to queen
-        if((promoted_piece == Q || promoted_piece == q) && move_string[4] == 'q')
-          // return legal move
-          return move;
-
-        // promoted to rook
-        else if((promoted_piece == R || promoted_piece == r) && move_string[4] == 'r')
-          // return legal move
-          return move;
-
-        // promoted to bishop
-        else if((promoted_piece == B || promoted_piece == b) && move_string[4] == 'b')
-          // return legal move
-          return move;
-
-        // promoted to knight
-        else if((promoted_piece == N || promoted_piece == n) && move_string[4] == 'n')
-          // return legal move
-          return move;
-
-        // continue the loop on possible wrong promotions (e.g. "e7e8f")
-        continue;
-      }
-
-      // return legal move
-      return move;
-    }
-  }
-
-  // return illegal move
-  return 0;
+int Game::parse_move(const string_view move_string) const {
+  return engine_.board.parse_move(move_string);
 }
 
 // search position for the best move
 void Game::search_position(const int depth) {
-  Search search(board_);
-  const SearchResult result = search.run(depth);
+  Search search(engine_);
+  const SearchResult result = search.run(depth, &cout);
 
-  if(result.best_move) {
-    cout << format("info score cp {} depth {} nodes {}\n", result.score, result.depth, result.nodes);
-    cout << "bestmove ";
-    print_move(result.best_move);
-    cout << flush;
-  }
+  cout << "bestmove " << (result.best_move ? Board::move_to_string(result.best_move) : "(none)") << '\n' << flush;
 }
 
-// parse UCI "go" command
-void Game::parse_go(const char* command) {
-  int depth = 6; // default
+// parse UCI "go" command, e.g. "go depth 8", "go movetime 1000", "go wtime 60000 btime 60000 winc 1000"
+void Game::parse_go(const string_view command) {
+  TimeControl& time = engine_.time_control;
+  time.reset();
 
-  const char* ptr = std::strstr(command, "depth");
-  if(ptr) {
-    ptr += strlen("depth"); // +6
+  const Colors side = engine_.board.state.side;
+  const int increment = go_argument(command, side == white ? "winc" : "binc", 0);
+  int uci_time = go_argument(command, side == white ? "wtime" : "btime", -1);
+  int moves_to_go = go_argument(command, "movestogo", 30);
+  const int movetime = go_argument(command, "movetime", -1);
+  int depth = go_argument(command, "depth", -1);
 
-    // skip ' '
-    while(*ptr == ' ')
-      ptr++;
+  if(movetime != -1) {
+    uci_time = movetime;
+    moves_to_go = 1;
+  }
 
-    if(*ptr >= '0' && *ptr <= '9') {
-      depth = atoi(ptr);
+  time.starttime = now_ms();
+
+  if(uci_time != -1) {
+    time.timeset = true;
+
+    if(moves_to_go > 0)
+      uci_time /= moves_to_go;
+
+    // leave a margin for GUI lag
+    if(uci_time > 1500)
+      uci_time -= 50;
+
+    time.stoptime = time.starttime + uci_time + increment;
+
+    if(uci_time < 1500 && increment && depth == Limits::max_ply) {
+      // with a tiny increment the lag margin could place stoptime in the past
+      // and abort the search before depth 1 completes
+      time.stoptime = time.starttime + max(increment - 50, 5);
     }
   }
+
+  // no depth limit: search until the time runs out or "stop" arrives
+  if(depth == -1)
+    depth = Limits::max_ply;
+
+  // a pure fixed-depth search runs to completion; anything else listens for "stop"
+  time.poll_input = time.timeset || movetime != -1 || depth == Limits::max_ply;
 
   search_position(depth);
 }
@@ -354,67 +288,39 @@ void Game::parse_go(const char* command) {
     // init position from fen string and make moves on chess board
     position fen r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1 moves e2a6 e8g8
 */
-void Game::parse_position(char* command) {
-  char* ptr = command;
+void Game::parse_position(string_view command) {
+  if(command.starts_with("position"))
+    command.remove_prefix(8);
 
-  if(strncmp(ptr, "position", 8) == 0) {
-    ptr += 8;
-  }
-
-  while(*ptr == ' ')
-    ptr++;
+  const auto moves_position = command.find("moves");
+  const string_view setup = command.substr(0, moves_position);
 
   try {
-    if(strncmp(ptr, "startpos", 8) == 0) {
-      parse_fen(Fen::start_position);
-      ptr += 8;
-    }
+    bool valid = true;
 
-    else if(strncmp(ptr, "fen", 3) == 0) {
-      ptr += 3;
+    if(const auto fen_position = setup.find("fen"); fen_position != string_view::npos && !setup.substr(0, fen_position).contains("startpos"))
+      valid = engine_.set_position(setup.substr(fen_position + 3));
+    else
+      engine_.set_position(Fen::start_position);
 
-      while(*ptr == ' ')
-        ptr++;
-
-      parse_fen(ptr);
-    } else {
-      parse_fen(Fen::start_position);
+    if(!valid) {
+      cout << "info string invalid position: each side needs exactly one king\n" << flush;
+      return;
     }
   } catch(const runtime_error&) {
-    cout << "info string invalid fen\n";
+    cout << "info string invalid fen\n" << flush;
     return;
   }
 
-  if(count_bits(board_.state.bitboards[K]) != 1 || count_bits(board_.state.bitboards[k]) != 1) {
-    cout << "info string invalid position: each side needs exactly one king\n";
-    parse_fen(Fen::start_position);
-    return;
-  }
+  if(moves_position != string_view::npos) {
+    istringstream moves{ string(command.substr(moves_position + 5)) };
+    string move;
 
-  char* moves_ptr = strstr(ptr, "moves");
-
-  if(moves_ptr) {
-    ptr = moves_ptr + 5;
-
-    while(*ptr == ' ')
-      ptr++;
-
-    while(*ptr) {
-      int move = parse_move(ptr);
-
-      if(move == 0)
-        break;
-
-      if(!board_.make_move(move, TypeMove::all_moves)) {
-        cout << "info string illegal move ignored\n";
+    while(moves >> move) {
+      if(!engine_.apply_move(move)) {
+        cout << "info string illegal move ignored\n" << flush;
         break;
       }
-
-      while(*ptr && *ptr != ' ')
-        ptr++;
-
-      while(*ptr == ' ')
-        ptr++;
     }
   }
 
@@ -422,42 +328,46 @@ void Game::parse_position(char* command) {
     print_board();
 }
 
+void Game::print_uci_info() {
+  cout << "id name Maharajah\n";
+  cout << "id author Villi\n";
+  cout << format("option name Hash type spin default {} min {} max {}\n", default_hash_mb, min_hash_mb, max_hash_mb);
+  cout << format("option name Skill Level type spin default {} min {} max {}\n", SearchConfig::max_skill, SearchConfig::min_skill, SearchConfig::max_skill);
+  cout << "uciok\n" << flush;
+}
+
 void Game::uci_loop() {
-  char input[2000];
+  string input;
 
   print_uci_info();
 
-  while(true) {
-    if(!std::cin.getline(input, sizeof(input)))
-      break;
+  while(getline(cin, input)) {
+    if(!input.empty() && input.back() == '\r')
+      input.pop_back();
 
-    if(input[0] == '\0')
+    if(input.empty())
       continue;
 
     // isready
     if(starts_with(input, "isready")) {
-      std::cout << "readyok\n";
+      cout << "readyok\n" << flush;
     }
 
     // position
     else if(starts_with(input, "position")) {
       parse_position(input);
+      engine_.transposition_table.clear();
     }
 
     // ucinewgame
     else if(starts_with(input, "ucinewgame")) {
-      char start[] = "position startpos";
-      parse_position(start);
+      parse_position("position startpos");
+      engine_.transposition_table.clear();
     }
 
     // go
     else if(is_token(input, "go")) {
       parse_go(input);
-    }
-
-    // stop
-    else if(starts_with(input, "stop")) {
-      // TODO: search_stop = true;
     }
 
     // quit
@@ -469,12 +379,24 @@ void Game::uci_loop() {
     else if(starts_with(input, "uci")) {
       print_uci_info();
     }
+
+    else if(starts_with(input, "setoption name Hash value ")) {
+      const int mb = clamp(atoi(input.c_str() + 26), min_hash_mb, max_hash_mb);
+      engine_.transposition_table.resize(mb);
+    }
+
+    else if(starts_with(input, "setoption name Skill Level value ")) {
+      engine_.search_config = SearchConfig::for_skill(atoi(input.c_str() + 33));
+    }
+
+    // "quit" arrived during a search
+    if(engine_.time_control.quit)
+      break;
   }
 }
 
 void Game::play(const bool debug) {
   game_state_ = play_game;
-  AttackTables::init();
   verbose_ = debug;
 
   if(debug) {

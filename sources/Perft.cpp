@@ -1,19 +1,15 @@
 #include "../headers/Perft.h"
-#include "../headers/Notation.h"
+#include "../headers/Clock.h"
 
 #include <format>
 #include <iostream>
-
-#include <chrono>
 
 using namespace std;
 
 namespace maharajah {
 
 int Perft::get_time_ms() {
-  using namespace std::chrono;
-  static const auto start = steady_clock::now();
-  return static_cast<int>(duration_cast<milliseconds>(steady_clock::now() - start).count());
+  return now_ms();
 }
 
 u64 Perft::perft(int depth) {
@@ -62,8 +58,7 @@ void Perft::perft_divide(int depth) {
     const u64 nodes_for_move = perft_rec(depth - 1);
     board_.pop_state();
 
-    cout << Notation::square_to_coordinates[Move::get_move_source(move)] << Notation::square_to_coordinates[Move::get_move_target(move)]
-         << (Move::get_move_promoted(move) == no_pieces ? ' ' : Notation::promoted_pieces[Move::get_move_promoted(move)]) << ": " << nodes_for_move << '\n';
+    cout << Board::move_to_string(move) << ": " << nodes_for_move << '\n';
   }
 }
 
@@ -92,11 +87,7 @@ void Perft::perft_test(int depth) {
     total_nodes += nodes_for_move;
     board_.pop_state();
 
-    cout << format("      move: {}{}{}    nodes: {}\n",
-                   Notation::square_to_coordinates[Move::get_move_source(move)],
-                   Notation::square_to_coordinates[Move::get_move_target(move)],
-                   Move::get_move_promoted(move) ? Notation::promoted_pieces[Move::get_move_promoted(move)] : ' ',
-                   nodes_for_move);
+    cout << format("      move: {:5}    nodes: {}\n", Board::move_to_string(move), nodes_for_move);
   }
 
   cout << "\n    Depth: " << depth;

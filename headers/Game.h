@@ -1,8 +1,7 @@
 #pragma once
 
-#include "../headers/Board.h"
+#include "Engine.h"
 
-#include <cstring>
 #include <iostream>
 #include <string>
 #include <string_view>
@@ -12,6 +11,10 @@ namespace maharajah {
 enum GameState { start_game, play_game, end_game };
 
 struct Game {
+  static constexpr int default_hash_mb{ 64 };
+  static constexpr int min_hash_mb{ 4 };
+  static constexpr int max_hash_mb{ 128 };
+
   Game();
   void play(bool debug = false);
   int shutdown();
@@ -22,29 +25,20 @@ struct Game {
   static std::string print_bitboard(u64 bitboard, bool print_to_console = false);
   static void print_move(int move);
   void print_move_list();
-  int parse_move(const char* move_string);
-  void parse_go(const char* command);
+  int parse_move(std::string_view move_string) const;
+  void parse_go(std::string_view command);
   void search_position(int depth);
-  void parse_position(char* command);
+  void parse_position(std::string_view command);
   void uci_loop();
 
-  static void print_uci_info() {
-    std::cout << "id name Maharajah\n";
-    std::cout << "id author Villi\n";
-    std::cout << "uciok\n";
+  static void print_uci_info();
+
+  static bool starts_with(std::string_view str, std::string_view cmd) {
+    return str.starts_with(cmd);
   }
 
-  static bool starts_with(const char* str, const char* cmd) {
-    while(*cmd) {
-      if(*str++ != *cmd++)
-        return false;
-    }
-    return true;
-  }
-
-  static bool is_token(const char* str, const char* token) {
-    size_t len = std::strlen(token);
-    return std::strncmp(str, token, len) == 0 && (str[len] == ' ' || str[len] == '\n' || str[len] == '\0');
+  static bool is_token(std::string_view str, std::string_view token) {
+    return str.starts_with(token) && (str.size() == token.size() || str[token.size()] == ' ' || str[token.size()] == '\n');
   }
 
 #ifdef MAHARAJAH_TESTING
@@ -52,7 +46,7 @@ struct Game {
 #endif
 
   private:
-  Board board_{ };
+  Engine engine_{ };
   GameState game_state_{ start_game };
   int score_{ };
   bool verbose_{ false };

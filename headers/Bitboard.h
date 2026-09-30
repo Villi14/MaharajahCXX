@@ -84,4 +84,51 @@ inline u64 get_queen_attacks(const Squares square, u64 occupancy) {
   return get_bishop_attacks(square, occupancy) | get_rook_attacks(square, occupancy);
 }
 
+// bishop + knight
+inline u64 get_archbishop_attacks(const Squares square, u64 occupancy) {
+  return get_bishop_attacks(square, occupancy) | AttackTables::knight[square];
+}
+
+// rook + knight
+inline u64 get_chancellor_attacks(const Squares square, u64 occupancy) {
+  return get_rook_attacks(square, occupancy) | AttackTables::knight[square];
+}
+
+// queen + knight
+inline u64 get_amazon_attacks(const Squares square, u64 occupancy) {
+  return get_queen_attacks(square, occupancy) | AttackTables::knight[square];
+}
+
+// Squares attacked from `square` by a non-pawn piece of the given kind.
+inline u64 get_piece_attacks(const Pieces piece, const Squares square, const u64 occupancy) {
+  switch(piece) {
+  case N:
+  case n:
+    return AttackTables::knight[square];
+  case B:
+  case b:
+    return get_bishop_attacks(square, occupancy);
+  case R:
+  case r:
+    return get_rook_attacks(square, occupancy);
+  case Q:
+  case q:
+    return get_queen_attacks(square, occupancy);
+  case A:
+  case a:
+    return get_archbishop_attacks(square, occupancy);
+  case C:
+  case c:
+    return get_chancellor_attacks(square, occupancy);
+  case M:
+  case m:
+    return get_amazon_attacks(square, occupancy);
+  case K:
+  case k:
+    return AttackTables::king[square];
+  default:
+    return zero;
+  }
+}
+
 } // namespace maharajah
