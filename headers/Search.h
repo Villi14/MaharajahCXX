@@ -28,12 +28,14 @@ class Search {
       : Search(engine, engine.board) { }
 
   // Searches `board` (a copy of the engine's, for a helper thread) with the engine's
-  // hash table and settings. Only the main search checks the clock and input and
-  // clears the stop flag; a helper just stops when the flag is set.
-  Search(Engine& engine, Board& board, const bool helper = false)
+  // hash table and settings. Thread 0 is the main search: it alone checks the clock
+  // and input, clears the stop flag and picks the move. A helper just stops when the
+  // flag is set.
+  Search(Engine& engine, Board& board, const int thread_index = 0)
       : engine_(engine)
       , board_(board)
-      , helper_(helper) { }
+      , thread_index_(thread_index)
+      , helper_(thread_index > 0) { }
 
   // Searches to `depth` plies (or until stopped). Writes UCI "info" lines to `info` if given.
   SearchResult run(int depth, std::ostream* info = nullptr);
@@ -60,6 +62,8 @@ class Search {
 
   void reset();
   void communicate();
+  // adds the nodes searched since the last report to the engine's helper_nodes
+  void report_nodes();
   [[nodiscard]] bool stopped() const {
     return engine_.time_control.stopped.load(std::memory_order_relaxed);
   }
@@ -81,7 +85,10 @@ class Search {
 
   Engine& engine_;
   Board& board_;
+  int thread_index_{ };
   bool helper_{ };
+  // nodes already added to the engine's helper_nodes
+  u64 reported_nodes_{ };
 
   u64 nodes_{ };
   int ply_{ };
@@ -95,5 +102,12 @@ class Search {
   std::array<int, Limits::max_moves> root_moves_{ };
   std::array<int, Limits::max_moves> root_scores_{ };
 };
+
+// Lazy SMP: searches the engine's position with `engine.threads` threads that share
+// the hash table, each on its own copy of the board. The main thread reports and
+// picks the move; the helpers only fill the hash table, until the main thread
+// finishes. With one thread this is Search(engine).run(); with more the result
+// depends on thread timing.
+SearchResult run_search(Engine& engine, int depth, std::ostream* info = nullptr);
 
 } // namespace maharajah

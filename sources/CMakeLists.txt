@@ -33,7 +33,10 @@ if(EMSCRIPTEN)
   return()
 endif()
 
+find_package(Threads REQUIRED)
+
 add_library(${BINARY}STATIC STATIC ${ENGINE_SOURCES})
+target_link_libraries(${BINARY}STATIC PUBLIC Threads::Threads)
 
 add_executable(${BINARY} main.cpp)
 target_link_libraries(${BINARY} PRIVATE ${BINARY}STATIC)
@@ -42,6 +45,7 @@ target_link_libraries(${BINARY} PRIVATE ${BINARY}STATIC)
 option(MAHARAJAH_BUILD_FFI "Build the maharajah_ffi shared library" ON)
 if(MAHARAJAH_BUILD_FFI)
   add_library(maharajah_ffi SHARED ${ENGINE_SOURCES})
+  target_link_libraries(maharajah_ffi PRIVATE Threads::Threads)
   set_target_properties(maharajah_ffi PROPERTIES CXX_VISIBILITY_PRESET hidden VISIBILITY_INLINES_HIDDEN ON)
   if(ANDROID)
     target_link_options(maharajah_ffi PRIVATE "-Wl,-z,max-page-size=16384")

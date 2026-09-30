@@ -220,8 +220,7 @@ int Game::parse_move(const string_view move_string) const {
 
 // search position for the best move
 void Game::search_position(const int depth) {
-  Search search(engine_);
-  const SearchResult result = search.run(depth, &cout);
+  const SearchResult result = run_search(engine_, depth, &cout);
 
   cout << "bestmove " << (result.best_move ? Board::move_to_string(result.best_move) : "(none)") << '\n' << flush;
 }
@@ -333,6 +332,7 @@ void Game::print_uci_info() {
   cout << "id author Villi\n";
   cout << format("option name Hash type spin default {} min {} max {}\n", default_hash_mb, min_hash_mb, max_hash_mb);
   cout << format("option name Skill Level type spin default {} min {} max {}\n", SearchConfig::max_skill, SearchConfig::min_skill, SearchConfig::max_skill);
+  cout << format("option name Threads type spin default {} min {} max {}\n", Engine::min_threads, Engine::min_threads, Engine::max_threads);
   cout << "uciok\n" << flush;
 }
 
@@ -387,6 +387,10 @@ void Game::uci_loop() {
 
     else if(starts_with(input, "setoption name Skill Level value ")) {
       engine_.search_config = SearchConfig::for_skill(atoi(input.c_str() + 33));
+    }
+
+    else if(starts_with(input, "setoption name Threads value ")) {
+      engine_.threads = clamp(atoi(input.c_str() + 29), Engine::min_threads, Engine::max_threads);
     }
 
     // "quit" arrived during a search

@@ -39,7 +39,8 @@ Visual Studio: `cmake -G "Visual Studio 18 2026" -S . -B build`.
 ./build/sources/Maharajah --debug   # prints the board and searches the start position
 ```
 
-UCI options: `Hash` (4-128 MB) and `Skill Level` (1-10). `go` accepts `depth`, `movetime`,
+UCI options: `Hash` (4-128 MB), `Skill Level` (1-10) and `Threads` (1-64, default 1; more
+than one thread searches faster but is no longer deterministic). `go` accepts `depth`, `movetime`,
 `wtime`/`btime`/`winc`/`binc`/`movestogo` and `infinite`; a running search stops on `stop`.
 
 ## C interface
@@ -49,7 +50,7 @@ UCI options: `Hash` (4-128 MB) and `Skill Level` (1-10). `go` accepts `depth`, `
 
 1. `mah_init()`
 2. `mah_set_position_startpos()` or `mah_set_position_fen(...)` / `mah_set_position_fen_with_rules(...)`
-3. (optional) `mah_set_hash_mb(mb)`, `mah_set_difficulty_level(1..5)`, `mah_set_skill_level(1..10)`
+3. (optional) `mah_set_hash_mb(mb)`, `mah_set_difficulty_level(1..5)`, `mah_set_skill_level(1..10)`, `mah_set_threads(1..64)`
 4. (loop) `mah_apply_move(...)`, `mah_game_status()`, `mah_get_fen(...)` and
    `mah_best_move_depth(...)` / `mah_best_move_time(...)`
 5. `mah_shutdown()`
@@ -84,7 +85,7 @@ maharajah_tool uci                                                   # UCI subse
 ```
 
 `uci` understands `uci`, `isready`, `ucinewgame`, `setoption` (`Hash`, `Skill Level`,
-`UI Difficulty`), `position` and `go depth|movetime`, plus `status`, `getfen [fullmove]`
+`UI Difficulty`, `Threads`), `position` and `go depth|movetime`, plus `status`, `getfen [fullmove]`
 and `legalmoves` (ends with `endmoves`). Maharajah_lab uses it as the engine and match
 arbiter against Fairy-Stockfish. A `position` command that extends the previous one only
 applies the new moves, so the hash table survives between moves.

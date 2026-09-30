@@ -87,6 +87,11 @@ FFI_PLUGIN_EXPORT int mah_generate_custom_position_fen(int side_to_move, unsigne
 // Resize hash table (MB, clamped to [4, 1024]). Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_hash_mb(int mb);
 
+// Set the number of search threads, clamped to [1, 64]. More than one searches
+// faster but no longer returns the same move for the same position every time.
+// Returns 1 on success.
+FFI_PLUGIN_EXPORT int mah_set_threads(int threads);
+
 // Set engine skill level in the range [1..10]. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_skill_level(int skill_level);
 

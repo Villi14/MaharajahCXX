@@ -4,8 +4,11 @@
 #include "../headers/Evaluator.h"
 #include "../headers/See.h"
 
+#include <algorithm>
 #include <cstdlib>
 #include <format>
+#include <thread>
+#include <vector>
 
 namespace maharajah {
 
@@ -40,6 +43,7 @@ void TimeControl::set_movetime(const int movetime_ms) {
 
 void Search::reset() {
   nodes_ = 0;
+  reported_nodes_ = 0;
   if(!helper_)
     engine_.time_control.stopped = false;
   follow_pv_ = false;
@@ -56,8 +60,10 @@ void Search::reset() {
 }
 
 void Search::communicate() {
-  if(helper_)
+  if(helper_) {
+    report_nodes();
     return;
+  }
 
   TimeControl& time = engine_.time_control;
 
@@ -66,6 +72,11 @@ void Search::communicate() {
 
   if(time.poll_input && time.poll)
     time.poll(time);
+}
+
+void Search::report_nodes() {
+  engine_.time_control.helper_nodes.fetch_add(nodes_ - reported_nodes_, std::memory_order_relaxed);
+  reported_nodes_ = nodes_;
 }
 
 int Search::evaluate() const {
@@ -133,12 +144,13 @@ bool Search::should_return_draw_score() const {
 }
 
 void Search::print_info(std::ostream& out, const int score, const int depth, const int elapsed) const {
+  const u64 nodes = nodes_ + engine_.time_control.helper_nodes.load(std::memory_order_relaxed);
   if(score > -mate_value && score < -mate_score)
-    out << std::format("info score mate {} depth {} nodes {} time {} pv ", -(score + mate_value) / 2 - 1, depth, nodes_, elapsed);
+    out << std::format("info score mate {} depth {} nodes {} time {} pv ", -(score + mate_value) / 2 - 1, depth, nodes, elapsed);
   else if(score > mate_score && score < mate_value)
-    out << std::format("info score mate {} depth {} nodes {} time {} pv ", (mate_value - score) / 2 + 1, depth, nodes_, elapsed);
+    out << std::format("info score mate {} depth {} nodes {} time {} pv ", (mate_value - score) / 2 + 1, depth, nodes, elapsed);
   else
-    out << std::format("info score cp {} depth {} nodes {} time {} pv ", score, depth, nodes_, elapsed);
+    out << std::format("info score cp {} depth {} nodes {} time {} pv ", score, depth, nodes, elapsed);
 
   for(int count{ }; count < pv_length_[0]; ++count)
     out << Board::move_to_string(pv_table_[0][count]) << ' ';
@@ -155,8 +167,9 @@ SearchResult Search::run(const int depth, std::ostream* info) {
   int beta = infinity;
   const int max_depth = effective_depth(depth);
 
-  // iterative deepening
-  for(int current_depth{ 1 }; current_depth <= max_depth; ++current_depth) {
+  // iterative deepening; odd helpers start a ply deeper so the threads spread over
+  // two depths instead of all searching the same tree
+  for(int current_depth{ 1 + thread_index_ % 2 }; current_depth <= max_depth; ++current_depth) {
     if(stopped())
       break;
 
@@ -183,11 +196,78 @@ SearchResult Search::run(const int depth, std::ostream* info) {
     if(info && pv_length_[0])
       print_info(*info, score, current_depth, now_ms() - start);
 
-    if(root_count_ > 0)
+    if(!helper_ && root_count_ > 0)
       result.best_move = select_skill_move();
   }
 
+  if(helper_)
+    report_nodes();
+
   result.nodes = nodes_;
+  return result;
+}
+
+namespace {
+
+// Helper search threads, stopped and joined when this goes out of scope.
+class HelperThreads {
+  public:
+  HelperThreads(Engine& engine, const int count)
+      : engine_(engine)
+      , boards_(static_cast<std::size_t>(count), engine.board) {
+    threads_.reserve(boards_.size());
+    try {
+      for(int index{ }; index < count; ++index) {
+        threads_.emplace_back([&engine, &board = boards_[static_cast<std::size_t>(index)], index] {
+          Search(engine, board, index + 1).run(Limits::max_ply);
+        });
+      }
+    } catch(...) {
+      // the destructor does not run for a half-built object
+      stop_and_join();
+      throw;
+    }
+  }
+
+  HelperThreads(const HelperThreads&) = delete;
+  HelperThreads& operator=(const HelperThreads&) = delete;
+
+  ~HelperThreads() {
+    stop_and_join();
+  }
+
+  private:
+  void stop_and_join() {
+    engine_.time_control.stopped = true;
+    for(std::thread& thread : threads_)
+      thread.join();
+  }
+
+  Engine& engine_;
+  std::vector<Board> boards_;
+  std::vector<std::thread> threads_;
+};
+
+} // namespace
+
+SearchResult run_search(Engine& engine, const int depth, std::ostream* info) {
+  TimeControl& time = engine.time_control;
+  time.helper_nodes = 0;
+
+  const int helper_count = std::clamp(engine.threads, Engine::min_threads, Engine::max_threads) - 1;
+  if(helper_count == 0)
+    return Search(engine).run(depth, info);
+
+  // cleared before the helpers start: the main search clears it only once it runs
+  time.stopped = false;
+
+  SearchResult result;
+  {
+    const HelperThreads helpers(engine, helper_count);
+    result = Search(engine).run(depth, info);
+  }
+
+  result.nodes += time.helper_nodes;
   return result;
 }
 

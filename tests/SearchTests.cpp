@@ -331,3 +331,47 @@ TEST_F(search_test_fixture, uci_go_movetime_returns_a_move) {
   EXPECT_NE(out.find("bestmove "), string::npos);
   EXPECT_EQ(out.find("bestmove (none)"), string::npos);
 }
+
+// Lazy SMP (run_search with more than one thread)
+
+TEST_F(search_test_fixture, one_thread_run_search_is_the_plain_search) {
+  game.parse_fen("r1bq1rk1/pp2bppp/2n1pn2/3p4/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8");
+  const SearchResult plain = run(6);
+  engine().transposition_table.clear();
+  const SearchResult threaded = run_search(engine(), 6);
+  EXPECT_EQ(threaded.best_move, plain.best_move);
+  EXPECT_EQ(threaded.score, plain.score);
+  EXPECT_EQ(threaded.nodes, plain.nodes);
+}
+
+TEST_F(search_test_fixture, helper_threads_leave_the_position_and_find_the_mate) {
+  engine().threads = 4;
+  game.parse_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1");
+  const BoardState before = board().state;
+
+  const SearchResult result = run_search(engine(), 6);
+  EXPECT_EQ(Board::move_to_string(result.best_move), "c4f7");
+  EXPECT_GT(result.score, Search::mate_score);
+  EXPECT_EQ(result.depth, 6);
+  EXPECT_EQ(board().state.hash_key, before.hash_key);
+  EXPECT_EQ(board().state.bitboards, before.bitboards);
+}
+
+TEST_F(search_test_fixture, helper_threads_stop_with_the_main_search_on_time) {
+  engine().threads = 4;
+  game.parse_fen(Fen::start_position);
+  engine().time_control.set_movetime(200);
+  const SearchResult result = run_search(engine(), Limits::max_ply);
+  EXPECT_NE(result.best_move, 0);
+  EXPECT_LT(result.depth, Limits::max_ply);
+}
+
+TEST_F(search_test_fixture, uci_threads_option_is_clamped_and_searches) {
+  const string out = run_uci(game, "setoption name Threads value 3\nposition startpos\ngo depth 5\nquit\n");
+  EXPECT_EQ(engine().threads, 3);
+  EXPECT_NE(out.find("option name Threads type spin default 1 min 1 max 64"), string::npos);
+  EXPECT_NE(out.find("bestmove "), string::npos);
+
+  (void)run_uci(game, "setoption name Threads value 1000\nquit\n");
+  EXPECT_EQ(engine().threads, Engine::max_threads);
+}

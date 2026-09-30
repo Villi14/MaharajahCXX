@@ -477,6 +477,7 @@ void UciSession::identify() {
   std::printf("option name Hash type spin default 64 min 4 max 1024\n");
   std::printf("option name Skill Level type spin default 10 min 1 max 10\n");
   std::printf("option name UI Difficulty type spin default 5 min 1 max 5\n");
+  std::printf("option name Threads type spin default 1 min 1 max 64\n");
   std::printf("uciok\n");
 }
 
@@ -494,6 +495,8 @@ void UciSession::setoption(const std::string_view command) {
     mah_set_skill_level(number);
   else if(command.find("name UI Difficulty") != std::string_view::npos)
     mah_set_difficulty_level(number);
+  else if(command.find("name Threads") != std::string_view::npos)
+    mah_set_threads(number);
   else
     std::fprintf(stderr, "maharajah_tool: unknown option in '%s'.\n", std::string(command).c_str());
 }

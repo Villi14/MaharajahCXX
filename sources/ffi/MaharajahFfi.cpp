@@ -54,7 +54,7 @@ const char* eval_status_string(const Engine& live) {
 // the app owns stdin, so FFI searches never poll it
 int search_best_move(Engine& live, const int depth) {
   live.time_control.poll_input = false;
-  const SearchResult result = Search(live).run(depth);
+  const SearchResult result = run_search(live, depth);
   last_nodes = result.nodes;
   return result.best_move;
 }
@@ -182,6 +182,11 @@ FFI_PLUGIN_EXPORT int mah_generate_custom_position_fen(const int side_to_move, c
 
 FFI_PLUGIN_EXPORT int mah_set_hash_mb(const int mb) {
   live_engine().transposition_table.resize(std::clamp(mb, ffi_min_hash_mb, ffi_max_hash_mb));
+  return 1;
+}
+
+FFI_PLUGIN_EXPORT int mah_set_threads(const int threads) {
+  live_engine().threads = std::clamp(threads, Engine::min_threads, Engine::max_threads);
   return 1;
 }
 

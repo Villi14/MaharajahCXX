@@ -285,3 +285,19 @@ TEST_F(ffi_api_test_fixture, king_capture_is_never_a_legal_move) {
   EXPECT_FALSE(mah_apply_move("e5e8"));
   EXPECT_NE(best_move(1), "");
 }
+
+TEST_F(ffi_api_test_fixture, set_threads_searches_with_helper_threads) {
+  EXPECT_TRUE(mah_set_threads(4));
+  EXPECT_EQ(maharajah::ffi::live_engine().threads, 4);
+  EXPECT_TRUE(mah_set_threads(0));
+  EXPECT_EQ(maharajah::ffi::live_engine().threads, 1);
+  EXPECT_TRUE(mah_set_threads(1000));
+  EXPECT_EQ(maharajah::ffi::live_engine().threads, 64);
+
+  // amazon smothered mate, see SearchTests
+  ASSERT_TRUE(mah_set_threads(4));
+  ASSERT_TRUE(mah_set_position_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1"));
+  EXPECT_EQ(best_move(5), "c4f7");
+  ASSERT_TRUE(mah_set_position_startpos());
+  EXPECT_NE(timed_best_move(100), "");
+}
