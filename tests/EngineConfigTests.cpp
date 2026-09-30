@@ -91,3 +91,24 @@ TEST_F(transposition_test_fixture, clear_removes_entries) {
   board.parse_fen("k7/8/8/8/3M4/8/8/7K w - - 0 1 ");
   EXPECT_EQ(table.read(board.state.hash_key, -Scores::infinity, Scores::infinity, 6, 0), TranspositionTable::no_entry);
 }
+
+// the lockless table packs score, depth and flag into one word
+TEST_F(transposition_test_fixture, packed_entries_keep_sign_mate_scores_and_flags) {
+  constexpr u64 key{ 0x123456789ABCDEF0 };
+  constexpr int mated_in_three{ -Scores::mate_value + 3 };
+
+  // mate scores are stored relative to the node and restored at the reading ply
+  table.write(key, mated_in_three, 7, HashFlag::exact, 3);
+  EXPECT_EQ(table.read(key, -Scores::infinity, Scores::infinity, 7, 3), mated_in_three);
+  EXPECT_EQ(table.read(key, -Scores::infinity, Scores::infinity, 7, 1), mated_in_three - 2);
+  EXPECT_EQ(table.read(key, -Scores::infinity, Scores::infinity, 8, 3), TranspositionTable::no_entry);
+  EXPECT_EQ(table.read(key ^ 1, -Scores::infinity, Scores::infinity, 7, 3), TranspositionTable::no_entry);
+
+  table.write(key, -250, 2, HashFlag::alpha, 0);
+  EXPECT_EQ(table.read(key, -200, 0, 2, 0), -200);
+  EXPECT_EQ(table.read(key, -300, 0, 2, 0), TranspositionTable::no_entry);
+
+  table.write(key, 250, 2, HashFlag::beta, 0);
+  EXPECT_EQ(table.read(key, 0, 200, 2, 0), 200);
+  EXPECT_EQ(table.read(key, 0, 300, 2, 0), TranspositionTable::no_entry);
+}
