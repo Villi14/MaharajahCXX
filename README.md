@@ -56,6 +56,28 @@ UCI options: `Hash` (4-128 MB) and `Skill Level` (1-10). `go` accepts `depth`, `
 
 `mah_generate_custom_position_fen(side, seed, ...)` generates a custom variant start.
 
+## maharajah_tool
+
+`./build/tools/maharajah_tool` is a command-line tool that drives the engine through the
+`mah_*` functions, as MaharajahC's tool does and with the same output:
+
+```sh
+maharajah_tool generate [count] [seed]                               # custom start FENs
+maharajah_tool selfplay [games] [depth] [max_plies] [seed] [json_path]
+maharajah_tool legalmoves <fen>                                      # one move per line
+maharajah_tool bench                                                 # small fixed suite
+maharajah_tool uci                                                   # UCI subset over mah_*
+```
+
+`uci` understands `uci`, `isready`, `ucinewgame`, `setoption` (`Hash`, `Skill Level`,
+`UI Difficulty`), `position` and `go depth|movetime`, plus `status`, `getfen [fullmove]`
+and `legalmoves` (ends with `endmoves`). Maharajah_lab uses it as the engine and match
+arbiter against Fairy-Stockfish. A `position` command that extends the previous one only
+applies the new moves, so the hash table survives between moves.
+
+`python3 tools/ask_engine.py "<fen>" --level 1-5` asks the UCI engine for its move at
+the strength and think time the app uses for that level.
+
 ## Tests
 
 ```sh

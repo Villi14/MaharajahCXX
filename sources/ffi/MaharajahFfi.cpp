@@ -2,6 +2,7 @@
 #include "../../headers/CustomSetup.h"
 #include "../../headers/Engine.h"
 #include "../../headers/Search.h"
+#include "../../headers/ffi/MaharajahFfiInternal.h"
 #include "../../headers/ffi/maharajah_ffi.h"
 
 #include <algorithm>
@@ -12,6 +13,7 @@
 #include <string>
 
 using namespace maharajah;
+using maharajah::ffi::live_engine;
 
 namespace {
 
@@ -19,12 +21,7 @@ constexpr int ffi_min_hash_mb{ 4 };
 constexpr int ffi_max_hash_mb{ 1024 };
 
 std::unique_ptr<Engine> engine;
-
-Engine& live_engine() {
-  if(!engine)
-    mah_init();
-  return *engine;
-}
+u64 last_nodes{ };
 
 int copy_out_string(const std::string& value, char* out, const int out_len) {
   if(out == nullptr || out_len <= 0 || static_cast<std::size_t>(out_len) < value.size() + 1)
@@ -57,7 +54,9 @@ const char* eval_status_string(const Engine& live) {
 // the app owns stdin, so FFI searches never poll it
 int search_best_move(Engine& live, const int depth) {
   live.time_control.poll_input = false;
-  return Search(live).run(depth).best_move;
+  const SearchResult result = Search(live).run(depth);
+  last_nodes = result.nodes;
+  return result.best_move;
 }
 
 // auto keeps what the FEN says (including per-side variant rights); the explicit
@@ -81,6 +80,16 @@ void apply_rules_profile(Engine& live, const int rules_profile) {
 }
 
 } // namespace
+
+Engine& maharajah::ffi::live_engine() {
+  if(!engine)
+    mah_init();
+  return *engine;
+}
+
+u64 maharajah::ffi::last_search_nodes() {
+  return last_nodes;
+}
 
 FFI_PLUGIN_EXPORT int mah_init(void) {
   if(!engine)

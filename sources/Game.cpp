@@ -329,7 +329,7 @@ void Game::parse_position(string_view command) {
 }
 
 void Game::print_uci_info() {
-  cout << "id name Maharajah\n";
+  cout << "id name Maharajah " MAHARAJAH_VERSION "\n";
   cout << "id author Villi\n";
   cout << format("option name Hash type spin default {} min {} max {}\n", default_hash_mb, min_hash_mb, max_hash_mb);
   cout << format("option name Skill Level type spin default {} min {} max {}\n", SearchConfig::max_skill, SearchConfig::min_skill, SearchConfig::max_skill);

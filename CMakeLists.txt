@@ -18,6 +18,9 @@ endif()
 
 enable_testing()
 
+# reported in the UCI "id name" line of the engine and of maharajah_tool
+add_compile_definitions(MAHARAJAH_VERSION="${PROJECT_VERSION}")
+
 if (MSVC)
   add_compile_options(/W4)
 else()
@@ -40,3 +43,4 @@ fetchcontent_makeavailable(googletest)
 
 add_subdirectory(sources)
 add_subdirectory(tests)
+add_subdirectory(tools)
