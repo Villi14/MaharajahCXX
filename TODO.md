@@ -98,6 +98,14 @@ identical.
 Suggested order: match runner, TT move, history, tapered eval; one commit each, each
 backed by a match.
 
+- [ ] Next session (2026-10-01): read the absolute-strength match started the night
+      before — `bash lab elo --levels=5 --opponents=elo:2200 --games=40
+      --movetime=200` in Maharajah_lab (report in `build/elo/<2026-10-01 timestamp>/`;
+      lab games: odd = ours white) — and record the rating here. A partial first run
+      (aborted when the Mac slept) gave +7 =4 -11 in 22 games, ≈ 2140 FSF-Elo ±150.
+      If the run was cut short again, rerun it under `caffeinate -i` with the lid open.
+      Then start the match runner below.
+
 - [x] Parity decided (2026-09-30): identical moves were only a check that the port
       broke nothing, not a goal. Strength changes may diverge from MaharajahC and are
       not ported back; `compare_engines.py` stays useful for refactors that must not
