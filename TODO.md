@@ -93,6 +93,57 @@ identical.
       polling there uses `PeekNamedPipe` and is untested. The `maharajah_tool` shell
       smoke tests are skipped on Windows.
 
+## Engine improvements (proposed 2026-09-30)
+
+Suggested order: match runner, TT move, history, tapered eval; one commit each, each
+backed by a match.
+
+- [x] Parity decided (2026-09-30): identical moves were only a check that the port
+      broke nothing, not a goal. Strength changes may diverge from MaharajahC and are
+      not ported back; `compare_engines.py` stays useful for refactors that must not
+      change the search (run it against the previous C++ build instead).
+- [x] The C engine is the fixed strength baseline (2026-09-30): MaharajahC `6e2a0f7`
+      = monorepo `54ef8d0`, UCI binary `../MaharajahC/build-compare/Maharajah`.
+      Every improvement is measured against it too, so the total gain since the port
+      stays visible. Maharajah_ffi may still change for the app; the baseline stays
+      pinned to this commit, tagged `baseline-2026-09-30` in MaharajahC.
+- [ ] Match runner with SPRT (`tools/match.py`): two binaries, parallel games, opening
+      book, SPRT stop, results logged against the C baseline. cutechess/fastchess do
+      not know the A/C/M pieces, so it needs its own arbiter (`maharajah_tool uci` has
+      `status`/`getfen`). The C UCI engine has no `Threads` option and ignores
+      `Skill Level` (see the bug list), so baseline matches run at full strength,
+      one thread each.
+- [ ] Store the best move in the TT and search it first. The entry has 8 spare
+      bytes (`padding`), so it stays 24 bytes. Consider depth-preferred replacement
+      instead of always-replace.
+- [ ] Bound the history heuristic (`Search.cpp`, `history_moves_ +=
+      history_bonus_scale * depth * depth`): no cap, no malus, no aging, so on deep
+      searches a quiet move can outscore the killers (8000-9000) and even captures
+      (10000+). Use a gravity update with a limit and a malus for quiet moves that
+      did not cut.
+- [ ] Tapered evaluation: `Evaluator::evaluate` picks one of three phases by
+      thresholds, so the score jumps when a trade crosses one; interpolate between the
+      opening and endgame terms by phase instead.
+- [ ] Modern reductions: log(depth)·log(move) LMR table instead of a fixed one-ply
+      reduction; adaptive null move R = 3 + depth/4 instead of 2; internal iterative
+      reduction when there is no TT move.
+- [ ] Quiescence: generate captures only (it now generates all moves and skips the
+      quiet ones) and probe the TT.
+- [ ] Smaller: fail-soft instead of fail-hard; widen the aspiration window gradually
+      instead of jumping to a full window; soft/hard time limits (do not start an
+      iteration after ~50% of the budget).
+- [ ] Texel-tune the evaluation parameters on self-play positions (they are
+      hand-set now).
+- [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
+      (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
+      share a lockless TT; one thread is unchanged (0 mismatches in
+      `compare_engines.py` and `compare_wasm.mjs`). Clean under TSan. Apple M2 Pro:
+      1.27 / 2.47 / 4.87 / 9.61 MN/s at 1/2/4/8 threads. Match 4 threads vs 1, 100
+      ms/move, 20 openings x 2 colours x 3: +60 =24 -36, +70 Elo [+15, +129] (95%).
+- [ ] Lazy SMP follow-ups: a persistent thread pool instead of threads per `go`;
+      threads in the WASM build (`-pthread`, SharedArrayBuffer, COOP/COEP headers).
+- [ ] Later: NNUE (the `Nnue` class is a stub).
+
 ## Bugs found in MaharajahC (not fixed there)
 
 - [ ] `setoption name Skill Level value N` never applies: `strncmp(input, "setoption
