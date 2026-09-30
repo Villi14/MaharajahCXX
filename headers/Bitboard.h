@@ -8,17 +8,22 @@
 
 namespace maharajah {
 
+// Precomputed attack sets, indexed by square (sliders by square and magic index).
 struct AttackTables {
-  static inline std::array<std::array<u64, BoardGeometry::squares>, 2> pawn{ };
-  static inline std::array<u64, BoardGeometry::squares> knight{ };
-  static inline std::array<u64, BoardGeometry::squares> king{ };
-  static inline std::array<u64, BoardGeometry::squares> bishop_masks{ };
-  static inline std::array<u64, BoardGeometry::squares> rook_masks{ };
-  static inline std::array<std::array<u64, MagicTables::bishop_attacks_count>, BoardGeometry::squares> bishop{ };
-  static inline std::array<std::array<u64, MagicTables::rook_attacks_count>, BoardGeometry::squares> rook{ };
+  std::array<std::array<u64, BoardGeometry::squares>, 2> pawn{ };
+  std::array<u64, BoardGeometry::squares> knight{ };
+  std::array<u64, BoardGeometry::squares> king{ };
+  std::array<u64, BoardGeometry::squares> bishop_masks{ };
+  std::array<u64, BoardGeometry::squares> rook_masks{ };
+  std::array<std::array<u64, MagicTables::bishop_attacks_count>, BoardGeometry::squares> bishop{ };
+  std::array<std::array<u64, MagicTables::rook_attacks_count>, BoardGeometry::squares> rook{ };
 
-  static void init();
+  // fills the tables in place: at 2.3 MB they must never live on the stack
+  AttackTables();
 };
+
+// The only instance, built before main() and read-only afterwards.
+extern const AttackTables attack_tables;
 
 // Attack mask generation
 u64 mask_pawn_attacks(Colors color, Squares square);
@@ -65,19 +70,19 @@ inline Squares get_ls1b_index(u64 bitboard) {
 }
 
 inline u64 get_bishop_attacks(const Squares square, u64 occupancy) {
-  occupancy &= AttackTables::bishop_masks[square];
+  occupancy &= attack_tables.bishop_masks[square];
   occupancy *= MagicTables::bishop_numbers[square];
   occupancy >>= BoardGeometry::squares - MagicTables::bishop_relevant_bits[square];
 
-  return AttackTables::bishop[square][occupancy];
+  return attack_tables.bishop[square][occupancy];
 }
 
 inline u64 get_rook_attacks(const Squares square, u64 occupancy) {
-  occupancy &= AttackTables::rook_masks[square];
+  occupancy &= attack_tables.rook_masks[square];
   occupancy *= MagicTables::rook_numbers[square];
   occupancy >>= BoardGeometry::squares - MagicTables::rook_relevant_bits[square];
 
-  return AttackTables::rook[square][occupancy];
+  return attack_tables.rook[square][occupancy];
 }
 
 inline u64 get_queen_attacks(const Squares square, u64 occupancy) {
@@ -86,17 +91,17 @@ inline u64 get_queen_attacks(const Squares square, u64 occupancy) {
 
 // bishop + knight
 inline u64 get_archbishop_attacks(const Squares square, u64 occupancy) {
-  return get_bishop_attacks(square, occupancy) | AttackTables::knight[square];
+  return get_bishop_attacks(square, occupancy) | attack_tables.knight[square];
 }
 
 // rook + knight
 inline u64 get_chancellor_attacks(const Squares square, u64 occupancy) {
-  return get_rook_attacks(square, occupancy) | AttackTables::knight[square];
+  return get_rook_attacks(square, occupancy) | attack_tables.knight[square];
 }
 
 // queen + knight
 inline u64 get_amazon_attacks(const Squares square, u64 occupancy) {
-  return get_queen_attacks(square, occupancy) | AttackTables::knight[square];
+  return get_queen_attacks(square, occupancy) | attack_tables.knight[square];
 }
 
 // Squares attacked from `square` by a non-pawn piece of the given kind.
@@ -104,7 +109,7 @@ inline u64 get_piece_attacks(const Pieces piece, const Squares square, const u64
   switch(piece) {
   case N:
   case n:
-    return AttackTables::knight[square];
+    return attack_tables.knight[square];
   case B:
   case b:
     return get_bishop_attacks(square, occupancy);
@@ -125,7 +130,7 @@ inline u64 get_piece_attacks(const Pieces piece, const Squares square, const u64
     return get_amazon_attacks(square, occupancy);
   case K:
   case k:
-    return AttackTables::king[square];
+    return attack_tables.king[square];
   default:
     return zero;
   }

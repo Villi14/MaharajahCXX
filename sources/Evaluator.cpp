@@ -63,15 +63,15 @@ int attacker_count_on_square(const BoardState& state, const Squares square, cons
   const bool is_white = side == white;
   int attackers{ };
 
-  attackers += count_bits(AttackTables::pawn[opponent(side)][square] & bb[is_white ? P : p]);
-  attackers += count_bits(AttackTables::knight[square] & bb[is_white ? N : n]);
+  attackers += count_bits(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p]);
+  attackers += count_bits(attack_tables.knight[square] & bb[is_white ? N : n]);
   attackers += count_bits(get_bishop_attacks(square, occupancy) & bb[is_white ? B : b]);
   attackers += count_bits(get_archbishop_attacks(square, occupancy) & bb[is_white ? A : a]);
   attackers += count_bits(get_rook_attacks(square, occupancy) & bb[is_white ? R : r]);
   attackers += count_bits(get_chancellor_attacks(square, occupancy) & bb[is_white ? C : c]);
   attackers += count_bits(get_queen_attacks(square, occupancy) & bb[is_white ? Q : q]);
   attackers += count_bits(get_amazon_attacks(square, occupancy) & bb[is_white ? M : m]);
-  attackers += count_bits(AttackTables::king[square] & bb[is_white ? K : k]);
+  attackers += count_bits(attack_tables.king[square] & bb[is_white ? K : k]);
 
   return attackers;
 }
@@ -81,7 +81,7 @@ int least_attacker_value_on_square(const BoardState& state, const Squares square
   const u64 occupancy = state.occupancies[both];
   const bool is_white = side == white;
 
-  if(AttackTables::pawn[opponent(side)][square] & bb[is_white ? P : p])
+  if(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p])
     return piece_material_value(P);
   // cheapest first: N < B < A < R < C < Q < M < K
   for(const Pieces piece : { N, B, A, R, C, Q, M, K }) {
@@ -277,7 +277,7 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
       case N:
       case n:
         add_positional(knight_kind);
-        add_mobility(count_bits(AttackTables::knight[square] & ~state.occupancies[color]), 4, config.knight_mobility_opening, config.knight_mobility_endgame);
+        add_mobility(count_bits(attack_tables.knight[square] & ~state.occupancies[color]), 4, config.knight_mobility_opening, config.knight_mobility_endgame);
         subtract_safety_penalty();
         break;
       case B:
@@ -320,7 +320,7 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
         if((all_pawns & eval_masks.file[square]) == 0)
           add_both(-Evaluation::open_file_score);
 
-        add_both(count_bits(AttackTables::king[square] & state.occupancies[color]) * Evaluation::king_shield_bonus);
+        add_both(count_bits(attack_tables.king[square] & state.occupancies[color]) * Evaluation::king_shield_bonus);
         break;
       case A:
       case a:

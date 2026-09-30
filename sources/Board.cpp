@@ -60,11 +60,11 @@ bool Board::is_square_attacked(const Squares square, const Colors side) const {
   const bool is_white = side == white;
 
   // attacked by pawns
-  if(AttackTables::pawn[opponent(side)][square] & bb[is_white ? P : p])
+  if(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p])
     return true;
 
   // attacked by knights
-  if(AttackTables::knight[square] & bb[is_white ? N : n])
+  if(attack_tables.knight[square] & bb[is_white ? N : n])
     return true;
 
   // attacked by bishops and archbishops
@@ -89,7 +89,7 @@ bool Board::is_square_attacked(const Squares square, const Colors side) const {
     return true;
 
   // attacked by kings
-  if(AttackTables::king[square] & bb[is_white ? K : k])
+  if(attack_tables.king[square] & bb[is_white ? K : k])
     return true;
 
   return false;
@@ -303,7 +303,7 @@ void Board::generate_moves(MoveList& moves_list) const {
         }
       }
 
-      u64 attacks = AttackTables::pawn[side][source_square] & enemy;
+      u64 attacks = attack_tables.pawn[side][source_square] & enemy;
 
       while(attacks) {
         const Squares capture_square = get_ls1b_index(attacks);
@@ -317,7 +317,7 @@ void Board::generate_moves(MoveList& moves_list) const {
       }
 
       if(state.en_passant != no_square) {
-        if(const u64 en_passant_attacks = AttackTables::pawn[side][source_square] & (one << state.en_passant)) {
+        if(const u64 en_passant_attacks = attack_tables.pawn[side][source_square] & (one << state.en_passant)) {
           const Squares en_passant_target = get_ls1b_index(en_passant_attacks);
           moves_list.add(Move::encode_move(Move(source_square, en_passant_target, pawn, no_pieces, true, false, true, false)));
         }

@@ -11,14 +11,7 @@
 using namespace std;
 using namespace maharajah;
 
-class bitboard_test_fixture : public testing::Test {
-  protected:
-  void SetUp() override;
-};
-
-void bitboard_test_fixture::SetUp() {
-  AttackTables::init();
-}
+class bitboard_test_fixture : public testing::Test { };
 
 TEST_F(bitboard_test_fixture, board_test) {
   EXPECT_EQ(StartBitboards::occupancy[white], 0xFFFF000000000000);
@@ -115,18 +108,18 @@ TEST_F(bitboard_test_fixture, mask_king_attacks_test) {
 
 TEST_F(bitboard_test_fixture, white_pawn_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
-    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::white_pawn][square], AttackTables::pawn[white][square]);
+    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::white_pawn][square], attack_tables.pawn[white][square]);
   }
 }
 
 TEST_F(bitboard_test_fixture, black_pawn_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
-    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::black_pawn][square], AttackTables::pawn[black][square]);
+    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::black_pawn][square], attack_tables.pawn[black][square]);
   }
 }
 TEST_F(bitboard_test_fixture, knight_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
-    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::knight][square], AttackTables::knight[square]);
+    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::knight][square], attack_tables.knight[square]);
   }
 }
 TEST_F(bitboard_test_fixture, mask_bishop_attacks_test) {
@@ -141,7 +134,7 @@ TEST_F(bitboard_test_fixture, mask_rook_attacks_test) {
 }
 TEST_F(bitboard_test_fixture, king_attacks_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
-    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::king][square], AttackTables::king[square]);
+    EXPECT_EQ(LeaperAttacks::table[LeaperAttacks::king][square], attack_tables.king[square]);
   }
 }
 TEST_F(bitboard_test_fixture, bishop_fly_attacks_test) {
@@ -219,7 +212,7 @@ TEST_F(bitboard_test_fixture, init_rook_sliders_attacks_test) {
     for(int index{ }; index < occupancy_indices; ++index) {
       const u64 occupancy{ RookOccupancy::table[square][index] };
       const u64 magic_index{ (occupancy * MagicTables::rook_numbers[square]) >> (BoardGeometry::squares - MagicTables::rook_relevant_bits[square]) };
-      EXPECT_EQ(AttackTables::rook[square][magic_index], rook_attacks_on_the_fly(square, occupancy));
+      EXPECT_EQ(attack_tables.rook[square][magic_index], rook_attacks_on_the_fly(square, occupancy));
     }
   }
 }
@@ -231,7 +224,7 @@ TEST_F(bitboard_test_fixture, init_bishop_sliders_attacks_test) {
     for(int index{ }; index < occupancy_indices; ++index) {
       const u64 occupancy{ BishopOccupancy::table[square][index] };
       const u64 magic_index{ (occupancy * MagicTables::bishop_numbers[square]) >> (BoardGeometry::squares - MagicTables::bishop_relevant_bits[square]) };
-      EXPECT_EQ(AttackTables::bishop[square][magic_index], bishop_attacks_on_the_fly(square, occupancy));
+      EXPECT_EQ(attack_tables.bishop[square][magic_index], bishop_attacks_on_the_fly(square, occupancy));
     }
   }
 }
@@ -243,7 +236,7 @@ TEST_F(bitboard_test_fixture, get_rook_attacks_test) {
     for(int index{ }; index < occupancy_indices; index++) {
       const u64 occupancy{ RookOccupancy::table[square][index] };
       const u64 magic_index{ (occupancy * MagicTables::rook_numbers[square]) >> (BoardGeometry::squares - MagicTables::rook_relevant_bits[square]) };
-      EXPECT_EQ(AttackTables::rook[square][magic_index], get_rook_attacks(square, occupancy));
+      EXPECT_EQ(attack_tables.rook[square][magic_index], get_rook_attacks(square, occupancy));
     }
   }
 }
@@ -255,7 +248,7 @@ TEST_F(bitboard_test_fixture, get_bishop_attacks_test) {
     for(int index{ }; index < occupancy_indices; ++index) {
       const u64 occupancy{ BishopOccupancy::table[square][index] };
       const u64 magic_index{ (occupancy * MagicTables::bishop_numbers[square]) >> (BoardGeometry::squares - MagicTables::bishop_relevant_bits[square]) };
-      EXPECT_EQ(AttackTables::bishop[square][magic_index], get_bishop_attacks(square, occupancy));
+      EXPECT_EQ(attack_tables.bishop[square][magic_index], get_bishop_attacks(square, occupancy));
     }
   }
 }

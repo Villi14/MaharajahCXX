@@ -7,14 +7,7 @@
 using namespace std;
 using namespace maharajah;
 
-class magic_numbers_test_fixture : public testing::Test {
-  protected:
-  void SetUp() override;
-};
-
-void magic_numbers_test_fixture::SetUp() {
-  AttackTables::init();
-}
+class magic_numbers_test_fixture : public testing::Test { };
 
 bool test_magic_square(Squares square, u64 magic, int relevant_bits, bool bishop) {
   const int shift{ 64 - relevant_bits };
@@ -24,7 +17,7 @@ bool test_magic_square(Squares square, u64 magic, int relevant_bits, bool bishop
   vector<bool> filled(occ_count, false);
 
   for(int i{ }; i < occ_count; ++i) {
-    u64 occ = set_occupancy(i, relevant_bits, bishop ? AttackTables::bishop_masks[square] : AttackTables::rook_masks[square]);
+    u64 occ = set_occupancy(i, relevant_bits, bishop ? attack_tables.bishop_masks[square] : attack_tables.rook_masks[square]);
 
     u64 attack = bishop ? bishop_attacks_on_the_fly(square, occ) : rook_attacks_on_the_fly(square, occ);
 

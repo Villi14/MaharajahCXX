@@ -12,9 +12,6 @@ using namespace std;
 using namespace maharajah;
 
 class board_test_fixture : public testing::Test {
-  protected:
-  void SetUp() override;
-
   public:
   Board board{ };
 
@@ -50,10 +47,6 @@ class board_test_fixture : public testing::Test {
     return out;
   }
 };
-
-void board_test_fixture::SetUp() {
-  AttackTables::init();
-}
 
 TEST_F(board_test_fixture, copy_board_test) {
   board.state.bitboards[P] = 0x000000000000FF00ULL;
@@ -161,9 +154,9 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
 
         u64 expected{ };
         if(piece == P || piece == p) {
-          expected = AttackTables::pawn[side][square];
+          expected = attack_tables.pawn[side][square];
         } else if(piece == N || piece == n) {
-          expected = AttackTables::knight[square];
+          expected = attack_tables.knight[square];
         } else if(piece == B || piece == b) {
           expected = get_bishop_attacks(square, zero);
         } else if(piece == R || piece == r) {
@@ -171,7 +164,7 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
         } else if(piece == Q || piece == q) {
           expected = get_queen_attacks(square, zero);
         } else if(piece == K || piece == k) {
-          expected = AttackTables::king[square];
+          expected = attack_tables.king[square];
         }
 
         for(Squares square{ a8 }; square < no_square; ++square) {
@@ -261,7 +254,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, N, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[white];
+    u64 attacks = attack_tables.knight[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, N, no_pieces, false, false, false, false }));
@@ -273,7 +266,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, n, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[black];
+    u64 attacks = attack_tables.knight[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, n, no_pieces, false, false, false, false }));
@@ -315,7 +308,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, K, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[white];
+    u64 attacks = attack_tables.king[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, K, no_pieces, false, false, false, false }));
@@ -327,7 +320,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, k, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[black];
+    u64 attacks = attack_tables.king[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, k, no_pieces, false, false, false, false }));

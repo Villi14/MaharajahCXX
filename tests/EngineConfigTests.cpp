@@ -63,7 +63,7 @@ TEST(engine_config_test, nnue_weights_load_from_memory_but_the_backend_stays_off
 
 class transposition_test_fixture : public testing::Test {
   public:
-  Engine engine{ }; // initialises the attack tables
+  Engine engine{ };
   Board& board = engine.board;
   TranspositionTable table{ };
 

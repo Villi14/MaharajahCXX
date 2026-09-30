@@ -12,7 +12,7 @@ using namespace maharajah;
 
 class evaluation_test_fixture : public testing::Test {
   public:
-  Engine engine{ }; // initialises the attack tables
+  Engine engine{ };
   Board& board = engine.board;
 
   int evaluate(const char* fen) {

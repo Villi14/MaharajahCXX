@@ -4,12 +4,6 @@
 namespace maharajah {
 
 Engine::Engine() {
-  static const bool tables_ready = [] {
-    AttackTables::init();
-    return true;
-  }();
-  (void)tables_ready;
-
   // the skill-level random stream continues where hash key generation stopped
   random.state = ZobristKeys::get().random_state;
   board.parse_fen(Fen::start_position);

@@ -39,7 +39,7 @@ int army_weight(const Board& board, const Colors side) {
 // 41% without any). Every army now needs a pawn wall and, since the position is
 // variant on both sides, at least one compound piece.
 TEST(custom_setup_test, generated_armies_spend_the_budget_with_a_pawn_wall_and_a_compound_piece) {
-  Engine engine; // initialises the attack tables
+  Engine engine;
   Board& board = engine.board;
   for(unsigned int seed{ 1 }; seed <= 200U; ++seed) {
     ASSERT_TRUE(generate_custom_position(board, white, seed)) << "seed " << seed;

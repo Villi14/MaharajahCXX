@@ -18,9 +18,9 @@ bool piece_reaches(const Pieces piece, const Squares from, const Squares to, con
   const u64 target = one << to;
 
   if(piece == P)
-    return AttackTables::pawn[white][from] & target;
+    return attack_tables.pawn[white][from] & target;
   if(piece == p)
-    return AttackTables::pawn[black][from] & target;
+    return attack_tables.pawn[black][from] & target;
   return get_piece_attacks(piece, from, occupancy) & target;
 }
 
