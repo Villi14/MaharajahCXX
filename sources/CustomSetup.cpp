@@ -27,6 +27,9 @@ constexpr std::array<GeneratorPiece, 8> generator_pieces{ {
 
 constexpr std::array<int, 8> preferred_piece_counts{ 8, 2, 2, 2, 1, 1, 1, 1 };
 
+// indices into `generator_pieces` of the compound pieces (A, C, M)
+constexpr std::array<int, 3> compound_piece_indices{ 5, 6, 7 };
+
 // how well each piece suits a row, by distance from the side's back rank
 constexpr std::array<std::array<int, 4>, 8> placement_scores{ {
     { 2, 8, 16, 22 },
@@ -50,12 +53,17 @@ bool is_occupied(const BoardState& state, const int square) {
   return false;
 }
 
-bool row_is_full(const BoardState& state, const int row) {
+int free_squares_in_row(const BoardState& state, const int row) {
+  int free_squares{ };
   for(int file{ }; file < 8; ++file) {
     if(!is_occupied(state, row * 8 + file))
-      return false;
+      ++free_squares;
   }
-  return true;
+  return free_squares;
+}
+
+bool row_is_full(const BoardState& state, const int row) {
+  return free_squares_in_row(state, row) == 0;
 }
 
 // white fills rows 7..4 (ranks 1..4), black rows 0..3 (ranks 8..5)
@@ -87,6 +95,44 @@ int total_remaining_slots(const BoardState& state, const Colors player) {
   }
 
   return remaining;
+}
+
+// cheapest non-pawn, i.e. the least a home-rank square can cost once pawns are ruled out there
+constexpr int cheapest_piece_weight() {
+  int cheapest = generator_pieces[1].weight;
+  for(std::size_t index{ 2 }; index < generator_pieces.size(); ++index) {
+    if(generator_pieces[index].weight < cheapest)
+      cheapest = generator_pieces[index].weight;
+  }
+  return cheapest;
+}
+
+// The budget is spent home rank first, and a piece there outscores a pawn by roughly
+// eight to one, so without a reserve the whole budget burns on the back rank and the
+// army starts nearly pawnless. Two rules keep a pawn wall:
+//   - on the home rank a piece may be bought only while the budget left still covers
+//     the pawns this army still wants plus the cheapest piece for every home square
+//     still empty;
+//   - past the home rank only pawns are bought until the army holds `pawn_target`.
+// Pawns are always allowed, so the placement loop always has a candidate.
+bool candidate_is_allowed(const int piece_index, const int row_depth, const int remaining_budget, const int slots_before,
+    const int row_slots_left, const int pawn_count, const int pawn_target) {
+  const int weight = generator_pieces[piece_index].weight;
+  const int remaining_after = remaining_budget - weight;
+
+  // the piece must fit the budget, and what is left must fit the free squares
+  if(weight > remaining_budget || remaining_after > slots_before - 1)
+    return false;
+
+  if(piece_index == 0)
+    return true;
+
+  if(row_depth == 0) {
+    const int pawns_wanted = pawn_target > pawn_count ? pawn_target - pawn_count : 0;
+    return remaining_after >= pawns_wanted + cheapest_piece_weight() * (row_slots_left - 1);
+  }
+
+  return pawn_count >= pawn_target;
 }
 
 int candidate_score(
@@ -121,6 +167,8 @@ int candidate_score(
 bool generate_side(BoardState& state, const Colors player) {
   std::array<int, 8> piece_counts{ };
   int remaining_budget{ army_budget };
+  // pawns this army wants before it spends anything past its home rank
+  const int pawn_target = 5 + std::rand() % 4;
 
   while(remaining_budget > 0) {
     const int active_row = first_open_row(state, player);
@@ -128,6 +176,7 @@ bool generate_side(BoardState& state, const Colors player) {
       return false;
 
     const int row_depth = player == white ? 7 - active_row : active_row;
+    const int row_slots_left = free_squares_in_row(state, active_row);
     const int slots_before = total_remaining_slots(state, player);
 
     // calls `visit(square, piece_index, score)` for every candidate placement in order
@@ -138,9 +187,7 @@ bool generate_side(BoardState& state, const Colors player) {
           continue;
 
         for(int index{ }; index < static_cast<int>(generator_pieces.size()); ++index) {
-          const int weight = generator_pieces[index].weight;
-          // the piece must fit the budget, and what is left must fit the free squares
-          if(weight > remaining_budget || remaining_budget - weight > slots_before - 1)
+          if(!candidate_is_allowed(index, row_depth, remaining_budget, slots_before, row_slots_left, piece_counts[0], pawn_target))
             continue;
 
           if(!visit(square, index, candidate_score(index, file, row_depth, piece_counts, remaining_budget, slots_before)))
@@ -181,7 +228,13 @@ bool generate_side(BoardState& state, const Colors player) {
     remaining_budget -= selected.weight;
   }
 
-  return true;
+  // both sides play variant rules and so give up castling; an army without a compound
+  // piece would carry that handicap for nothing, so reject it and draw again
+  for(const int index : compound_piece_indices) {
+    if(piece_counts[index] > 0)
+      return true;
+  }
+  return false;
 }
 
 } // namespace

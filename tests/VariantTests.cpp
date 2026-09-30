@@ -5,6 +5,7 @@
 #include "../headers/ffi/maharajah_ffi.h"
 #include "gtest/gtest.h"
 
+#include <array>
 #include <sstream>
 #include <string>
 
@@ -125,6 +126,29 @@ TEST_F(variant_test_fixture, custom_positions_are_reproducible_and_valid) {
     EXPECT_EQ(count_bits(board.state.bitboards[k]), 1);
     EXPECT_FALSE(board.in_check()) << fen;
     EXPECT_TRUE(board.has_legal_move()) << fen;
+  }
+}
+
+// every army spends exactly its 39 points, keeps a pawn wall in front of a king that
+// never castles, and holds a compound piece (both sides play variant rules)
+TEST_F(variant_test_fixture, custom_armies_have_a_pawn_wall_and_a_compound_piece) {
+  constexpr array<int, 8> weights{ 1, 3, 3, 5, 9, 6, 8, 13 };
+  constexpr array<Pieces, 8> white_pieces{ P, N, B, R, Q, A, C, M };
+  constexpr array<Pieces, 8> black_pieces{ p, n, b, r, q, a, c, m };
+
+  for(unsigned int seed{ 1 }; seed <= 200; ++seed) {
+    ASSERT_TRUE(generate_custom_position(board, white, seed));
+    const string fen = custom_position_fen(board);
+
+    for(const auto& pieces : { white_pieces, black_pieces }) {
+      int army_weight{ };
+      for(size_t index{ }; index < pieces.size(); ++index)
+        army_weight += count_bits(board.state.bitboards[pieces[index]]) * weights[index];
+
+      EXPECT_EQ(army_weight, 39) << fen;
+      EXPECT_GE(count_bits(board.state.bitboards[pieces[0]]), 4) << fen;
+      EXPECT_GE(count_bits(board.state.bitboards[pieces[5]] | board.state.bitboards[pieces[6]] | board.state.bitboards[pieces[7]]), 1) << fen;
+    }
   }
 }
 

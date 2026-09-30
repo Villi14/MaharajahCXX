@@ -3,10 +3,17 @@
 Branch `port-maharajahc`. The engine, UCI, C interface (`mah_*`) and custom-position
 generator are ported from MaharajahC and play identical moves.
 
+The reference C engine is `Maharajah/Maharajah_ffi/src` in the monorepo (the one the app
+ships). `../MaharajahC` is a copy of it and must be kept in sync: port a change there
+first, then here. Last sync 2026-09-30 (monorepo 54ef8d0, pawn-wall army generator);
+`src/`, `include/`, `tests/`, `CMakeLists.txt` and `tools/maharajah_tool.c` are
+identical.
+
 ## Status (2026-09-30)
 
-- 198 unit tests pass.
-- `tools/compare_engines.py` (full run): 1759 searches, 11 835 `info` lines — 0
+- 199 unit tests pass.
+- `tools/compare_engines.py` (full run, 2026-09-30, after the generator sync): 2047
+  searches, 13 887 `info` lines — 0
   mismatches in score, depth, nodes, PV and `bestmove`. Covered: 24 standard and 11
   variant positions at depths 5/7/8, 200 generated custom positions (same FEN per
   seed, same FFI playouts), 7 self-play games of 120 plies, 36 games at skill 1-9 via
@@ -32,8 +39,9 @@ generator are ported from MaharajahC and play identical moves.
       rank may double-step to the 8th rank without promoting and is stuck there
       (`Board::generate_moves`, same in MaharajahC `Moves.c`). Fix in both engines or
       forbid the double step onto the last rank.
-- [ ] Port the remaining tools: `maharajah_tool` (`generate`, `selfplay`, `bench`) and
-      `ask_engine.py`.
+- [ ] Port the remaining tools: `maharajah_tool` (`generate`, `selfplay`, `bench`,
+      `legalmoves <fen>`, `uci` — the UCI-subset REPL over `mah_*` that Maharajah_lab
+      uses against Fairy-Stockfish) and `ask_engine.py`.
 - [ ] Add a `perft` UCI command (both engines lack one) and compare perft counts for
       variant positions.
 - [ ] Compare timed searches (`go movetime`, `mah_best_move_time`) — only fixed-depth

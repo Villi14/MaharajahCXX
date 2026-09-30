@@ -7,7 +7,11 @@
 
 ## Setup
 
-Build this project and MaharajahC (next to it, in `../MaharajahC`), both in Release:
+MaharajahC in `../MaharajahC` is a copy of the engine the app ships,
+`../Maharajah/Maharajah_ffi/src`, and has to match it before comparing
+(`diff -rq ../MaharajahC/src ../Maharajah/Maharajah_ffi/src/src`, same for `include`).
+
+Build this project and MaharajahC, both in Release:
 
 ```sh
 CXXFLAGS= cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
