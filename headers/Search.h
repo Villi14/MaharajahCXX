@@ -25,8 +25,13 @@ class Search {
   static constexpr int mate_score{ Scores::mate_score };
 
   explicit Search(Engine& engine)
+      : Search(engine, engine.board) { }
+
+  // Searches `board` (a copy of the engine's, for a helper thread) with the engine's
+  // hash table and settings.
+  Search(Engine& engine, Board& board)
       : engine_(engine)
-      , board_(engine.board) { }
+      , board_(board) { }
 
   // Searches to `depth` plies (or until stopped). Writes UCI "info" lines to `info` if given.
   SearchResult run(int depth, std::ostream* info = nullptr);
