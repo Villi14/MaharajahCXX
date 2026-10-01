@@ -340,7 +340,7 @@ int Search::negamax(int alpha, int beta, int depth) {
   // reverse futility pruning
   if(depth <= 2 && ply_ && !in_check && !pv_node) {
     if(static_eval - config.reverse_futility_margin_per_depth * depth >= beta)
-      return beta;
+      return static_eval;
   }
 
   int legal_moves{ };
@@ -374,8 +374,9 @@ int Search::negamax(int alpha, int beta, int depth) {
 
     if(stopped())
       return 0;
+    // an unverified mate from the null move is not returned
     if(score >= beta)
-      return beta;
+      return score >= mate_score ? beta : score;
   }
 
   MoveList moves_list;
@@ -387,6 +388,7 @@ int Search::negamax(int alpha, int beta, int depth) {
   sort_moves(moves_list, hash_entry.move);
 
   int best_move{ };
+  int best_score{ -infinity };
   int moves_searched{ };
   // quiet moves searched without a cutoff, for the history malus
   std::array<int, Limits::max_moves> quiet_moves;
@@ -446,11 +448,16 @@ int Search::negamax(int alpha, int beta, int depth) {
 
     if(ply_ == 0 && root_count_ < Limits::max_moves) {
       root_moves_[root_count_] = move;
-      root_scores_[root_count_] = score;
+      // fail-soft scores below alpha are bounds; keep them at alpha so the weak skill
+      // levels choose among the same near-best moves as before
+      root_scores_[root_count_] = std::max(score, alpha);
       ++root_count_;
     }
 
     ++moves_searched;
+
+    if(score > best_score)
+      best_score = score;
 
     // found a better move
     if(score > alpha) {
@@ -464,9 +471,9 @@ int Search::negamax(int alpha, int beta, int depth) {
         pv_table_[ply_][next_ply] = pv_table_[ply_ + 1][next_ply];
       pv_length_[ply_] = pv_length_[ply_ + 1];
 
-      // fail-hard beta cutoff
+      // fail-soft beta cutoff
       if(score >= beta) {
-        engine_.transposition_table.write(board_.state.hash_key, beta, depth, HashFlag::beta, ply_, move);
+        engine_.transposition_table.write(board_.state.hash_key, score, depth, HashFlag::beta, ply_, move);
 
         if(!capture) {
           killer_moves_[1][ply_] = killer_moves_[0][ply_];
@@ -478,7 +485,7 @@ int Search::negamax(int alpha, int beta, int depth) {
             update_history(quiet_moves[index], -bonus);
         }
 
-        return beta;
+        return score;
       }
     }
 
@@ -490,10 +497,9 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(legal_moves == 0)
     return in_check ? -mate_value + ply_ : 0;
 
-  engine_.transposition_table.write(board_.state.hash_key, alpha, depth, hash_flag, ply_, best_move);
-
-  // node (move) fails low
-  return alpha;
+  // exact score, or an upper bound at or below alpha when the node fails low
+  engine_.transposition_table.write(board_.state.hash_key, best_score, depth, hash_flag, ply_, best_move);
+  return best_score;
 }
 
 // quiescence search
@@ -511,10 +517,11 @@ int Search::quiescence(int alpha, int beta) {
 
   const int evaluation = evaluate();
 
-  // fail-hard beta cutoff
+  // fail-soft beta cutoff
   if(evaluation >= beta)
-    return beta;
+    return evaluation;
 
+  int best_score = evaluation;
   if(evaluation > alpha)
     alpha = evaluation;
 
@@ -550,14 +557,16 @@ int Search::quiescence(int alpha, int beta) {
     if(stopped())
       return 0;
 
+    if(score > best_score)
+      best_score = score;
     if(score > alpha) {
       alpha = score;
       if(score >= beta)
-        return beta;
+        return score;
     }
   }
 
-  return alpha;
+  return best_score;
 }
 
 // History with gravity: an entry moves towards +-history_limit by a step that shrinks

@@ -74,10 +74,8 @@ TranspositionTable::Probe TranspositionTable::probe(const u64 hash_key, const in
 
   if(flag == HashFlag::exact)
     result.score = score;
-  else if(flag == HashFlag::alpha && score <= alpha)
-    result.score = alpha;
-  else if(flag == HashFlag::beta && score >= beta)
-    result.score = beta;
+  else if((flag == HashFlag::alpha && score <= alpha) || (flag == HashFlag::beta && score >= beta))
+    result.score = score;
 
   return result;
 }

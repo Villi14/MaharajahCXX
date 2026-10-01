@@ -105,12 +105,13 @@ TEST_F(transposition_test_fixture, packed_entries_keep_sign_mate_scores_and_flag
   EXPECT_EQ(table.read(key, -Scores::infinity, Scores::infinity, 8, 3), TranspositionTable::no_entry);
   EXPECT_EQ(table.read(key ^ 1, -Scores::infinity, Scores::infinity, 7, 3), TranspositionTable::no_entry);
 
+  // fail-soft: a bound that applies returns the stored score, not alpha or beta
   table.write(key, -250, 2, HashFlag::alpha, 0);
-  EXPECT_EQ(table.read(key, -200, 0, 2, 0), -200);
+  EXPECT_EQ(table.read(key, -200, 0, 2, 0), -250);
   EXPECT_EQ(table.read(key, -300, 0, 2, 0), TranspositionTable::no_entry);
 
   table.write(key, 250, 2, HashFlag::beta, 0);
-  EXPECT_EQ(table.read(key, 0, 200, 2, 0), 200);
+  EXPECT_EQ(table.read(key, 0, 200, 2, 0), 250);
   EXPECT_EQ(table.read(key, 0, 300, 2, 0), TranspositionTable::no_entry);
 }
 
