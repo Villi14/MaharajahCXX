@@ -7,6 +7,7 @@
 #include "../headers/See.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
 #include <format>
 #include <thread>
@@ -27,6 +28,16 @@ constexpr auto mvv_lva = [] {
   for(int attacker{ }; attacker < PieceCount::all; ++attacker) {
     for(int victim{ }; victim < PieceCount::all; ++victim)
       table[attacker][victim] = value(victim) * 100 + (10 - value(attacker));
+  }
+  return table;
+}();
+
+// late-move reductions in plies, indexed [depth][moves searched]
+const auto late_move_reductions = [] {
+  std::array<std::array<int, Limits::max_moves>, Limits::max_ply + 1> table{ };
+  for(int depth{ 1 }; depth <= Limits::max_ply; ++depth) {
+    for(int moves{ 1 }; moves < Limits::max_moves; ++moves)
+      table[depth][moves] = static_cast<int>(0.75 + std::log(depth) * std::log(moves) / 2.25);
   }
   return table;
 }();
@@ -403,10 +414,11 @@ int Search::negamax(int alpha, int beta, int depth) {
       // full window search for the first move
       score = -negamax(-beta, -alpha, depth - 1);
     } else {
-      // late move reduction
-      if(moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && is_quiet_move)
-        score = -negamax(-alpha - 1, -alpha, depth - 2);
-      else
+      // late move reduction: at least one ply, less in PV nodes, never into quiescence
+      if(moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && is_quiet_move) {
+        const int reduction = late_move_reductions[std::min(depth, Limits::max_ply)][std::min(moves_searched, Limits::max_moves - 1)] - (pv_node ? 1 : 0);
+        score = -negamax(-alpha - 1, -alpha, depth - 1 - std::clamp(reduction, 1, depth - 2));
+      } else
         score = alpha + 1;
 
       // principal variation search
