@@ -354,10 +354,9 @@ void Game::uci_loop() {
       cout << "readyok\n" << flush;
     }
 
-    // position
+    // position (the transposition table is kept between the moves of a game)
     else if(starts_with(input, "position")) {
       parse_position(input);
-      engine_.transposition_table.clear();
     }
 
     // ucinewgame

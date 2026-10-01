@@ -234,9 +234,13 @@ backed by a match.
       together +539 =116 -545, ≈ -2. On top of fail-soft the failed bound moves past
       the returned score instead (same doubling steps): seeds 1-4 +16, +9, +24,
       +16, see the table. Nodes to the `bench_engines.py` depths 0.95 M → 0.92 M.
-- [ ] UCI binary: `Game` clears the TT on every `position` command (also in
-      MaharajahC), so in a UCI game each move starts with an empty table. Clear it
-      only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.
+- [x] UCI binary: `Game` cleared the TT on every `position` command (also in
+      MaharajahC), so in a UCI game each move started with an empty table. Now it is
+      cleared only on `ucinewgame`; the app path (`mah_*`, `maharajah_tool uci`)
+      already kept it. UCI binaries on a clock (`match.py --tc 2+0.02`, Ubuntu,
+      2 x 12 games in parallel) against 4d78437: seed 1 +376 =10 -214 (+96 [+68,
+      +125]), seed 2 +371 =13 -216 (+92 [+64, +121]). Only UCI play gains (GUIs,
+      FSF matches); the app and the `maharajah_tool` matches are unchanged.
 - [~] Texel-tune the evaluation parameters on self-play positions (2026-10-01):
       first fit no gain, weights not committed. `Evaluation::weights` now holds one
       `EvalWeights` per phase and `tools/texel.cpp` (`maharajah_texel gen` / `tune`)
