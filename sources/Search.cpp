@@ -332,6 +332,11 @@ int Search::negamax(int alpha, int beta, int depth) {
 
   const SearchConfig& config = engine_.search_config;
 
+  // internal iterative reduction: without a stored move the move ordering is poor,
+  // so search shallower; the next iteration finds the move in the table
+  if(depth >= 4 && ply_ && !hash_entry.move)
+    --depth;
+
   // reverse futility pruning
   if(depth <= 2 && ply_ && !in_check && !pv_node) {
     if(static_eval - config.reverse_futility_margin_per_depth * depth >= beta)

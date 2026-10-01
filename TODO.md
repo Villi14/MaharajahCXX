@@ -142,24 +142,34 @@ backed by a match.
       | log(depth)·log(move) LMR table | 2fcd0e9 | +211 =43 -146 | +57 [+28, +87] |
       | null move R = 2 + depth/6, non-PV, eval >= beta | a8b5819 | +201 =34 -165 | +31 [+3, +60] |
 
-      Sum ≈ +140 Elo over the port at 50 ms/move (not yet measured in one match, nor
-      against the C baseline — do that first on the new machine). Nodes to the fixed
+      | quiescence generates captures only (same tree, ~10 % faster) | 57c06f5 | — | — |
+      | internal iterative reduction (depth >= 4, not root, no TT move → depth - 1) | after 57c06f5 | +578 =108 -514 (1200) | ≈ +19 [~+1, +36] |
+
+      Sum of the single matches ≈ +140 Elo. Measured in one match on the Ubuntu
+      machine (2026-10-01, 28 cores, 12 games in parallel, 50 ms/move, 600 games):
+      c9f2d26..a8b5819 (HEAD before 57c06f5) vs the port (43464a7) +355 =51 -194,
+      +96 Elo [+71, +122]; vs the C baseline (`../MaharajahC/build-compare/
+      maharajah_tool`) +348 =60 -192, +92 Elo [+67, +119]. Freeze the binaries
+      (copy them out of `build-release/`) before a match: rebuilding during a match
+      swaps the engine under the games still to start. Nodes to the fixed
       depths of `bench_engines.py`: 6.67 M → 1.65 M. Rejected: null move R = 3 +
-      depth/4 (-5 [-33, +23]). Tapered eval was neutral but kept (continuous, needed
+      depth/4 (-5 [-33, +23]); TT probe in the quiescence search (cutoff at
+      non-PV nodes, hash move first; -9 % nodes): +10 over 1200 games against
+      57c06f5, and -18 [-43, +7] on top of IIR. Tapered eval was neutral but kept (continuous, needed
       for tuning).
 - [x] Store the best move in the TT and search it first (212e7b9). The move shares
       the data word (score 24 bits, depth 8, flag 2, move 26); still 24 bytes.
 - [ ] Depth-preferred / aged TT replacement (bits 60-63 of the data word are free
       for a generation counter); measure against always-replace.
+      At 50 ms/move with 64 MB the table hardly fills (~65 k nodes per move, 2.8 M
+      entries), so measure it at longer time controls or with a small `Hash`.
 - [x] Bound the history heuristic (e05d855).
 - [x] Tapered evaluation (2c95e17).
 - [x] LMR table (2fcd0e9) and adaptive null move (a8b5819).
-- [ ] Internal iterative reduction (depth >= 4, not root, no TT move → depth - 1):
-      not yet tried.
-- [ ] Quiescence: generate captures only (`generate_moves(list,
-      TypeMove::only_captures)` exists since 6942118, with a test) and probe the TT
-      (`probe(key, alpha, beta, 0, ply)`, hash move first); not yet switched on or
-      measured.
+- [x] Internal iterative reduction (2026-10-01): nodes to the fixed depths of
+      `bench_engines.py` 1.65 M → 1.29 M.
+- [x] Quiescence generates captures only (57c06f5). Probing the TT there was
+      rejected (see the results above); retry once the TT keeps deeper entries.
 - [ ] Smaller: fail-soft instead of fail-hard (keep `max(score, alpha)` for the root
       move scores, or the weak skill levels' near-best candidates change and the
       difficulty ladder with them); widen the aspiration window gradually instead of
