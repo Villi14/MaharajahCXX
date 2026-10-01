@@ -35,15 +35,9 @@ struct SearchConfig {
   [[nodiscard]] static SearchConfig for_difficulty(int difficulty_level);
 };
 
+// The evaluation weights are in Evaluation.h.
 struct EvalConfig {
   EvalMode eval_mode{ EvalMode::classic };
-  int tempo_bonus{ 12 };
-  int bishop_pair_bonus_opening{ 35 };
-  int bishop_pair_bonus_endgame{ 50 };
-  int rook_mobility_opening{ 2 };
-  int rook_mobility_endgame{ 4 };
-  int knight_mobility_opening{ 4 };
-  int knight_mobility_endgame{ 4 };
 };
 
 } // namespace maharajah

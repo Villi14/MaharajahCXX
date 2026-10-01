@@ -21,8 +21,7 @@ namespace {
 constexpr auto mvv_lva = [] {
   std::array<std::array<int, PieceCount::all>, PieceCount::all> table{ };
   const auto value = [](const int piece) {
-    const int material = Evaluation::material_score[opening][piece];
-    return (material < 0 ? -material : material) / 100 + 1;
+    return Evaluation::piece_value[piece] / 100 + 1;
   };
 
   for(int attacker{ }; attacker < PieceCount::all; ++attacker) {
@@ -94,7 +93,7 @@ void Search::report_nodes() {
 
 int Search::evaluate() const {
   // the NNUE backend is not available yet, so every mode evaluates classically
-  return Evaluator::evaluate(board_.state, engine_.eval_config);
+  return Evaluator::evaluate(board_.state);
 }
 
 int Search::effective_depth(const int depth) const {
@@ -587,7 +586,7 @@ void Search::update_history(const int move, const int bonus) {
 int Search::score_move(const int move, const int hash_move) {
   int promotion_bonus{ };
   if(Move::is_promotion(move))
-    promotion_bonus = 2000 + std::abs(Evaluation::material_score[opening][Move::get_move_promoted(move)]);
+    promotion_bonus = 2000 + Evaluation::piece_value[Move::get_move_promoted(move)];
 
   // PV move first
   if(score_pv_ && pv_table_[0][ply_] == move) {

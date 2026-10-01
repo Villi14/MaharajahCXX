@@ -131,7 +131,7 @@ TEST_F(search_test_fixture, stalemate_scores_zero) {
 
 TEST_F(search_test_fixture, start_position_evaluates_to_the_tempo_bonus) {
   game.parse_fen(Fen::start_position);
-  EXPECT_EQ(Evaluator::evaluate(board().state), EvalConfig{ }.tempo_bonus);
+  EXPECT_EQ(Evaluator::evaluate(board().state), Evaluation::tempo_bonus);
 }
 
 TEST_F(search_test_fixture, evaluation_is_symmetric_for_mirrored_positions) {

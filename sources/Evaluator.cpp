@@ -3,7 +3,7 @@
 #include "../headers/Evaluation.h"
 
 #include <algorithm>
-#include <cstdlib>
+#include <cstddef>
 
 namespace maharajah {
 
@@ -56,7 +56,7 @@ constexpr EvalMasks make_eval_masks() {
 constexpr EvalMasks eval_masks = make_eval_masks();
 
 int piece_material_value(const Pieces piece) {
-  return std::abs(Evaluation::material_score[opening][piece]);
+  return Evaluation::piece_value[piece];
 }
 
 int attacker_count_on_square(const BoardState& state, const Squares square, const Colors side) {
@@ -191,25 +191,32 @@ int Evaluator::game_phase_score(const BoardState& state) {
   int score{ };
 
   for(const Pieces piece : { N, B, R, Q, A, C, M }) {
-    score += count_bits(state.bitboards[piece]) * Evaluation::material_score[opening][piece];
     const Pieces black_piece = to_piece(piece + PieceCount::per_side);
-    score += count_bits(state.bitboards[black_piece]) * -Evaluation::material_score[opening][black_piece];
+    score += (count_bits(state.bitboards[piece]) + count_bits(state.bitboards[black_piece])) * Evaluation::piece_value[piece];
   }
 
   return score;
 }
 
-// position evaluation
-int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
+namespace {
+
+// The classic evaluation from white's point of view, before the tempo bonus. With
+// `traced`, also counts how often each weight enters the score (see EvalTrace).
+template <bool traced>
+int white_score(const BoardState& state, EvalTrace* trace) {
   const auto& bb = state.bitboards;
   const u64 occupancy = state.occupancies[both];
   const u64 all_pawns = bb[P] | bb[p];
+  const EvalWeights& opening_weights = Evaluation::weights[opening];
+  const int* const opening_base = reinterpret_cast<const int*>(&opening_weights);
+  const int* const endgame_base = reinterpret_cast<const int*>(&Evaluation::weights[endgame]);
   int score_opening{ }, score_endgame{ };
   std::array<int, 2> bishops{ };
 
   for(Pieces piece{ P }; piece <= k; ++piece) {
     const Colors color = piece_color(piece);
     const int sign = color == white ? 1 : -1;
+    const int kind = color == white ? piece : piece - PieceCount::per_side;
     const Pieces own_pawn = color == white ? P : p;
     const Pieces enemy_pawn = color == white ? p : P;
     u64 bitboard = bb[piece];
@@ -220,29 +227,35 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
       // everything below is from the piece owner's point of view
       int opening_term{ }, endgame_term{ };
 
-      const auto add_positional = [&](const PieceKind kind) {
-        opening_term += Evaluation::positional_score[opening][kind][index];
-        endgame_term += Evaluation::positional_score[endgame][kind][index];
+      // `weight` is a member of the opening weights; its endgame twin sits at the same offset
+      const auto add = [&](const int& weight, const int count) {
+        const std::ptrdiff_t offset = &weight - opening_base;
+        opening_term += count * weight;
+        endgame_term += count * endgame_base[offset];
+        if constexpr(traced)
+          trace->coefficients[static_cast<std::size_t>(offset)] += sign * count;
       };
 
-      const auto add_mobility = [&](const int squares, const int unit, const int weight_opening, const int weight_endgame) {
-        opening_term += (squares - unit) * weight_opening;
-        endgame_term += (squares - unit) * weight_endgame;
-      };
+      const auto add_positional = [&](const PieceKind positional_kind) { add(opening_weights.positional[positional_kind][index], 1); };
 
-      const auto add_both = [&](const int value) {
-        opening_term += value;
-        endgame_term += value;
-      };
+      const auto add_mobility = [&](const int squares, const int unit, const int& weight) { add(weight, squares - unit); };
 
       const auto subtract_safety_penalty = [&] {
-        const int penalty = piece_safety_penalty(state, piece, square);
+        const int penalty = Evaluator::piece_safety_penalty(state, piece, square);
         opening_term -= penalty;
         endgame_term -= penalty;
+        if constexpr(traced)
+          trace->fixed -= sign * penalty;
       };
 
-      score_opening += Evaluation::material_score[opening][piece];
-      score_endgame += Evaluation::material_score[endgame][piece];
+      if(kind == K) {
+        score_opening += sign * Evaluation::king_material;
+        score_endgame += sign * Evaluation::king_material;
+        if constexpr(traced)
+          trace->fixed += sign * Evaluation::king_material;
+      } else {
+        add(opening_weights.material[static_cast<std::size_t>(kind)], 1);
+      }
 
       switch(piece) {
       case P:
@@ -250,18 +263,14 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
         add_positional(pawn_kind);
 
         const int double_pawns = count_bits(bb[own_pawn] & eval_masks.file[square]);
-        if(double_pawns > 1) {
-          opening_term += (double_pawns - 1) * Evaluation::double_pawn_penalty_opening;
-          endgame_term += (double_pawns - 1) * Evaluation::double_pawn_penalty_endgame;
-        }
+        if(double_pawns > 1)
+          add(opening_weights.double_pawn, double_pawns - 1);
 
-        if((bb[own_pawn] & eval_masks.isolated[square]) == 0) {
-          opening_term += Evaluation::isolated_pawn_penalty_opening;
-          endgame_term += Evaluation::isolated_pawn_penalty_endgame;
-        }
+        if((bb[own_pawn] & eval_masks.isolated[square]) == 0)
+          add(opening_weights.isolated_pawn, 1);
 
         if((eval_masks.passed[color][square] & bb[enemy_pawn]) == 0)
-          add_both(Evaluation::passed_pawn_bonus[Evaluation::rank_of(index)]);
+          add(opening_weights.passed_pawn[static_cast<std::size_t>(Evaluation::rank_of(index))], 1);
 
         subtract_safety_penalty();
         break;
@@ -269,37 +278,33 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
       case N:
       case n:
         add_positional(knight_kind);
-        add_mobility(count_bits(attack_tables.knight[square] & ~state.occupancies[color]), 4, config.knight_mobility_opening, config.knight_mobility_endgame);
+        add_mobility(count_bits(attack_tables.knight[square] & ~state.occupancies[color]), Evaluation::knight_unit, opening_weights.knight_mobility);
         subtract_safety_penalty();
         break;
       case B:
       case b:
         ++bishops[color];
         add_positional(bishop_kind);
-        add_mobility(count_bits(get_bishop_attacks(square, occupancy)),
-                     Evaluation::bishop_unit,
-                     Evaluation::bishop_mobility_opening,
-                     Evaluation::bishop_mobility_endgame);
+        add_mobility(count_bits(get_bishop_attacks(square, occupancy)), Evaluation::bishop_unit, opening_weights.bishop_mobility);
         subtract_safety_penalty();
         break;
       case R:
       case r:
         add_positional(rook_kind);
-        add_mobility(count_bits(get_rook_attacks(square, occupancy)), 7, config.rook_mobility_opening, config.rook_mobility_endgame);
+        add_mobility(count_bits(get_rook_attacks(square, occupancy)), Evaluation::rook_unit, opening_weights.rook_mobility);
 
         if((bb[own_pawn] & eval_masks.file[square]) == 0)
-          add_both(Evaluation::semi_open_file_score);
+          add(opening_weights.rook_semi_open_file, 1);
 
         if((all_pawns & eval_masks.file[square]) == 0)
-          add_both(Evaluation::open_file_score);
+          add(opening_weights.rook_open_file, 1);
 
         subtract_safety_penalty();
         break;
       case Q:
       case q:
         add_positional(queen_kind);
-        add_mobility(
-            count_bits(get_queen_attacks(square, occupancy)), Evaluation::queen_unit, Evaluation::queen_mobility_opening, Evaluation::queen_mobility_endgame);
+        add_mobility(count_bits(get_queen_attacks(square, occupancy)), Evaluation::queen_unit, opening_weights.queen_mobility);
         subtract_safety_penalty();
         break;
       case K:
@@ -307,42 +312,33 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
         add_positional(king_kind);
 
         if((bb[own_pawn] & eval_masks.file[square]) == 0)
-          add_both(-Evaluation::semi_open_file_score);
+          add(opening_weights.king_semi_open_file, 1);
 
         if((all_pawns & eval_masks.file[square]) == 0)
-          add_both(-Evaluation::open_file_score);
+          add(opening_weights.king_open_file, 1);
 
-        add_both(count_bits(attack_tables.king[square] & state.occupancies[color]) * Evaluation::king_shield_bonus);
+        add(opening_weights.king_shield, count_bits(attack_tables.king[square] & state.occupancies[color]));
         break;
       case A:
       case a:
         // compound pieces: positional value is the sum of their components
         add_positional(bishop_kind);
         add_positional(knight_kind);
-        add_mobility(count_bits(get_archbishop_attacks(square, occupancy)),
-                     Evaluation::bishop_unit + 4,
-                     Evaluation::bishop_mobility_opening,
-                     Evaluation::bishop_mobility_endgame);
+        add_mobility(count_bits(get_archbishop_attacks(square, occupancy)), Evaluation::bishop_unit + 4, opening_weights.archbishop_mobility);
         subtract_safety_penalty();
         break;
       case C:
       case c:
         add_positional(rook_kind);
         add_positional(knight_kind);
-        add_mobility(count_bits(get_chancellor_attacks(square, occupancy)),
-                     Evaluation::queen_unit - 1,
-                     Evaluation::queen_mobility_opening,
-                     Evaluation::queen_mobility_endgame);
+        add_mobility(count_bits(get_chancellor_attacks(square, occupancy)), Evaluation::queen_unit - 1, opening_weights.chancellor_mobility);
         subtract_safety_penalty();
         break;
       case M:
       case m:
         add_positional(queen_kind);
         add_positional(knight_kind);
-        add_mobility(count_bits(get_amazon_attacks(square, occupancy)),
-                     Evaluation::queen_unit + 4,
-                     Evaluation::queen_mobility_opening,
-                     Evaluation::queen_mobility_endgame);
+        add_mobility(count_bits(get_amazon_attacks(square, occupancy)), Evaluation::queen_unit + 4, opening_weights.amazon_mobility);
         subtract_safety_penalty();
         break;
       default:
@@ -356,25 +352,37 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
     }
   }
 
-  if(bishops[white] >= 2) {
-    score_opening += config.bishop_pair_bonus_opening;
-    score_endgame += config.bishop_pair_bonus_endgame;
-  }
-
-  if(bishops[black] >= 2) {
-    score_opening -= config.bishop_pair_bonus_opening;
-    score_endgame -= config.bishop_pair_bonus_endgame;
+  for(const Colors color : { white, black }) {
+    if(bishops[color] < 2)
+      continue;
+    const int sign = color == white ? 1 : -1;
+    score_opening += sign * opening_weights.bishop_pair;
+    score_endgame += sign * Evaluation::weights[endgame].bishop_pair;
+    if constexpr(traced)
+      trace->coefficients[static_cast<std::size_t>(&opening_weights.bishop_pair - opening_base)] += sign;
   }
 
   // tapered between the opening and endgame scores by the material on the board
-  constexpr int phase_range = Evaluation::opening_phase_score - Evaluation::endgame_phase_score;
-  const int phase = std::clamp(game_phase_score(state), Evaluation::endgame_phase_score, Evaluation::opening_phase_score) - Evaluation::endgame_phase_score;
-  int score = (score_opening * phase + score_endgame * (phase_range - phase)) / phase_range;
+  const int phase = Evaluator::phase(state);
+  if constexpr(traced)
+    trace->phase = phase;
+  return (score_opening * phase + score_endgame * (Evaluator::phase_range - phase)) / Evaluator::phase_range;
+}
 
-  score += state.side == white ? config.tempo_bonus : -config.tempo_bonus;
+} // namespace
 
-  // return final evaluation based on side
-  return (state.side == white) ? score : -score;
+int Evaluator::phase(const BoardState& state) {
+  return std::clamp(game_phase_score(state), Evaluation::endgame_phase_score, Evaluation::opening_phase_score) - Evaluation::endgame_phase_score;
+}
+
+int Evaluator::evaluate(const BoardState& state) {
+  const int score = white_score<false>(state, nullptr) + (state.side == white ? Evaluation::tempo_bonus : -Evaluation::tempo_bonus);
+  return state.side == white ? score : -score;
+}
+
+int Evaluator::evaluate_white(const BoardState& state, EvalTrace& trace) {
+  trace = EvalTrace{ };
+  return white_score<true>(state, &trace);
 }
 
 } // namespace maharajah

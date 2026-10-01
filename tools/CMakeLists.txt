@@ -2,6 +2,10 @@
 add_executable(maharajah_tool maharajah_tool.cpp)
 target_link_libraries(maharajah_tool PRIVATE ${PROJECT_NAME}STATIC)
 
+# Texel tuning of the evaluation weights (self-play data and the fit)
+add_executable(maharajah_texel texel.cpp)
+target_link_libraries(maharajah_texel PRIVATE ${PROJECT_NAME}STATIC)
+
 add_test(NAME maharajah_tool_generate COMMAND maharajah_tool generate 1 7)
 add_test(NAME maharajah_tool_selfplay COMMAND maharajah_tool selfplay 1 1 20 7)
 

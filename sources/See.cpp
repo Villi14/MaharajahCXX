@@ -3,7 +3,6 @@
 #include "../headers/Evaluation.h"
 #include "../headers/Move.h"
 
-#include <cstdlib>
 
 namespace maharajah {
 
@@ -12,7 +11,7 @@ namespace {
 using Bitboards = std::array<u64, PieceCount::all>;
 
 int material_cp(const int piece) {
-  return std::abs(Evaluation::material_score[opening][piece]);
+  return Evaluation::piece_value[piece];
 }
 
 bool piece_reaches(const Pieces piece, const Squares from, const Squares to, const u64 occupancy) {

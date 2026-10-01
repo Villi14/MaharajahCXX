@@ -15,6 +15,11 @@
   with both colours, Elo with a 95 % interval). Strength changes are measured with it,
   e.g. `python3 tools/match.py new/maharajah_tool old/maharajah_tool --pairs 200
   --movetime 50` (~5 min on an M2 Pro); use Release builds.
+- `texel.cpp` (`maharajah_texel`) — Texel tuning of `Evaluation::weights`.
+  `maharajah_texel gen data.txt 12000 8 28` plays self-play games at depth 8 on 28
+  threads and writes `FEN;result` lines; `maharajah_texel tune data.txt 2000 28 out.txt`
+  fits the weights to the results on the quiet positions and writes a `weights` block
+  in the layout of `headers/Evaluation.h` (with 0 epochs, the current one unchanged).
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 
