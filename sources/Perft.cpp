@@ -1,19 +1,15 @@
 #include "../headers/Perft.h"
-#include "../headers/Notation.h"
+#include "../headers/Clock.h"
 
 #include <format>
 #include <iostream>
-
-#include <chrono>
 
 using namespace std;
 
 namespace maharajah {
 
 int Perft::get_time_ms() {
-  using namespace std::chrono;
-  static const auto start = steady_clock::now();
-  return static_cast<int>(duration_cast<milliseconds>(steady_clock::now() - start).count());
+  return now_ms();
 }
 
 u64 Perft::perft(int depth) {
@@ -43,15 +39,16 @@ u64 Perft::perft_rec(int depth) {
   return nodes;
 }
 
-void Perft::perft_divide(int depth) {
+u64 Perft::perft_divide(int depth) {
   if(depth <= 0) {
     cout << "Nodes: 1\n";
-    return;
+    return 1;
   }
 
   MoveList moves_list;
   board_.generate_moves(moves_list);
 
+  u64 total_nodes = 0;
   for(size_t i{ }; i < moves_list.size(); ++i) {
     const int move = moves_list[i];
 
@@ -60,11 +57,12 @@ void Perft::perft_divide(int depth) {
     }
 
     const u64 nodes_for_move = perft_rec(depth - 1);
+    total_nodes += nodes_for_move;
     board_.pop_state();
 
-    cout << Notation::square_to_coordinates[Move::get_move_source(move)] << Notation::square_to_coordinates[Move::get_move_target(move)]
-         << (Move::get_move_promoted(move) == no_pieces ? ' ' : Notation::promoted_pieces[Move::get_move_promoted(move)]) << ": " << nodes_for_move << '\n';
+    cout << Board::move_to_string(move) << ": " << nodes_for_move << '\n';
   }
+  return total_nodes;
 }
 
 void Perft::perft_test(int depth) {
@@ -92,11 +90,7 @@ void Perft::perft_test(int depth) {
     total_nodes += nodes_for_move;
     board_.pop_state();
 
-    cout << format("      move: {}{}{}    nodes: {}\n",
-                   Notation::square_to_coordinates[Move::get_move_source(move)],
-                   Notation::square_to_coordinates[Move::get_move_target(move)],
-                   Move::get_move_promoted(move) ? Notation::promoted_pieces[Move::get_move_promoted(move)] : ' ',
-                   nodes_for_move);
+    cout << format("      move: {:5}    nodes: {}\n", Board::move_to_string(move), nodes_for_move);
   }
 
   cout << "\n    Depth: " << depth;

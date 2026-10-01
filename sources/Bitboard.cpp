@@ -1,8 +1,6 @@
 #include "../headers/Bitboard.h"
 #include "../headers/tables/MagicNumbersTable.h"
 
-using std::array;
-
 namespace maharajah {
 
 u64 mask_pawn_attacks(const Colors color, const Squares square) {
@@ -180,15 +178,6 @@ u64 rook_attacks_on_the_fly(const Squares square, const u64 block) {
   return attacks;
 }
 
-void init_leapers_attacks() {
-  for(Squares square{ a8 }; square < no_square; ++square) {
-    AttackTables::pawn[white][square] = mask_pawn_attacks(white, square);
-    AttackTables::pawn[black][square] = mask_pawn_attacks(black, square);
-    AttackTables::knight[square] = mask_knight_attacks(square);
-    AttackTables::king[square] = mask_king_attacks(square);
-  }
-}
-
 u64 set_occupancy(const int index, const int bits_in_mask, u64 attack_mask) {
   u64 occupancy{ };
 
@@ -203,31 +192,42 @@ u64 set_occupancy(const int index, const int bits_in_mask, u64 attack_mask) {
   return occupancy;
 }
 
-void init_sliders_attacks(const Sliders bishop) {
-  for(Squares square{ a8 }; square < no_square; ++square) {
-    const u64 attack_mask = bishop == Sliders::bishop ? AttackTables::bishop_masks[square] = mask_bishop_attacks(square)
-                                                      : AttackTables::rook_masks[square] = mask_rook_attacks(square);
-    const int relevant_bits_count = count_bits(attack_mask);
-    const int occupancy_indices = (1 << relevant_bits_count);
+namespace {
 
-    for(int index{ }; index < occupancy_indices; index++) {
-      if(bishop == Sliders::bishop) {
-        const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-        const u64 magic_index = (occupancy * MagicTables::bishop_numbers[square]) >> (BoardGeometry::squares - MagicTables::bishop_relevant_bits[square]);
-        AttackTables::bishop[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
-      } else {
-        const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-        const u64 magic_index = (occupancy * MagicTables::rook_numbers[square]) >> (BoardGeometry::squares - MagicTables::rook_relevant_bits[square]);
-        AttackTables::rook[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
-      }
-    }
+// Stores the attacks from `square` for every blocker subset of its mask, at the
+// subset's magic index.
+template <typename Row>
+void fill_slider_row(Row& row, const Squares square, const u64 attack_mask, const u64 magic_number, const int relevant_bits,
+                     u64 (*attacks_on_the_fly)(Squares, u64)) {
+  const int relevant_bits_count = count_bits(attack_mask);
+  const int occupancy_indices = (1 << relevant_bits_count);
+
+  for(int index{ }; index < occupancy_indices; index++) {
+    const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+    const u64 magic_index = (occupancy * magic_number) >> (BoardGeometry::squares - relevant_bits);
+    row[magic_index] = attacks_on_the_fly(square, occupancy);
   }
 }
 
-void AttackTables::init() {
-  init_leapers_attacks();
-  init_sliders_attacks(Sliders::bishop);
-  init_sliders_attacks(Sliders::rook);
+} // namespace
+
+AttackTables::AttackTables() {
+  for(Squares square{ a8 }; square < no_square; ++square) {
+    pawn[white][square] = mask_pawn_attacks(white, square);
+    pawn[black][square] = mask_pawn_attacks(black, square);
+    knight[square] = mask_knight_attacks(square);
+    king[square] = mask_king_attacks(square);
+
+    bishop_masks[square] = mask_bishop_attacks(square);
+    fill_slider_row(bishop[square], square, bishop_masks[square], MagicTables::bishop_numbers[square],
+                    MagicTables::bishop_relevant_bits[square], bishop_attacks_on_the_fly);
+
+    rook_masks[square] = mask_rook_attacks(square);
+    fill_slider_row(rook[square], square, rook_masks[square], MagicTables::rook_numbers[square],
+                    MagicTables::rook_relevant_bits[square], rook_attacks_on_the_fly);
+  }
 }
+
+const AttackTables attack_tables{ };
 
 } // namespace maharajah

@@ -1,5 +1,6 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Board.h"
+#include "../headers/Move.h"
 #include "../headers/Notation.h"
 #include "gtest/gtest.h"
 
@@ -12,18 +13,13 @@ using namespace std;
 using namespace maharajah;
 
 class board_test_fixture : public testing::Test {
-  protected:
-  void SetUp() override;
-
   public:
   Board board{ };
 
+  // an empty board with `side` to move; every other state field at its default
   static void reset_board(Board& board, const Colors side) {
+    board.state = BoardState{ };
     board.state.side = side;
-    board.state.en_passant = no_square;
-    board.state.castle = 0;
-    board.state.bitboards.fill(zero);
-    board.state.occupancies.fill(zero);
   }
 
   static bool has_move(const MoveList& list, const int move) {
@@ -51,87 +47,42 @@ class board_test_fixture : public testing::Test {
   }
 };
 
-void board_test_fixture::SetUp() {
-  AttackTables::init();
-}
-
-TEST_F(board_test_fixture, copy_board_test) {
-  board.state.bitboards[P] = 0x000000000000FF00ULL;
-  board.state.bitboards[N] = 0x0000000000000042ULL;
-  board.state.bitboards[B] = 0x0000000000000024ULL;
-  board.state.bitboards[R] = 0x0000000000000081ULL;
-  board.state.bitboards[Q] = 0x0000000000000008ULL;
-  board.state.bitboards[K] = 0x0000000000000010ULL;
-  board.state.bitboards[p] = 0x00FF000000000000ULL;
-  board.state.bitboards[n] = 0x4200000000000000ULL;
-  board.state.bitboards[b] = 0x2400000000000000ULL;
-  board.state.bitboards[r] = 0x8100000000000000ULL;
-  board.state.bitboards[q] = 0x0800000000000000ULL;
-  board.state.bitboards[k] = 0x1000000000000000ULL;
-  board.state.side = black;
-  board.state.en_passant = e3;
-  board.state.castle = wk | bq;
-
-  board.update_occupancies();
-
-  // board.copy_board();
-
-  // EXPECT_EQ(board.copy_state.bitboards, board.state.bitboards);
-  // EXPECT_EQ(board.copy_state.occupancies, board.state.occupancies);
-  // EXPECT_EQ(board.copy_state.side, board.state.side);
-  // EXPECT_EQ(board.copy_state.en_passant, board.state.en_passant);
-  // EXPECT_EQ(board.copy_state.castle, board.state.castle);
-
-  // Ensure copy_state is not affected by subsequent mutations of state.
-  board.state.bitboards[P] = zero;
-  board.state.occupancies[both] = zero;
-  board.state.side = white;
-  board.state.en_passant = no_square;
-  board.state.castle = zero;
-
-  // EXPECT_NE(board.copy_state.bitboards, board.state.bitboards);
-  // EXPECT_NE(board.copy_state.occupancies, board.state.occupancies);
-  // EXPECT_NE(board.copy_state.side, board.state.side);
-  // EXPECT_NE(board.copy_state.en_passant, board.state.en_passant);
-  // EXPECT_NE(board.copy_state.castle, board.state.castle);
-}
-
-TEST_F(board_test_fixture, take_back_test) {
-  board.state.bitboards[P] = 0x000000000000FF00ULL;
-  board.state.bitboards[N] = 0x0000000000000042ULL;
-  board.state.bitboards[B] = 0x0000000000000024ULL;
-  board.state.bitboards[R] = 0x0000000000000081ULL;
-  board.state.bitboards[Q] = 0x0000000000000008ULL;
-  board.state.bitboards[K] = 0x0000000000000010ULL;
-  board.state.bitboards[p] = 0x00FF000000000000ULL;
-  board.state.bitboards[n] = 0x4200000000000000ULL;
-  board.state.bitboards[b] = 0x2400000000000000ULL;
-  board.state.bitboards[r] = 0x8100000000000000ULL;
-  board.state.bitboards[q] = 0x0800000000000000ULL;
-  board.state.bitboards[k] = 0x1000000000000000ULL;
-  board.state.side = black;
-  board.state.en_passant = e3;
-  board.state.castle = wk | bq;
-
-  board.update_occupancies();
+TEST_F(board_test_fixture, pop_state_restores_the_pushed_state) {
+  board.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+  const BoardState before = board.state;
 
   board.push_state();
-
-  // Change the board state
   board.state.bitboards[P] = zero;
   board.state.bitboards[k] = zero;
   board.state.occupancies[both] = zero;
   board.state.side = white;
-  board.state.en_passant = no_square;
+  board.state.en_passant = e3;
   board.state.castle = 0;
-
+  board.state.hash_key = 0;
   board.pop_state();
 
-  // EXPECT_EQ(board.state.bitboards, board.copy_state.bitboards);
-  // EXPECT_EQ(board.state.occupancies, board.copy_state.occupancies);
-  // EXPECT_EQ(board.state.side, board.copy_state.side);
-  // EXPECT_EQ(board.state.en_passant, board.copy_state.en_passant);
-  // EXPECT_EQ(board.state.castle, board.copy_state.castle);
+  EXPECT_EQ(board.ply, 0);
+  EXPECT_EQ(board.state.bitboards, before.bitboards);
+  EXPECT_EQ(board.state.occupancies, before.occupancies);
+  EXPECT_EQ(board.state.side, before.side);
+  EXPECT_EQ(board.state.en_passant, before.en_passant);
+  EXPECT_EQ(board.state.castle, before.castle);
+  EXPECT_EQ(board.state.hash_key, before.hash_key);
+}
+
+TEST_F(board_test_fixture, make_move_and_pop_state_restore_the_position) {
+  board.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1");
+  const BoardState before = board.state;
+
+  MoveList moves;
+  board.generate_moves(moves);
+  for(size_t i{ }; i < moves.size(); ++i) {
+    if(!board.make_move(moves[i], TypeMove::all_moves))
+      continue;
+    board.pop_state();
+    EXPECT_TRUE(board.state.same_position(before)) << Board::move_to_string(moves[i]);
+    EXPECT_EQ(board.state.hash_key, before.hash_key) << Board::move_to_string(moves[i]);
+  }
 }
 
 TEST_F(board_test_fixture, is_square_attacked_test) {
@@ -139,16 +90,18 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
     Pieces piece_white;
     Pieces piece_black;
     const char* name;
-    bool is_slider;
   };
 
-  constexpr array<AttackCase, 6> cases{ {
-      { P, p, "pawn", false },
-      { N, n, "knight", false },
-      { B, b, "bishop", true },
-      { R, r, "rook", true },
-      { Q, q, "queen", true },
-      { K, k, "king", false },
+  constexpr array<AttackCase, 9> cases{ {
+      { P, p, "pawn" },
+      { N, n, "knight" },
+      { B, b, "bishop" },
+      { R, r, "rook" },
+      { Q, q, "queen" },
+      { A, a, "archbishop" },
+      { C, c, "chancellor" },
+      { M, m, "maharajah" },
+      { K, k, "king" },
   } };
 
   for(const auto side : { white, black }) {
@@ -161,26 +114,30 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
 
         u64 expected{ };
         if(piece == P || piece == p) {
-          expected = AttackTables::pawn[side][square];
+          expected = attack_tables.pawn[side][square];
         } else if(piece == N || piece == n) {
-          expected = AttackTables::knight[square];
+          expected = attack_tables.knight[square];
         } else if(piece == B || piece == b) {
           expected = get_bishop_attacks(square, zero);
         } else if(piece == R || piece == r) {
           expected = get_rook_attacks(square, zero);
         } else if(piece == Q || piece == q) {
           expected = get_queen_attacks(square, zero);
+        } else if(piece == A || piece == a) {
+          expected = get_bishop_attacks(square, zero) | attack_tables.knight[square];
+        } else if(piece == C || piece == c) {
+          expected = get_rook_attacks(square, zero) | attack_tables.knight[square];
+        } else if(piece == M || piece == m) {
+          expected = get_queen_attacks(square, zero) | attack_tables.knight[square];
         } else if(piece == K || piece == k) {
-          expected = AttackTables::king[square];
+          expected = attack_tables.king[square];
         }
 
-        for(Squares square{ a8 }; square < no_square; ++square) {
-          {
-            const bool exp = (expected & (one << square)) != zero;
-            SCOPED_TRACE(testing::Message() << "side=" << (side == white ? "white" : "black") << " piece=" << test_case.name
-                                            << " from=" << Notation::square_to_coordinates[square] << " to=" << Notation::square_to_coordinates[square]);
-            EXPECT_EQ(board.is_square_attacked(square, side), exp);
-          }
+        for(Squares target{ a8 }; target < no_square; ++target) {
+          const bool attacked = (expected & (one << target)) != zero;
+          EXPECT_EQ(board.is_square_attacked(target, side), attacked)
+              << "side=" << (side == white ? "white" : "black") << " piece=" << test_case.name << " from=" << Notation::square_to_coordinates[square]
+              << " to=" << Notation::square_to_coordinates[target];
         }
       }
     }
@@ -261,7 +218,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, N, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[white];
+    u64 attacks = attack_tables.knight[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, N, no_pieces, false, false, false, false }));
@@ -273,7 +230,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, n, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::knight[square] & ~board.state.occupancies[black];
+    u64 attacks = attack_tables.knight[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, n, no_pieces, false, false, false, false }));
@@ -315,7 +272,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(white, K, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[white];
+    u64 attacks = attack_tables.king[square] & ~board.state.occupancies[white];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, K, no_pieces, false, false, false, false }));
@@ -327,7 +284,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
   for(Squares square{ a8 }; square < no_square; ++square) {
     set_single_piece(black, k, square);
     vector<int> expected{ };
-    u64 attacks = AttackTables::king[square] & ~board.state.occupancies[black];
+    u64 attacks = attack_tables.king[square] & ~board.state.occupancies[black];
     while(attacks) {
       const Squares target = get_ls1b_index(attacks);
       expected.push_back(Move::encode_move(Move{ square, target, k, no_pieces, false, false, false, false }));
@@ -382,7 +339,6 @@ TEST_F(board_test_fixture, generate_moves_white_castling) {
   EXPECT_FALSE(has_move(board.moves_list, e1c1));
 }
 
-// Tests that the board generates moves for a king that is blocked by pieces of the same color and castling type.
 TEST_F(board_test_fixture, generate_moves_black_castling) {
   reset_board(board, black);
   board.state.bitboards[k] = (one << e8);
@@ -394,7 +350,7 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   const int e8g8 = Move::encode_move(Move{ e8, g8, k, no_pieces, false, false, false, true });
   EXPECT_TRUE(has_move(board.moves_list, e8g8));
 
-  // Block castling by attacking g1
+  // Block castling by attacking g8
   reset_board(board, black);
   board.state.bitboards[k] = (one << e8);
   board.state.bitboards[r] = (one << h8);
@@ -812,4 +768,29 @@ TEST_F(board_test_fixture, make_move_promotion) {
 
   EXPECT_FALSE(get_bit(board.state.bitboards[p], a1));
   EXPECT_TRUE(get_bit(board.state.bitboards[q], a1));
+}
+
+TEST_F(board_test_fixture, generate_captures_only_matches_the_captures_of_all_moves) {
+  // castling, en passant, promotions with and without capture, compound pieces
+  for(const char* fen : { "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+                          "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1",
+                          "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9",
+                          "1r2k3/P1P5/8/3pP3/2a1C3/1m6/8/4K2M w - d6 0 1 Vv" }) {
+    board.parse_fen(fen);
+    MoveList all_moves;
+    MoveList captures;
+    board.generate_moves(all_moves);
+    board.generate_moves(captures, TypeMove::only_captures);
+
+    vector<int> expected;
+    for(size_t i{ }; i < all_moves.size(); ++i) {
+      if(Move::get_move_capture(all_moves[i]))
+        expected.push_back(all_moves[i]);
+    }
+
+    ASSERT_EQ(captures.size(), expected.size()) << fen << '\n' << dump_moves(captures);
+    for(size_t i{ }; i < captures.size(); ++i)
+      EXPECT_EQ(captures[i], expected[i]) << fen;
+    EXPECT_FALSE(expected.empty()) << fen;
+  }
 }

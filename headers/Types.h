@@ -1,8 +1,6 @@
 #pragma once
 
-#include <array>
 #include <cstdint>
-#include <string_view>
 
 namespace maharajah {
 
@@ -12,10 +10,23 @@ constexpr u64 zero{ 0x0 };
 constexpr u64 one{ 0x1 };
 
 enum Colors : int { white, black, both };
-enum Pieces : int { P, N, B, R, Q, K, p, n, b, r, q, k, no_pieces };
+// Compound (fairy) pieces sit between the queen and the king of each colour:
+// A/a = Archbishop (bishop + knight), C/c = Chancellor (rook + knight),
+// M/m = Amazon / "Maharajah" (queen + knight).
+enum Pieces : int { P, N, B, R, Q, A, C, M, K, p, n, b, r, q, a, c, m, k, no_pieces };
 enum Castling : int { wk = 0b1, wq = 0b10, bk = 0b100, bq = 0b1000 };
 enum class Sliders : int { rook, bishop };
 enum class TypeMove : int { all_moves, only_captures };
+// Game phases used by the tapered evaluation; opening and endgame index the score tables.
+enum Phase : int { opening, endgame };
+// Piece kinds indexing the positional score tables (compound pieces reuse their components).
+enum PieceKind : int { pawn_kind, knight_kind, bishop_kind, rook_kind, queen_kind, king_kind };
+
+struct PieceCount {
+  static constexpr int all{ 18 };
+  static constexpr int per_side{ 9 };
+};
+
 // clang-format off
 enum Squares : int {
   a8, b8, c8, d8, e8, f8, g8, h8,
@@ -69,6 +80,14 @@ inline Squares operator++(Squares& square, int) {
 
 [[nodiscard]] inline constexpr Pieces to_piece(const int value) {
   return static_cast<Pieces>(value);
+}
+
+[[nodiscard]] inline constexpr Colors piece_color(const Pieces piece) {
+  return piece < PieceCount::per_side ? white : black;
+}
+
+[[nodiscard]] inline constexpr Colors opponent(const Colors side) {
+  return side == white ? black : white;
 }
 
 inline Pieces& operator++(Pieces& piece) {
