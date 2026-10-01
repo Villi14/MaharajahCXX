@@ -313,7 +313,7 @@ backed by a match.
 
 ## Differences from MaharajahC (intended)
 
-- `id name` reports this project's version (`Maharajah 0.1.0`, C: `0.2.1`), set once in
+- `id name` reports this project's version (`Maharajah 0.3.0`, C: `0.2.1`), set once in
   the root `CMakeLists.txt`. On `uci` the options are listed again (C repeats only
   name, author and `uciok`).
 
