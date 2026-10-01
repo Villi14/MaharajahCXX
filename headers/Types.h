@@ -18,7 +18,7 @@ enum Castling : int { wk = 0b1, wq = 0b10, bk = 0b100, bq = 0b1000 };
 enum class Sliders : int { rook, bishop };
 enum class TypeMove : int { all_moves, only_captures };
 // Game phases used by the tapered evaluation; opening and endgame index the score tables.
-enum Phase : int { opening, endgame, middlegame };
+enum Phase : int { opening, endgame };
 // Piece kinds indexing the positional score tables (compound pieces reuse their components).
 enum PieceKind : int { pawn_kind, knight_kind, bishop_kind, rook_kind, queen_kind, king_kind };
 

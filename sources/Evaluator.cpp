@@ -2,6 +2,7 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Evaluation.h"
 
+#include <algorithm>
 #include <cstdlib>
 
 namespace maharajah {
@@ -200,16 +201,6 @@ int Evaluator::game_phase_score(const BoardState& state) {
 
 // position evaluation
 int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
-  const int phase_score = game_phase_score(state);
-  Phase game_phase;
-
-  if(phase_score > Evaluation::opening_phase_score)
-    game_phase = opening;
-  else if(phase_score < Evaluation::endgame_phase_score)
-    game_phase = endgame;
-  else
-    game_phase = middlegame;
-
   const auto& bb = state.bitboards;
   const u64 occupancy = state.occupancies[both];
   const u64 all_pawns = bb[P] | bb[p];
@@ -375,13 +366,10 @@ int Evaluator::evaluate(const BoardState& state, const EvalConfig& config) {
     score_endgame -= config.bishop_pair_bonus_endgame;
   }
 
-  int score{ };
-  if(game_phase == middlegame)
-    score = (score_opening * phase_score + score_endgame * (Evaluation::opening_phase_score - phase_score)) / Evaluation::opening_phase_score;
-  else if(game_phase == opening)
-    score = score_opening;
-  else
-    score = score_endgame;
+  // tapered between the opening and endgame scores by the material on the board
+  constexpr int phase_range = Evaluation::opening_phase_score - Evaluation::endgame_phase_score;
+  const int phase = std::clamp(game_phase_score(state), Evaluation::endgame_phase_score, Evaluation::opening_phase_score) - Evaluation::endgame_phase_score;
+  int score = (score_opening * phase + score_endgame * (phase_range - phase)) / phase_range;
 
   score += state.side == white ? config.tempo_bonus : -config.tempo_bonus;
 
