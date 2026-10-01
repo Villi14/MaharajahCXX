@@ -346,7 +346,9 @@ int Search::negamax(int alpha, int beta, int depth) {
   const u64 own_non_pawn_material =
       (side == white) ? (bb[N] | bb[B] | bb[R] | bb[Q] | bb[A] | bb[C] | bb[M]) : (bb[n] | bb[b] | bb[r] | bb[q] | bb[a] | bb[c] | bb[m]);
 
-  if(depth >= 3 && !in_check && ply_ && own_non_pawn_material) {
+  // the reduction grows with depth; only tried where the static evaluation already
+  // beats beta, outside PV nodes
+  if(depth >= 3 && !in_check && ply_ && !pv_node && own_non_pawn_material && static_eval >= beta) {
     const ZobristKeys& keys = ZobristKeys::get();
     board_.push_state();
     ++ply_;
@@ -359,7 +361,7 @@ int Search::negamax(int alpha, int beta, int depth) {
     state.side = opponent(state.side);
     state.hash_key ^= keys.side;
 
-    score = -negamax(-beta, -beta + 1, depth - 1 - 2);
+    score = -negamax(-beta, -beta + 1, std::max(0, depth - 1 - (2 + depth / 6)));
 
     --ply_;
     board_.forget_position();
