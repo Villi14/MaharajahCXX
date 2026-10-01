@@ -2,7 +2,7 @@
 """Head-to-head match between two engine builds (first version: fixed games, no SPRT yet).
 
 usage: match.py NEW BASE [--pairs N] [--movetime MS] [--jobs J] [--seed S] [--custom-share F]
-                [--tc BASE+INC --arbiter TOOL]
+                [--hash MB] [--tc BASE+INC --arbiter TOOL]
 
 NEW and BASE are maharajah_tool binaries (go movetime), or with --tc the UCI engine
 binaries (go wtime/btime; a path ending in /Maharajah), and then --arbiter names a
@@ -91,9 +91,10 @@ def insufficient(board):
     return not others or (len(others) == 1 and others[0] in 'NBnb')
 
 
-def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc=None, arbiter=None):
+def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc=None, arbiter=None, hash_mb=64):
     """Returns the score of NEW: 1, 0.5 or 0. With tc=(base_ms, inc_ms) the engines play on a clock."""
-    white, black = (Tool(new_bin, threads), Tool(base_bin, threads)) if new_white else (Tool(base_bin, threads), Tool(new_bin, threads))
+    new, base = Tool(new_bin, threads, hash_mb), Tool(base_bin, threads, hash_mb)
+    white, black = (new, base) if new_white else (base, new)
     arb = Tool(arbiter or base_bin)
     clock = [tc[0], tc[0]] if tc else None
     for e in (white, black):
@@ -175,6 +176,7 @@ def main():
     ap.add_argument('--movetime', type=int, default=100)
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--threads', type=int, default=1)
+    ap.add_argument('--hash', type=int, default=64, help='Hash in MB for both engines')
     ap.add_argument('--seed', type=int, default=1)
     ap.add_argument('--custom-share', type=float, default=0.3)
     ap.add_argument('--tc', help='clock games base+inc in seconds, e.g. 5+0.05 (UCI binaries)')
@@ -191,7 +193,7 @@ def main():
     t0 = time.time()
 
     def job(i, new_white):
-        s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter)
+        s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter, hash_mb=a.hash)
         with lock:
             results[i].append(s)
             done[0] += 1

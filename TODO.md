@@ -159,10 +159,21 @@ backed by a match.
       for tuning).
 - [x] Store the best move in the TT and search it first (212e7b9). The move shares
       the data word (score 24 bits, depth 8, flag 2, move 26); still 24 bytes.
-- [ ] Depth-preferred / aged TT replacement (bits 60-63 of the data word are free
-      for a generation counter); measure against always-replace.
-      At 50 ms/move with 64 MB the table hardly fills (~65 k nodes per move, 2.8 M
-      entries), so measure it at longer time controls or with a small `Hash`.
+- [~] Depth-preferred / aged TT replacement (2026-10-01): no clear gain at 50 ms/move,
+      not committed. Generation counter in bits 60-63, bumped once per `run_search`;
+      1200 games each against f702335 (Ubuntu, 2 x 12 games in parallel,
+      `match.py --hash`):
+
+      | variant | Hash 64 MB | Hash 4 MB |
+      |---|---|---|
+      | one slot: keep another position's entry if deeper and from this search | +577 =114 -509, ≈ +20 | +543 =91 -566, ≈ -7 |
+      | buckets of 2 (depth-preferred + always-replace), same 24-byte entries | +512 =99 -589, ≈ -22 | +563 =110 -527, ≈ +10 |
+
+      Intervals about ±17 Elo. Both point the wrong way (the gain should show where
+      the table fills, at 4 MB), so it reads as noise around zero. The bucket build
+      searches as fast as the base (~490 kN/s, same nodes to the `bench_engines.py`
+      depths). `maharajah_tool uci` keeps the table between moves, `position`
+      in the UCI binary clears it. Retry at longer time controls (≥ 200 ms/move).
 - [x] Bound the history heuristic (e05d855).
 - [x] Tapered evaluation (2c95e17).
 - [x] LMR table (2fcd0e9) and adaptive null move (a8b5819).
