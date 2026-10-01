@@ -219,10 +219,21 @@ backed by a match.
 - [ ] UCI binary: `Game` clears the TT on every `position` command (also in
       MaharajahC), so in a UCI game each move starts with an empty table. Clear it
       only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.
-- [ ] Texel-tune the evaluation parameters on self-play positions (they are
-      hand-set now). Next item (2026-10-01): collect quiet positions with game
-      results from self-play, fit the parameters to the result, check by a match
-      against HEAD.
+- [~] Texel-tune the evaluation parameters on self-play positions (2026-10-01):
+      first fit no gain, weights not committed. `Evaluation::weights` now holds one
+      `EvalWeights` per phase and `tools/texel.cpp` (`maharajah_texel gen` / `tune`)
+      fits them (bf474f3, bfb117a). Data: 12 000 self-play games at depth 8 from the
+      start position + 6-10 random plies, and 5000 from custom armies + 0-3 plies;
+      wins adjudicated at +-1000 for 6 plies, draws at +-15 for 12 plies from ply 80.
+      1.84 M positions, 1.44 M quiet (quiescence = static eval). All 2 x 415 weights
+      fitted by Adam, K 0.93, error 0.1177 → 0.1096 (converged by 1000 epochs).
+      The fit inflated opening material (Q 1420, M 1904) and shrank endgame material
+      (P 60, N 172), and turned some signs (endgame rook open file -23, knight
+      mobility -8). 1200 games against c36ed54, 50 ms/move: seed 1 +262 =44 -294
+      (-19 [-42, +5]), seed 2 +277 =31 -292 (-9 [-33, +16]), together ≈ -14.
+      To try: fewer weights (material and the scalars, tables fixed), a penalty
+      towards the current values, more and more balanced data (no random-ply
+      openings that are lost from the start, higher depth).
 - [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
       the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
