@@ -514,15 +514,13 @@ int Search::quiescence(int alpha, int beta) {
     alpha = evaluation;
 
   MoveList moves_list;
-  board_.generate_moves(moves_list);
+  board_.generate_moves(moves_list, TypeMove::only_captures);
   sort_moves(moves_list);
 
   const int see_margin = engine_.search_config.quiescence_see_prune_margin;
 
   for(size_t i{ }; i < moves_list.size(); ++i) {
     const int move = moves_list[i];
-    if(!Move::get_move_capture(move))
-      continue;
 
     // skip clearly losing exchanges
     const int see = see_evaluate(board_, move);
