@@ -29,6 +29,7 @@
 #include <random>
 #include <string>
 #include <thread>
+#include <type_traits>
 #include <vector>
 
 using namespace maharajah;
@@ -482,7 +483,7 @@ int run_tune(const std::string& path, const int epochs, const int threads, const
 int main(const int argc, char** argv) {
   const std::string command = argc > 1 ? argv[1] : "";
   const auto arg = [&](const int index, const auto fallback) {
-    using T = decltype(fallback);
+    using T = std::remove_cv_t<decltype(fallback)>;
     if(argc <= index)
       return fallback;
     if constexpr(std::is_same_v<T, double>)
