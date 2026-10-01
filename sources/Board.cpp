@@ -261,8 +261,8 @@ void Board::generate_moves() {
   generate_moves(moves_list);
 }
 
-void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const {
-  moves_list.clear();
+void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const {
+  out_moves.clear();
 
   const bool captures_only = type_move == TypeMove::only_captures;
   const Colors side = state.side;
@@ -284,9 +284,9 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
 
       if(!captures_only && target_square != no_square && !get_bit(occupancy, target_square)) {
         if(promotes) {
-          add_promotions(moves_list, state, source_square, target_square, pawn, false);
+          add_promotions(out_moves, state, source_square, target_square, pawn, false);
         } else {
-          moves_list.add(Move::encode_move(Move(source_square, target_square, pawn, no_pieces, false, false, false, false)));
+          out_moves.add(Move::encode_move(Move(source_square, target_square, pawn, no_pieces, false, false, false, false)));
 
           // Double step, once per pawn: exactly the unmoved pawns when the position
           // tracks them (always with a variant side, whose army may start on any rank
@@ -296,7 +296,7 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
                                                        : is_white ? (source_square >= a2 && source_square <= h2) : (source_square >= a7 && source_square <= h7);
 
           if(can_double && double_target != no_square && !get_bit(occupancy, double_target))
-            moves_list.add(Move::encode_move(Move(source_square, double_target, pawn, no_pieces, false, true, false, false)));
+            out_moves.add(Move::encode_move(Move(source_square, double_target, pawn, no_pieces, false, true, false, false)));
         }
       }
 
@@ -306,9 +306,9 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
         const Squares capture_square = get_ls1b_index(attacks);
 
         if(promotes)
-          add_promotions(moves_list, state, source_square, capture_square, pawn, true);
+          add_promotions(out_moves, state, source_square, capture_square, pawn, true);
         else
-          moves_list.add(Move::encode_move(Move(source_square, capture_square, pawn, no_pieces, true, false, false, false)));
+          out_moves.add(Move::encode_move(Move(source_square, capture_square, pawn, no_pieces, true, false, false, false)));
 
         pop_bit(attacks, capture_square);
       }
@@ -316,7 +316,7 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
       if(state.en_passant != no_square) {
         if(const u64 en_passant_attacks = attack_tables.pawn[side][source_square] & (one << state.en_passant)) {
           const Squares en_passant_target = get_ls1b_index(en_passant_attacks);
-          moves_list.add(Move::encode_move(Move(source_square, en_passant_target, pawn, no_pieces, true, false, true, false)));
+          out_moves.add(Move::encode_move(Move(source_square, en_passant_target, pawn, no_pieces, true, false, true, false)));
         }
       }
 
@@ -334,7 +334,7 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
       while(attacks) {
         const Squares target_square = get_ls1b_index(attacks);
         const bool capture = get_bit(enemy, target_square);
-        moves_list.add(Move::encode_move(Move(source_square, target_square, piece, no_pieces, capture, false, false, false)));
+        out_moves.add(Move::encode_move(Move(source_square, target_square, piece, no_pieces, capture, false, false, false)));
         pop_bit(attacks, target_square);
       }
 
@@ -350,19 +350,19 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
     if(is_white) {
       if((state.castle & wk) && !get_bit(occupancy, f1) && !get_bit(occupancy, g1) && !is_square_attacked(e1, black) && !is_square_attacked(f1, black) &&
          !is_square_attacked(g1, black))
-        moves_list.add(Move::encode_move(Move(e1, g1, K, no_pieces, false, false, false, true)));
+        out_moves.add(Move::encode_move(Move(e1, g1, K, no_pieces, false, false, false, true)));
 
       if((state.castle & wq) && !get_bit(occupancy, d1) && !get_bit(occupancy, c1) && !get_bit(occupancy, b1) && !is_square_attacked(e1, black) &&
          !is_square_attacked(d1, black) && !is_square_attacked(c1, black))
-        moves_list.add(Move::encode_move(Move(e1, c1, K, no_pieces, false, false, false, true)));
+        out_moves.add(Move::encode_move(Move(e1, c1, K, no_pieces, false, false, false, true)));
     } else {
       if((state.castle & bk) && !get_bit(occupancy, f8) && !get_bit(occupancy, g8) && !is_square_attacked(e8, white) && !is_square_attacked(f8, white) &&
          !is_square_attacked(g8, white))
-        moves_list.add(Move::encode_move(Move(e8, g8, k, no_pieces, false, false, false, true)));
+        out_moves.add(Move::encode_move(Move(e8, g8, k, no_pieces, false, false, false, true)));
 
       if((state.castle & bq) && !get_bit(occupancy, d8) && !get_bit(occupancy, c8) && !get_bit(occupancy, b8) && !is_square_attacked(e8, white) &&
          !is_square_attacked(d8, white) && !is_square_attacked(c8, white))
-        moves_list.add(Move::encode_move(Move(e8, c8, k, no_pieces, false, false, false, true)));
+        out_moves.add(Move::encode_move(Move(e8, c8, k, no_pieces, false, false, false, true)));
     }
   }
 

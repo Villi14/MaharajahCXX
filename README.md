@@ -30,8 +30,6 @@ cmake -S . -B build -DMAHARAJAH_SANITIZE=ON  # ASan + UBSan
 cmake --build build
 ```
 
-Visual Studio: `cmake -G "Visual Studio 18 2026" -S . -B build`.
-
 ## Run
 
 ```sh

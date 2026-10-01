@@ -56,7 +56,7 @@ struct Board {
   void update_occupancies();
   void generate_moves();
   // pseudo-legal moves; with only_captures, just the captures (promotions included)
-  void generate_moves(MoveList& moves_list, TypeMove type_move = TypeMove::all_moves) const;
+  void generate_moves(MoveList& out_moves, TypeMove type_move = TypeMove::all_moves) const;
   // true when the side to move has at least one legal move
   [[nodiscard]] bool has_legal_move();
 

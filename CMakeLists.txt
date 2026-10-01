@@ -23,6 +23,8 @@ add_compile_definitions(MAHARAJAH_VERSION="${PROJECT_VERSION}")
 
 if (MSVC)
   add_compile_options(/W4)
+  # standard fopen/setbuf etc. are portable; MSVC's "unsafe" nag isn't useful here
+  add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else()
   add_compile_options(-Wall -Wextra -Wpedantic)
 endif()
