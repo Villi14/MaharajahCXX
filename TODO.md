@@ -167,7 +167,8 @@ backed by a match.
       depths of `bench_engines.py`: 6.67 M → 1.65 M. Rejected: null move R = 3 +
       depth/4 (-5 [-33, +23]); TT probe in the quiescence search (cutoff at
       non-PV nodes, hash move first; -9 % nodes): +10 over 1200 games against
-      57c06f5, and -18 [-43, +7] on top of IIR. Tapered eval was neutral but kept (continuous, needed
+      57c06f5, and -18 [-43, +7] on top of IIR; again on top of fail-soft and
+      the aspiration widening (b9a869a, same nodes): +539 =93 -568, ≈ -8 over 1200. Tapered eval was neutral but kept (continuous, needed
       for tuning).
 - [x] Store the best move in the TT and search it first (212e7b9). The move shares
       the data word (score 24 bits, depth 8, flag 2, move 26); still 24 bytes.
@@ -192,7 +193,8 @@ backed by a match.
 - [x] Internal iterative reduction (2026-10-01): nodes to the fixed depths of
       `bench_engines.py` 1.65 M → 1.29 M.
 - [x] Quiescence generates captures only (57c06f5). Probing the TT there was
-      rejected (see the results above); retry once the TT keeps deeper entries.
+      rejected twice (see the results above, also with fail-soft); retry once the
+      TT keeps deeper entries.
 - [x] Fail-soft instead of fail-hard (2026-10-01): negamax and quiescence return the
       best score, reverse futility the static evaluation, null move its score (not
       a mate), the TT a bound's stored score. Root move scores stay `max(score,
