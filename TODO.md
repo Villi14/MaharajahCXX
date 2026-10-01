@@ -43,7 +43,9 @@ identical.
 
 1. Small tasks on this branch, one commit each (a match where strength can change):
    the UCI binary clears the TT only on `ucinewgame`; soft/hard time limits in
-   clock mode; a `perft` UCI command with variant perft counts.
+   clock mode; a `perft` UCI command with variant perft counts. Done 2026-10-01
+   (85b789f, 7b9b9d9, ff8b10b); the two UCI changes gained about +94 and +105 Elo
+   on a clock.
 2. Confirm the gain: HEAD against the port (43464a7) and the C baseline with
    `match.py`, and the elo:2200 Fairy-Stockfish run on this machine.
 3. Review the branch and merge it into `master`.
