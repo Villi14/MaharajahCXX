@@ -236,6 +236,8 @@ backed by a match.
       openings that are lost from the start, higher depth).
 - [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
       the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
+      Next item (2026-10-01). `maharajah_texel gen` writes self-play positions with
+      results (FEN;result), a start for training data.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
       (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
       share a lockless TT; one thread is unchanged (0 mismatches in
