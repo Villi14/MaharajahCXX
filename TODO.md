@@ -6,7 +6,7 @@ ported from MaharajahC; the engine plays identical moves.
 
 The reference C engine is `Maharajah/Maharajah_ffi/src` in the monorepo (the one the app
 ships). `../MaharajahC` is a copy of it and must be kept in sync: port a change there
-first, then here. Last sync 2026-09-30 (monorepo 54ef8d0, pawn-wall army generator);
+first, then here. Last sync 2026-10-01 (monorepo 9f841a1, one double step per pawn);
 `src/`, `include/`, `tests/`, `CMakeLists.txt` and `tools/maharajah_tool.c` are
 identical.
 
@@ -59,8 +59,11 @@ identical.
       variant side now always tracks its unmoved pawns (`BoardState::infer_pawn_state`:
       without field 8, a variant side's pawns on its own half and a standard side's on
       its home rank count as unmoved); the army generator writes field 8.
-      Still to fix in MaharajahC and the monorepo's Maharajah_ffi (same code in
-      `Moves.c`); Maharajah_ui writes field 8, so the app should not hit it.
+      Same fix in the monorepo's Maharajah_ffi (9f841a1) and MaharajahC (e235bff);
+      `legalmoves` of both engines agree on 300 generated armies and the test
+      positions. The baseline binary `build-compare/` (tag `baseline-2026-09-30`)
+      keeps the old rule. Not yet rebuilt: the app's FFI library and the web
+      game's wasm module (Maharajah_ui writes field 8, so the app should not hit it).
 - [x] Port `maharajah_tool` (`tools/maharajah_tool.cpp`, smoke tests in
       `tools/tests/`) and `ask_engine.py` (2026-09-30).
 - [x] Port MaharajahC's smoke tests to gtest (2026-09-30): `RulesTests.cpp`
