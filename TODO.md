@@ -155,6 +155,7 @@ backed by a match.
       | quiescence generates captures only (same tree, ~10 % faster) | 57c06f5 | — | — |
       | internal iterative reduction (depth >= 4, not root, no TT move → depth - 1) | after 57c06f5 | +578 =108 -514 (1200) | ≈ +19 [~+1, +36] |
       | fail-soft (search, quiescence, RFP, null move, TT bounds) | after 6903997 | +1171 =213 -1016 (2400, Ubuntu) | ≈ +22 [+9, +35] |
+      | aspiration fail: failed bound = fail-soft score ∓ 50, 100, 200, … | after 100086e | +1154 =203 -1043 (2400, Ubuntu) | ≈ +16 [+3, +29] |
 
       Sum of the single matches ≈ +140 Elo. Measured in one match on the Ubuntu
       machine (2026-10-01, 28 cores, 12 games in parallel, 50 ms/move, 600 games):
@@ -202,13 +203,14 @@ backed by a match.
       wtime/btime`, `Game::parse_go`). With `go movetime` / `mah_best_move_time` the
       move time is fixed, so a soft limit only answers sooner; there the gain would be
       using the best move of an unfinished iteration.
-- [~] Gradual aspiration widening (2026-10-01): no gain, not committed. On a fail
+- [x] Gradual aspiration widening (2026-10-01). First try, fail-hard: no gain. On a fail
       only the failed bound moves out, by 50, 100, 200, ... up to the full window
       (before: straight to a full window). Nodes to the `bench_engines.py` depths
       1.293 M → 1.308 M (few fails there). 1200 games against 09ffdd7, 50 ms/move:
       seed 1 +283 =58 -259 (+14 [-8, +36]), seed 2 +256 =58 -286 (-17 [-41, +6]),
-      together +539 =116 -545, ≈ -2. Retry now that the search is fail-soft:
-      the failed score shows how far to widen.
+      together +539 =116 -545, ≈ -2. On top of fail-soft the failed bound moves past
+      the returned score instead (same doubling steps): seeds 1-4 +16, +9, +24,
+      +16, see the table. Nodes to the `bench_engines.py` depths 0.95 M → 0.92 M.
 - [ ] UCI binary: `Game` clears the TT on every `position` command (also in
       MaharajahC), so in a UCI game each move starts with an empty table. Clear it
       only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.

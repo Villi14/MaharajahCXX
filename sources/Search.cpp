@@ -178,6 +178,7 @@ SearchResult Search::run(const int depth, std::ostream* info) {
 
   int alpha = -infinity;
   int beta = infinity;
+  int window = aspiration_window;
   const int max_depth = effective_depth(depth);
 
   // iterative deepening; odd helpers start a ply deeper so the threads spread over
@@ -192,17 +193,24 @@ SearchResult Search::run(const int depth, std::ostream* info) {
     if(stopped())
       break;
 
-    // Aspiration window failed: re-search the same depth with a full window
-    // (a full window cannot fail, so this retries at most once).
-    if(score <= alpha || score >= beta) {
-      alpha = -infinity;
-      beta = infinity;
+    // Aspiration window failed: re-search the same depth with the failed bound moved
+    // past the fail-soft score by a step that doubles on every retry.
+    if(score <= alpha && alpha > -infinity) {
+      alpha = std::max(score - window, -infinity);
+      window *= 2;
+      --current_depth;
+      continue;
+    }
+    if(score >= beta && beta < infinity) {
+      beta = std::min(score + window, +infinity);
+      window *= 2;
       --current_depth;
       continue;
     }
 
-    alpha = score - aspiration_window;
-    beta = score + aspiration_window;
+    window = aspiration_window;
+    alpha = score - window;
+    beta = score + window;
     result.score = score;
     result.depth = current_depth;
 
