@@ -261,9 +261,10 @@ void Board::generate_moves() {
   generate_moves(moves_list);
 }
 
-void Board::generate_moves(MoveList& moves_list) const {
+void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const {
   moves_list.clear();
 
+  const bool captures_only = type_move == TypeMove::only_captures;
   const Colors side = state.side;
   const bool is_white = side == white;
   const u64 occupancy = state.occupancies[both];
@@ -281,7 +282,7 @@ void Board::generate_moves(MoveList& moves_list) const {
       const Squares target_square = source_square + forward;
       const bool promotes = is_white ? (source_square >= a7 && source_square <= h7) : (source_square >= a2 && source_square <= h2);
 
-      if(target_square != no_square && !get_bit(occupancy, target_square)) {
+      if(!captures_only && target_square != no_square && !get_bit(occupancy, target_square)) {
         if(promotes) {
           add_promotions(moves_list, state, source_square, target_square, pawn, false);
         } else {
@@ -333,7 +334,7 @@ void Board::generate_moves(MoveList& moves_list) const {
 
     while(bitboard) {
       const Squares source_square = get_ls1b_index(bitboard);
-      u64 attacks = get_piece_attacks(piece, source_square, occupancy) & ~own;
+      u64 attacks = get_piece_attacks(piece, source_square, occupancy) & (captures_only ? enemy : ~own);
 
       while(attacks) {
         const Squares target_square = get_ls1b_index(attacks);
@@ -350,7 +351,7 @@ void Board::generate_moves(MoveList& moves_list) const {
     add_piece_moves(piece);
 
   // castling is not available to a side playing variant rules
-  if(!state.side_variant[side]) {
+  if(!captures_only && !state.side_variant[side]) {
     if(is_white) {
       if((state.castle & wk) && !get_bit(occupancy, f1) && !get_bit(occupancy, g1) && !is_square_attacked(e1, black) && !is_square_attacked(f1, black) &&
          !is_square_attacked(g1, black))

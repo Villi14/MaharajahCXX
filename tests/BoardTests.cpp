@@ -807,3 +807,28 @@ TEST_F(board_test_fixture, make_move_promotion) {
   EXPECT_FALSE(get_bit(board.state.bitboards[p], a1));
   EXPECT_TRUE(get_bit(board.state.bitboards[q], a1));
 }
+
+TEST_F(board_test_fixture, generate_captures_only_matches_the_captures_of_all_moves) {
+  // castling, en passant, promotions with and without capture, compound pieces
+  for(const char* fen : { "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
+                          "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1",
+                          "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9",
+                          "1r2k3/P1P5/8/3pP3/2a1C3/1m6/8/4K2M w - d6 0 1 Vv" }) {
+    board.parse_fen(fen);
+    MoveList all_moves;
+    MoveList captures;
+    board.generate_moves(all_moves);
+    board.generate_moves(captures, TypeMove::only_captures);
+
+    vector<int> expected;
+    for(size_t i{ }; i < all_moves.size(); ++i) {
+      if(Move::get_move_capture(all_moves[i]))
+        expected.push_back(all_moves[i]);
+    }
+
+    ASSERT_EQ(captures.size(), expected.size()) << fen << '\n' << dump_moves(captures);
+    for(size_t i{ }; i < captures.size(); ++i)
+      EXPECT_EQ(captures[i], expected[i]) << fen;
+    EXPECT_FALSE(expected.empty()) << fen;
+  }
+}
