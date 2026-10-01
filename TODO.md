@@ -147,6 +147,15 @@ backed by a match.
       `third_party/fairy-stockfish`; `bin/elo_match.dart` is not in the monorepo, so
       `lib/elo_match.dart` was compiled with `dart compile exe` and run directly.
       Next: the match runner below.
+      Strength check before the merge (2026-10-01, same setup, 520 ms/move; the C
+      baseline is not rerun, it is known at ~2080-2100): HEAD 0d94f7c alone, 24 x 40
+      games, +394 =74 -492, -36 [-57, -14] ≈ 2164. Control, f702335 and HEAD side by
+      side, 12 x 40 games each: f702335 +200 =41 -239, -28 [-58, +1] ≈ 2172; HEAD
+      +223 =40 -217, +4 [-25, +34] ≈ 2204. The same binary moves by ~40 Elo between
+      runs, so the gain since f702335 (fail-soft, aspiration widening, ≈ +38 in
+      self-play) is below what these runs resolve. Pooled: HEAD ≈ 2177 (1440 games),
+      f702335 ≈ 2191 (960). The lab plays through `maharajah_tool`, so the two UCI
+      gains (TT kept, clock limits) do not show here.
 
 - [x] Parity decided (2026-09-30): identical moves were only a check that the port
       broke nothing, not a goal. Strength changes may diverge from MaharajahC and are
