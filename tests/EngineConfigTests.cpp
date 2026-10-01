@@ -3,6 +3,7 @@
 
 #include "../headers/Engine.h"
 #include "../headers/EngineConfig.h"
+#include "../headers/Move.h"
 #include "../headers/Nnue.h"
 #include "../headers/Transposition.h"
 #include "gtest/gtest.h"
@@ -92,7 +93,7 @@ TEST_F(transposition_test_fixture, clear_removes_entries) {
   EXPECT_EQ(table.read(board.state.hash_key, -Scores::infinity, Scores::infinity, 6, 0), TranspositionTable::no_entry);
 }
 
-// the lockless table packs score, depth and flag into one word
+// the lockless table packs score, depth, flag and move into one word
 TEST_F(transposition_test_fixture, packed_entries_keep_sign_mate_scores_and_flags) {
   constexpr u64 key{ 0x123456789ABCDEF0 };
   constexpr int mated_in_three{ -Scores::mate_value + 3 };
@@ -111,4 +112,25 @@ TEST_F(transposition_test_fixture, packed_entries_keep_sign_mate_scores_and_flag
   table.write(key, 250, 2, HashFlag::beta, 0);
   EXPECT_EQ(table.read(key, 0, 200, 2, 0), 200);
   EXPECT_EQ(table.read(key, 0, 300, 2, 0), TranspositionTable::no_entry);
+}
+
+TEST_F(transposition_test_fixture, best_move_is_kept_at_any_depth) {
+  constexpr u64 key{ 0x0FEDCBA987654321 };
+  const int move = Move::encode_move(Move{ e2, e4, P, no_pieces, false, true, false, false });
+  const int castling = Move::encode_move(Move{ e1, g1, K, no_pieces, false, false, false, true });
+
+  table.write(key, 40, 5, HashFlag::beta, 0, move);
+  const TranspositionTable::Probe shallow = table.probe(key, -Scores::infinity, Scores::infinity, 9, 0);
+  EXPECT_EQ(shallow.score, TranspositionTable::no_entry);
+  EXPECT_EQ(shallow.move, move);
+  EXPECT_EQ(table.probe(key ^ 1, -Scores::infinity, Scores::infinity, 0, 0).move, 0);
+
+  // a fail-low result has no best move and keeps the stored one
+  table.write(key, -30, 6, HashFlag::alpha, 0);
+  EXPECT_EQ(table.probe(key, -Scores::infinity, Scores::infinity, 6, 0).move, move);
+
+  table.write(key, 12, 6, HashFlag::exact, 0, castling);
+  const TranspositionTable::Probe exact = table.probe(key, -Scores::infinity, Scores::infinity, 6, 0);
+  EXPECT_EQ(exact.score, 12);
+  EXPECT_EQ(exact.move, castling);
 }

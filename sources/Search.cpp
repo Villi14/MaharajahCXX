@@ -288,11 +288,9 @@ int Search::negamax(int alpha, int beta, int depth) {
     return 0;
 
   const bool pv_node = beta - alpha > 1;
-  if(ply_ && !pv_node) {
-    score = engine_.transposition_table.read(board_.state.hash_key, alpha, beta, depth, ply_);
-    if(score != TranspositionTable::no_entry)
-      return score;
-  }
+  const TranspositionTable::Probe hash_entry = engine_.transposition_table.probe(board_.state.hash_key, alpha, beta, depth, ply_);
+  if(ply_ && !pv_node && hash_entry.score != TranspositionTable::no_entry)
+    return hash_entry.score;
 
   if((nodes_ & 2047) == 0)
     communicate();
@@ -368,8 +366,9 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(follow_pv_)
     enable_pv_scoring(moves_list);
 
-  sort_moves(moves_list);
+  sort_moves(moves_list, hash_entry.move);
 
+  int best_move{ };
   int moves_searched{ };
   for(size_t i{ }; i < moves_list.size(); ++i) {
     const int move = moves_list[i];
@@ -434,6 +433,7 @@ int Search::negamax(int alpha, int beta, int depth) {
     // found a better move
     if(score > alpha) {
       hash_flag = HashFlag::exact;
+      best_move = move;
 
       if(!capture)
         history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)] += config.history_bonus_scale * depth * depth;
@@ -448,7 +448,7 @@ int Search::negamax(int alpha, int beta, int depth) {
 
       // fail-hard beta cutoff
       if(score >= beta) {
-        engine_.transposition_table.write(board_.state.hash_key, beta, depth, HashFlag::beta, ply_);
+        engine_.transposition_table.write(board_.state.hash_key, beta, depth, HashFlag::beta, ply_, move);
 
         if(!capture) {
           killer_moves_[1][ply_] = killer_moves_[0][ply_];
@@ -464,7 +464,7 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(legal_moves == 0)
     return in_check ? -mate_value + ply_ : 0;
 
-  engine_.transposition_table.write(board_.state.hash_key, alpha, depth, hash_flag, ply_);
+  engine_.transposition_table.write(board_.state.hash_key, alpha, depth, hash_flag, ply_, best_move);
 
   // node (move) fails low
   return alpha;
@@ -536,7 +536,7 @@ int Search::quiescence(int alpha, int beta) {
   return alpha;
 }
 
-int Search::score_move(const int move) {
+int Search::score_move(const int move, const int hash_move) {
   int promotion_bonus{ };
   if(Move::is_promotion(move))
     promotion_bonus = 2000 + std::abs(Evaluation::material_score[opening][Move::get_move_promoted(move)]);
@@ -546,6 +546,9 @@ int Search::score_move(const int move) {
     score_pv_ = false;
     return 20000;
   }
+
+  if(move == hash_move)
+    return 30000;
 
   if(Move::get_move_capture(move)) {
     // en passant victims are not on the target square; they count as pawns
@@ -573,12 +576,12 @@ int Search::score_move(const int move) {
   return history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
 }
 
-void Search::sort_moves(MoveList& moves_list) {
+void Search::sort_moves(MoveList& moves_list, const int hash_move) {
   std::array<int, Limits::max_moves> move_scores;
   const int count = moves_list.count;
 
   for(int i{ }; i < count; ++i)
-    move_scores[i] = score_move(moves_list[i]);
+    move_scores[i] = score_move(moves_list[i], hash_move);
 
   // stable insertion sort, best score first
   for(int i{ 1 }; i < count; ++i) {

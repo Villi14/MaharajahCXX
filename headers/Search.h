@@ -71,8 +71,9 @@ class Search {
   [[nodiscard]] bool should_return_draw_score() const;
   [[nodiscard]] int effective_depth(int depth) const;
 
-  [[nodiscard]] int score_move(int move);
-  void sort_moves(MoveList& moves_list);
+  // `hash_move` (from the hash table, 0 if none) is searched first
+  [[nodiscard]] int score_move(int move, int hash_move);
+  void sort_moves(MoveList& moves_list, int hash_move = 0);
   void enable_pv_scoring(const MoveList& moves_list);
 
   void sort_root_moves();
