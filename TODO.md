@@ -186,7 +186,10 @@ backed by a match.
       the table fills, at 4 MB), so it reads as noise around zero. The bucket build
       searches as fast as the base (~490 kN/s, same nodes to the `bench_engines.py`
       depths). `maharajah_tool uci` keeps the table between moves, `position`
-      in the UCI binary clears it. Retry at longer time controls (≥ 200 ms/move).
+      in the UCI binary clears it. Retried at 200 ms/move on top of b9a869a (fail-soft,
+      aspiration widening), one-slot variant, Hash 64 MB, 1200 games: seed 1
+      +258 =56 -286 (-16 [-40, +8]), seed 2 +262 =64 -274 (-7 [-29, +15]), together
+      ≈ -12. Rejected again; always-replace stays.
 - [x] Bound the history heuristic (e05d855).
 - [x] Tapered evaluation (2c95e17).
 - [x] LMR table (2fcd0e9) and adaptive null move (a8b5819).
