@@ -41,6 +41,16 @@ if (EMSCRIPTEN)
   return()
 endif()
 
+# off for builds that only need the engine (e.g. the server's libmaharajah_ffi):
+# skips fetching googletest and building the tests and tools
+option(MAHARAJAH_BUILD_TESTS "Build the tests and the command-line tools" ON)
+
+add_subdirectory(sources)
+
+if (NOT MAHARAJAH_BUILD_TESTS)
+  return()
+endif()
+
 include(FetchContent)
 
 fetchcontent_declare(
@@ -51,6 +61,5 @@ fetchcontent_declare(
 
 fetchcontent_makeavailable(googletest)
 
-add_subdirectory(sources)
 add_subdirectory(tests)
 add_subdirectory(tools)
