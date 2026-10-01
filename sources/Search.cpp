@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
-#include <format>
 #include <thread>
 #include <vector>
 
@@ -158,11 +157,12 @@ bool Search::should_return_draw_score() const {
 void Search::print_info(std::ostream& out, const int score, const int depth, const int elapsed) const {
   const u64 nodes = nodes_ + engine_.time_control.helper_nodes.load(std::memory_order_relaxed);
   if(score > -mate_value && score < -mate_score)
-    out << std::format("info score mate {} depth {} nodes {} time {} pv ", -(score + mate_value) / 2 - 1, depth, nodes, elapsed);
+    out << "info score mate " << -(score + mate_value) / 2 - 1;
   else if(score > mate_score && score < mate_value)
-    out << std::format("info score mate {} depth {} nodes {} time {} pv ", (mate_value - score) / 2 + 1, depth, nodes, elapsed);
+    out << "info score mate " << (mate_value - score) / 2 + 1;
   else
-    out << std::format("info score cp {} depth {} nodes {} time {} pv ", score, depth, nodes, elapsed);
+    out << "info score cp " << score;
+  out << " depth " << depth << " nodes " << nodes << " time " << elapsed << " pv ";
 
   for(int count{ }; count < pv_length_[0]; ++count)
     out << Board::move_to_string(pv_table_[0][count]) << ' ';

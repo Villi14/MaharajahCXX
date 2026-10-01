@@ -1,7 +1,6 @@
 #include "../headers/Perft.h"
 #include "../headers/Clock.h"
 
-#include <format>
 #include <iostream>
 
 using namespace std;

@@ -9,7 +9,6 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
-#include <format>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
