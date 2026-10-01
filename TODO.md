@@ -110,6 +110,16 @@ backed by a match.
       Release build in its own directory (`build-release/`): VS Code's CMake Tools
       reconfigures `build/` as Debug, and two runs with that -O0 binary scored
       -301 and -382 Elo.
+      Rerun on the Ubuntu machine (2026-10-01, Xeon E5-2680 v4, 1 thread per engine,
+      24 matches in parallel, 520 ms/move for both sides ≈ 200 ms on the M2 Pro: one
+      core here searches ~490 kN/s, the M2 Pro ~1300), 12 x 40 games per engine
+      (the 20 openings each played 24 times, so the intervals are a little narrow):
+      C++ f702335 +227 =37 -216, 51.1 %, +8 Elo [-22, +38] ≈ 2210 FSF-Elo;
+      C baseline +152 =38 -290, 35.6 %, -103 Elo [-135, -72] ≈ 2100 FSF-Elo.
+      C++ over C ≈ +110 Elo, in line with the +92 of the direct match. FSF `c19b5f6`
+      built with `make build ARCH=x86-64-modern largeboards=yes` in the monorepo's
+      `third_party/fairy-stockfish`; `bin/elo_match.dart` is not in the monorepo, so
+      `lib/elo_match.dart` was compiled with `dart compile exe` and run directly.
       Next: the match runner below.
 
 - [x] Parity decided (2026-09-30): identical moves were only a check that the port
