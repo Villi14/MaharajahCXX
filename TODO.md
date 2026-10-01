@@ -193,12 +193,17 @@ backed by a match.
       rejected (see the results above); retry once the TT keeps deeper entries.
 - [ ] Smaller: fail-soft instead of fail-hard (keep `max(score, alpha)` for the root
       move scores, or the weak skill levels' near-best candidates change and the
-      difficulty ladder with them); widen the aspiration window gradually instead of
-      jumping to a full window (one full-window re-search at depth 12 of the start
-      position cost 4x the nodes); soft/hard time limits in clock mode (`go
+      difficulty ladder with them); soft/hard time limits in clock mode (`go
       wtime/btime`, `Game::parse_go`). With `go movetime` / `mah_best_move_time` the
       move time is fixed, so a soft limit only answers sooner; there the gain would be
       using the best move of an unfinished iteration.
+- [~] Gradual aspiration widening (2026-10-01): no gain, not committed. On a fail
+      only the failed bound moves out, by 50, 100, 200, ... up to the full window
+      (before: straight to a full window). Nodes to the `bench_engines.py` depths
+      1.293 M → 1.308 M (few fails there). 1200 games against 09ffdd7, 50 ms/move:
+      seed 1 +283 =58 -259 (+14 [-8, +36]), seed 2 +256 =58 -286 (-17 [-41, +6]),
+      together +539 =116 -545, ≈ -2. Retry together with fail-soft, where the
+      failed score shows how far to widen.
 - [ ] UCI binary: `Game` clears the TT on every `position` command (also in
       MaharajahC), so in a UCI game each move starts with an empty table. Clear it
       only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.
