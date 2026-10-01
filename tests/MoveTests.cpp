@@ -7,11 +7,8 @@ using namespace std;
 using namespace maharajah;
 
 class move_test_fixture : public testing::Test {
-  protected:
-  void SetUp() override;
-
   public:
-  const array<Move, 32> moves_list{
+  const array<Move, 30> moves_list{
     Move{ e2, e4, P, no_pieces, false, false, false, false },
     Move{ e2, e4, P, no_pieces, false, false, false, true },
     Move{ e7, e8, p, no_pieces, false, false, true, false },
@@ -44,8 +41,6 @@ class move_test_fixture : public testing::Test {
     Move{ a4, g4, q, p, true, true, true, true },
   };
 };
-
-void move_test_fixture::SetUp() { }
 
 TEST_F(move_test_fixture, encode_move_test) {
   for(const auto& move : moves_list) {
@@ -89,27 +84,29 @@ TEST_F(move_test_fixture, encode_bit_layout_test) {
   constexpr Move target_max{ a8, h1, P, P, false, false, false, false };
   EXPECT_EQ(Move::encode_move(target_max), 0xfc0);
 
+  // k is the last piece
   constexpr Move piece_max{ a8, a8, k, P, false, false, false, false };
-  EXPECT_EQ(Move::encode_move(piece_max), 0xb000);
+  EXPECT_EQ(Move::encode_move(piece_max), 0x11000);
 
   constexpr Move promoted_sample{ a8, a8, P, q, false, false, false, false };
-  EXPECT_EQ(Move::encode_move(promoted_sample), 0xa0000);
+  EXPECT_EQ(Move::encode_move(promoted_sample), 0x1a0000);
 
   constexpr Move capture_flag{ a8, a8, P, P, true, false, false, false };
-  EXPECT_EQ(Move::encode_move(capture_flag), 0x100000);
+  EXPECT_EQ(Move::encode_move(capture_flag), 0x400000);
 
   constexpr Move double_flag{ a8, a8, P, P, false, true, false, false };
-  EXPECT_EQ(Move::encode_move(double_flag), 0x200000);
+  EXPECT_EQ(Move::encode_move(double_flag), 0x800000);
 
   constexpr Move enpassant_flag{ a8, a8, P, P, false, false, true, false };
-  EXPECT_EQ(Move::encode_move(enpassant_flag), 0x400000);
+  EXPECT_EQ(Move::encode_move(enpassant_flag), 0x1000000);
 
   constexpr Move castling_flag{ a8, a8, P, P, false, false, false, true };
-  EXPECT_EQ(Move::encode_move(castling_flag), 0x800000);
+  EXPECT_EQ(Move::encode_move(castling_flag), 0x2000000);
 }
 
 TEST_F(move_test_fixture, encode_decode_roundtrip_edges) {
-  constexpr array<Move, 6> edge_moves{
+  constexpr array<Move, 8> edge_moves{
+    Move{ a7, a8, P, M, false, false, false, false },         Move{ h2, h1, p, m, true, false, false, false },
     Move{ a8, a8, P, no_pieces, false, false, false, false }, Move{ h1, a8, k, no_pieces, true, true, true, true },
     Move{ a8, h1, Q, R, true, false, false, false },          Move{ d4, e5, n, q, false, true, false, true },
     Move{ e2, e4, P, N, false, true, false, false },          Move{ e7, e8, p, q, true, false, false, false },

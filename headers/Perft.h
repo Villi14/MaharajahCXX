@@ -11,7 +11,8 @@ class Perft {
 
   static int get_time_ms();
   [[nodiscard]] u64 perft(int depth);
-  void perft_divide(int depth);
+  // prints the nodes below each root move; returns their sum
+  u64 perft_divide(int depth);
   void perft_test(int depth);
 
   private:

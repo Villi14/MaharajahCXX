@@ -4,6 +4,8 @@
 #     https://www.atlassian.com/git/tutorials/saving-changes/gitignore
 
 build/
+build-wasm/
+build-release/
 cmake-build-debug/
 build-ninja/
 out/
@@ -52,3 +54,6 @@ Thumbs.db
 *.mov
 *.wmv
 
+
+# Python
+__pycache__/

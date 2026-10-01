@@ -1,17 +1,20 @@
 #pragma once
 
-#include "Constants.h"
+#include "Types.h"
 
 /*         binary move bits                             hexidecimal constants
 
-    0000 0000 0000 0000 0011 1111    source square       0x3f
-    0000 0000 0000 1111 1100 0000    target square       0xfc0
-    0000 0000 1111 0000 0000 0000    piece               0xf000
-    0000 1111 0000 0000 0000 0000    promoted piece      0xf0000
-    0001 0000 0000 0000 0000 0000    capture flag        0x100000
-    0010 0000 0000 0000 0000 0000    double push flag    0x200000
-    0100 0000 0000 0000 0000 0000    enpassant flag      0x400000
-    1000 0000 0000 0000 0000 0000    castling flag       0x800000
+    0000 0000 0000 0000 0000 0011 1111    source square       0x3f
+    0000 0000 0000 0000 1111 1100 0000    target square       0xfc0
+    0000 0000 0001 1111 0000 0000 0000    piece               0x1f000
+    0000 0011 1110 0000 0000 0000 0000    promoted piece      0x3e0000
+    0000 0100 0000 0000 0000 0000 0000    capture flag        0x400000
+    0000 1000 0000 0000 0000 0000 0000    double push flag    0x800000
+    0001 0000 0000 0000 0000 0000 0000    enpassant flag      0x1000000
+    0010 0000 0000 0000 0000 0000 0000    castling flag       0x2000000
+
+    A move without promotion stores no_pieces as the promoted piece, so no real
+    move ever encodes to 0 and 0 can mean "no move".
 */
 namespace maharajah {
 
@@ -30,22 +33,22 @@ struct Move {
     return move.source |
            (move.target << 6) |
            (move.piece << 0xC) |
-           (move.promoted << 0x10) |
-           (move.capture << 0x14) |
-           (move.move_double << 0x15) |
-           (move.enpassant << 0x16) |
-           (move.castling << 0x17);
+           (move.promoted << 0x11) |
+           (move.capture << 0x16) |
+           (move.move_double << 0x17) |
+           (move.enpassant << 0x18) |
+           (move.castling << 0x19);
   }
 
   static Move decode_move(const int move) {
     return Move{ to_square(move & 0x3f),
                  to_square((move & 0xfc0) >> 6),
-                 to_piece((move & 0xf000) >> 0xC),
-                 to_piece((move & 0xf0000) >> 0x10),
-                 (move & 0x100000) ? true : false,
-                 (move & 0x200000) ? true : false,
-                 (move & 0x400000) ? true : false,
-                 (move & 0x800000) ? true : false };
+                 get_move_piece(move),
+                 get_move_promoted(move),
+                 get_move_capture(move),
+                 get_move_double(move),
+                 get_move_enpassant(move),
+                 get_move_castling(move) };
   }
   // clang-format on
 
@@ -58,27 +61,31 @@ struct Move {
   }
 
   static Pieces get_move_piece(const int move) {
-    return to_piece((move & 0xf000) >> 0xC);
+    return to_piece((move & 0x1f000) >> 0xC);
   }
 
   static Pieces get_move_promoted(const int move) {
-    return to_piece((move & 0xf0000) >> 0x10);
+    return to_piece((move & 0x3e0000) >> 0x11);
   }
 
   static bool get_move_capture(const int move) {
-    return (move & 0x100000) ? true : false;
-  }
-
-  static bool get_move_double(const int move) {
-    return (move & 0x200000) ? true : false;
-  }
-
-  static bool get_move_enpassant(const int move) {
     return (move & 0x400000) ? true : false;
   }
 
-  static bool get_move_castling(const int move) {
+  static bool get_move_double(const int move) {
     return (move & 0x800000) ? true : false;
+  }
+
+  static bool get_move_enpassant(const int move) {
+    return (move & 0x1000000) ? true : false;
+  }
+
+  static bool is_promotion(const int move) {
+    return get_move_promoted(move) != no_pieces;
+  }
+
+  static bool get_move_castling(const int move) {
+    return (move & 0x2000000) ? true : false;
   }
 };
 

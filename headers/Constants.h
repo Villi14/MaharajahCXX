@@ -14,8 +14,18 @@ struct BoardGeometry {
 };
 
 struct Limits {
-  static constexpr int max_ply{ 256 };
-  static constexpr int max_moves{ 256 };
+  // deepest search ply; also the depth used for "search until stopped"
+  static constexpr int max_ply{ 0x40 };
+  static constexpr int max_moves{ 0x100 };
+  // positions remembered for repetition detection (game moves + search line)
+  static constexpr int max_game_plies{ 10000 };
+};
+
+struct Scores {
+  static constexpr int infinity{ 50000 };
+  static constexpr int mate_value{ 49000 };
+  // scores beyond +-mate_score are mate scores
+  static constexpr int mate_score{ 48000 };
 };
 
 struct FileMask {
@@ -27,6 +37,8 @@ struct FileMask {
 
 struct Fen {
   static constexpr std::string_view start_position{ "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1" };
+  // FEN characters indexed by Pieces
+  static constexpr std::string_view piece_chars{ "PNBRQACMKpnbrqacmk" };
 };
 
 struct CastlingRules {

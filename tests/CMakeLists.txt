@@ -27,3 +27,9 @@ target_compile_definitions(${BINARY}
 
 include(GoogleTest)
 gtest_discover_tests(${BINARY})
+
+# UCI smoke test of the engine binary, from MaharajahC
+if(NOT WIN32)
+  add_test(NAME uci_smoke
+    COMMAND /bin/sh ${CMAKE_CURRENT_SOURCE_DIR}/uci_smoke.sh $<TARGET_FILE:${PROJECT_NAME}>)
+endif()
