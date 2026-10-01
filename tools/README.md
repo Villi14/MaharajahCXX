@@ -11,6 +11,10 @@
 - `build_wasm.sh` — builds the browser module (`mah_wasm_*`) with Emscripten.
 - `compare_wasm.mjs` — loads MaharajahC's and this engine's browser modules in Node and
   diffs the results of the same `mah_wasm_*` calls.
+- `match.py` — head-to-head match between two builds (parallel games, each opening
+  with both colours, Elo with a 95 % interval). Strength changes are measured with it,
+  e.g. `python3 tools/match.py new/maharajah_tool old/maharajah_tool --pairs 200
+  --movetime 50` (~5 min on an M2 Pro); use Release builds.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 

@@ -121,33 +121,60 @@ backed by a match.
       Every improvement is measured against it too, so the total gain since the port
       stays visible. Maharajah_ffi may still change for the app; the baseline stays
       pinned to this commit, tagged `baseline-2026-09-30` in MaharajahC.
-- [ ] Match runner with SPRT (`tools/match.py`): two binaries, parallel games, opening
-      book, SPRT stop, results logged against the C baseline. cutechess/fastchess do
-      not know the A/C/M pieces, so it needs its own arbiter (`maharajah_tool uci` has
-      `status`/`getfen`). The C UCI engine has no `Threads` option and ignores
-      `Skill Level` (see the bug list), so baseline matches run at full strength,
-      one thread each.
-- [ ] Store the best move in the TT and search it first. The entry has 8 spare
-      bytes (`padding`), so it stays 24 bytes. Consider depth-preferred replacement
-      instead of always-replace.
-- [ ] Bound the history heuristic (`Search.cpp`, `history_moves_ +=
-      history_bonus_scale * depth * depth`): no cap, no malus, no aging, so on deep
-      searches a quiet move can outscore the killers (8000-9000) and even captures
-      (10000+). Use a gravity update with a limit and a malus for quiet moves that
-      did not cut.
-- [ ] Tapered evaluation: `Evaluator::evaluate` picks one of three phases by
-      thresholds, so the score jumps when a trade crosses one; interpolate between the
-      opening and endgame terms by phase instead.
-- [ ] Modern reductions: log(depth)·log(move) LMR table instead of a fixed one-ply
-      reduction; adaptive null move R = 3 + depth/4 instead of 2; internal iterative
-      reduction when there is no TT move.
-- [ ] Quiescence: generate captures only (it now generates all moves and skips the
-      quiet ones) and probe the TT.
-- [ ] Smaller: fail-soft instead of fail-hard; widen the aspiration window gradually
-      instead of jumping to a full window; soft/hard time limits (do not start an
-      iteration after ~50% of the budget).
+- [~] Match runner (`tools/match.py`, 2026-10-01): first version — two binaries,
+      parallel games, each opening (start position + 4-8 random plies, or a generated
+      custom army + 0-2 plies) with both colours, adjudication through a third
+      `maharajah_tool` (`status`/`getfen`/`legalmoves`, threefold, 50 moves,
+      bare kings, 400 plies), Elo with a 95 % interval from the game pairs. 200
+      openings x 2 at 50 ms/move take ~5 min on the M2 Pro (8 games in parallel).
+      Still open: SPRT stop, a fixed opening book, logging against the C baseline
+      (`../MaharajahC/build-compare/maharajah_tool` works as BASE). The `--tc` clock
+      mode (UCI binaries, `go wtime/btime`) is written but not yet run.
+- [x] Results 2026-10-01, each build against the one before, 200 openings x 2
+      colours, 50 ms/move, 1 thread, Release (M2 Pro):
+
+      | change | commit | result | Elo [95 %] |
+      |---|---|---|---|
+      | unused includes removed (clangd include cleaner) | c9f2d26 | — | — |
+      | best move in the TT, searched first | 212e7b9 | +202 =32 -166 | +31 [+1, +62] |
+      | bounded history (gravity, malus, cutoffs only) | e05d855 | +396 =55 -349 (800) | +20 [~0, +42] |
+      | tapered evaluation over the whole phase range | 2c95e17 | +189 =26 -185 | +3 [-26, +33] |
+      | log(depth)·log(move) LMR table | 2fcd0e9 | +211 =43 -146 | +57 [+28, +87] |
+      | null move R = 2 + depth/6, non-PV, eval >= beta | a8b5819 | +201 =34 -165 | +31 [+3, +60] |
+
+      Sum ≈ +140 Elo over the port at 50 ms/move (not yet measured in one match, nor
+      against the C baseline — do that first on the new machine). Nodes to the fixed
+      depths of `bench_engines.py`: 6.67 M → 1.65 M. Rejected: null move R = 3 +
+      depth/4 (-5 [-33, +23]). Tapered eval was neutral but kept (continuous, needed
+      for tuning).
+- [x] Store the best move in the TT and search it first (212e7b9). The move shares
+      the data word (score 24 bits, depth 8, flag 2, move 26); still 24 bytes.
+- [ ] Depth-preferred / aged TT replacement (bits 60-63 of the data word are free
+      for a generation counter); measure against always-replace.
+- [x] Bound the history heuristic (e05d855).
+- [x] Tapered evaluation (2c95e17).
+- [x] LMR table (2fcd0e9) and adaptive null move (a8b5819).
+- [ ] Internal iterative reduction (depth >= 4, not root, no TT move → depth - 1):
+      not yet tried.
+- [ ] Quiescence: generate captures only (`generate_moves(list,
+      TypeMove::only_captures)` exists since 6942118, with a test) and probe the TT
+      (`probe(key, alpha, beta, 0, ply)`, hash move first); not yet switched on or
+      measured.
+- [ ] Smaller: fail-soft instead of fail-hard (keep `max(score, alpha)` for the root
+      move scores, or the weak skill levels' near-best candidates change and the
+      difficulty ladder with them); widen the aspiration window gradually instead of
+      jumping to a full window (one full-window re-search at depth 12 of the start
+      position cost 4x the nodes); soft/hard time limits in clock mode (`go
+      wtime/btime`, `Game::parse_go`). With `go movetime` / `mah_best_move_time` the
+      move time is fixed, so a soft limit only answers sooner; there the gain would be
+      using the best move of an unfinished iteration.
+- [ ] UCI binary: `Game` clears the TT on every `position` command (also in
+      MaharajahC), so in a UCI game each move starts with an empty table. Clear it
+      only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.
 - [ ] Texel-tune the evaluation parameters on self-play positions (they are
       hand-set now).
+- [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
+      the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
       (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
       share a lockless TT; one thread is unchanged (0 mismatches in
@@ -156,7 +183,6 @@ backed by a match.
       ms/move, 20 openings x 2 colours x 3: +60 =24 -36, +70 Elo [+15, +129] (95%).
 - [ ] Lazy SMP follow-ups: a persistent thread pool instead of threads per `go`;
       threads in the WASM build (`-pthread`, SharedArrayBuffer, COOP/COEP headers).
-- [ ] Later: NNUE (the `Nnue` class is a stub).
 
 ## Bugs found in MaharajahC (not fixed there)
 
