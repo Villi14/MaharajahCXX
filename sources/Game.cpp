@@ -234,6 +234,7 @@ void Game::parse_go(const string_view command) {
   const Colors side = engine_.board.state.side;
   const int increment = go_argument(command, side == white ? "winc" : "binc", 0);
   int uci_time = go_argument(command, side == white ? "wtime" : "btime", -1);
+  const int clock_time = uci_time;
   int moves_to_go = go_argument(command, "movestogo", 30);
   const int movetime = go_argument(command, "movetime", -1);
   int depth = go_argument(command, "depth", -1);
@@ -261,6 +262,15 @@ void Game::parse_go(const string_view command) {
       // with a tiny increment the lag margin could place stoptime in the past
       // and abort the search before depth 1 completes
       time.stoptime = time.starttime + max(increment - 50, 5);
+    }
+
+    // On a clock the share of the remaining time above is a target: no iteration
+    // starts after 60 % of it, and one already running may go on to 2.5 times it,
+    // but not past 40 % of the time left.
+    if(movetime == -1 && clock_time > 0) {
+      const int target = time.stoptime - time.starttime;
+      time.soft_stoptime = time.starttime + target * 3 / 5;
+      time.stoptime = time.starttime + max(target, min(target * 5 / 2, clock_time * 2 / 5));
     }
   }
 

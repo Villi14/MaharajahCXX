@@ -218,6 +218,10 @@ SearchResult Search::run(const int depth, std::ostream* info) {
 
     if(!helper_ && root_count_ > 0)
       result.best_move = select_skill_move();
+
+    // the next iteration would most likely not finish before the hard limit
+    if(!helper_ && engine_.time_control.soft_stoptime && now_ms() >= engine_.time_control.soft_stoptime)
+      break;
   }
 
   if(helper_)

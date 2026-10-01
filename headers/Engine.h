@@ -14,7 +14,10 @@ namespace maharajah {
 struct TimeControl {
   bool timeset{ };
   int starttime{ };
+  // hard limit: the search stops even inside an iteration
   int stoptime{ };
+  // soft limit (clock mode, 0 = none): no new iteration starts after it
+  int soft_stoptime{ };
   // set by the main search thread (time up, "stop") and read by every search thread
   std::atomic<bool> stopped{ };
   // nodes searched so far by helper threads, for the main thread's "info" lines
@@ -29,6 +32,7 @@ struct TimeControl {
     timeset = false;
     starttime = 0;
     stoptime = 0;
+    soft_stoptime = 0;
     stopped = false;
     quit = false;
     poll_input = false;

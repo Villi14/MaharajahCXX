@@ -222,10 +222,15 @@ backed by a match.
       alpha)`, so the weak skill levels choose among the same near-best moves.
       Nodes to the `bench_engines.py` depths 1.29 M → 0.95 M. Four 600-game
       matches against 6903997 (seeds 1-4): -1, +42, +17, +32.
-- [ ] Smaller: soft/hard time limits in clock mode (`go
-      wtime/btime`, `Game::parse_go`). With `go movetime` / `mah_best_move_time` the
-      move time is fixed, so a soft limit only answers sooner; there the gain would be
-      using the best move of an unfinished iteration.
+- [x] Soft/hard time limits in clock mode (`go wtime/btime`, `Game::parse_go`,
+      2026-10-01). The share of the clock (time / movestogo + increment) is a target:
+      no iteration starts after 60 % of it, a running one may go on to 2.5 times it,
+      but not past 40 % of the time left. Before, the search stopped at the target and
+      threw the unfinished iteration away. Mean time per move on 42 positions at
+      2+0.02: 77 ms (before 89, target 86). UCI binaries at 2+0.02 against 85b789f:
+      seed 1 +372 =37 -191 (+108 [+85, +133]), seed 2 +373 =27 -200 (+103 [+79,
+      +129]). `go movetime` and `mah_best_move_time` keep a fixed time; there the
+      gain would be using the best move of an unfinished iteration.
 - [x] Gradual aspiration widening (2026-10-01). First try, fail-hard: no gain. On a fail
       only the failed bound moves out, by 50, 100, 200, ... up to the full window
       (before: straight to a full window). Nodes to the `bench_engines.py` depths
