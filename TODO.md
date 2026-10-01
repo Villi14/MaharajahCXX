@@ -52,10 +52,15 @@ identical.
 ## To do
 
 - [ ] Review the branch and merge it into `master`.
-- [ ] Decide on the variant pawn quirk (kept for parity): a variant pawn on the 6th
-      rank may double-step to the 8th rank without promoting and is stuck there
-      (`Board::generate_moves`, same in MaharajahC `Moves.c`). Fix in both engines or
-      forbid the double step onto the last rank.
+- [x] Variant pawns double-stepped more than once (2026-10-01): without FEN field 8
+      a variant side's pawns could double-step from any rank, any number of times
+      (a4-a6, then a6-a8 without promoting, stuck on the last rank). The rule is one
+      double step per pawn, from its start square on its own half. A position with a
+      variant side now always tracks its unmoved pawns (`BoardState::infer_pawn_state`:
+      without field 8, a variant side's pawns on its own half and a standard side's on
+      its home rank count as unmoved); the army generator writes field 8.
+      Still to fix in MaharajahC and the monorepo's Maharajah_ffi (same code in
+      `Moves.c`); Maharajah_ui writes field 8, so the app should not hit it.
 - [x] Port `maharajah_tool` (`tools/maharajah_tool.cpp`, smoke tests in
       `tools/tests/`) and `ask_engine.py` (2026-09-30).
 - [x] Port MaharajahC's smoke tests to gtest (2026-09-30): `RulesTests.cpp`

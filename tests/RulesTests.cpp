@@ -260,10 +260,38 @@ TEST_F(rules_test_fixture, field_eight_square_allows_one_double_step) {
   EXPECT_TRUE(second_double == 0 || !Move::get_move_double(second_double));
 }
 
-TEST_F(rules_test_fixture, without_field_eight_a_variant_pawn_double_steps_from_any_rank) {
+// Without field 8 a variant side's pawns on its own half count as unmoved (an army
+// may start anywhere there), a standard side's on its home rank.
+TEST_F(rules_test_fixture, without_field_eight_pawns_on_their_own_half_are_unmoved) {
   board.parse_fen("8/5p2/7p/1K6/4a3/5k2/8/8 b - - 25 44 Vv");
-  EXPECT_FALSE(board.state.has_pawn_state);
+  EXPECT_TRUE(board.state.has_pawn_state);
   const int double_step = parse("h6h4");
   ASSERT_NE(double_step, 0);
   EXPECT_TRUE(Move::get_move_double(double_step));
+
+  board.parse_fen("4k3/8/8/2P5/8/8/8/4K3 w - - 0 1 Vv");
+  EXPECT_EQ(parse("c5c7"), 0);
+
+  // white plays standard rules: only its home-rank pawn may double-step
+  board.parse_fen("4k3/8/8/8/8/2P5/1P6/4K3 w - - 0 1 v");
+  EXPECT_NE(parse("b2b4"), 0);
+  EXPECT_EQ(parse("c3c5"), 0);
+}
+
+// a pawn double-steps only once, also when the FEN does not list the unmoved pawns
+TEST_F(rules_test_fixture, a_variant_pawn_double_steps_only_once) {
+  board.parse_fen("4k3/8/8/8/P7/8/8/4K3 w - - 0 1 Vv");
+  ASSERT_TRUE(play("a4a6"));
+  ASSERT_TRUE(play("e8d8"));
+  EXPECT_EQ(parse("a6a8"), 0);
+  EXPECT_NE(parse("a6a7"), 0);
+  EXPECT_FALSE(get_bit(board.state.pawn_unmoved, a6));
+
+  // the same through the FFI rules profile on a FEN without variant rights
+  board.parse_fen("4k3/8/8/8/P7/8/8/4K3 w - - 0 1");
+  board.state.side_variant = { true, true };
+  board.state.infer_pawn_state();
+  ASSERT_TRUE(play("a4a6"));
+  ASSERT_TRUE(play("e8d8"));
+  EXPECT_EQ(parse("a6a8"), 0);
 }

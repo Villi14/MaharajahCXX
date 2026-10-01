@@ -258,6 +258,9 @@ bool generate_custom_position(Board& board, int side_to_move, const unsigned int
     state.halfmove = 0;
     state.standard_rules = false;
     state.side_variant = { true, true };
+    // every pawn of a fresh army is unmoved
+    state.has_pawn_state = false;
+    state.infer_pawn_state();
     board.update_occupancies();
     state.hash_key = generate_hash_key(state);
 
@@ -271,8 +274,9 @@ bool generate_custom_position(Board& board, int side_to_move, const unsigned int
 
 std::string custom_position_fen(const Board& board) {
   const std::string fen = board.to_fen();
-  // placement and side to move, then the fixed fields of a fresh variant game
-  return fen.substr(0, fen.find(' ') + 2) + " - - 0 1 Vv";
+  // placement and side to move, the fixed fields of a fresh variant game, then the
+  // unmoved pawns (field 8)
+  return fen.substr(0, fen.find(' ') + 2) + " - - 0 1 Vv" + fen.substr(fen.rfind(' '));
 }
 
 } // namespace maharajah

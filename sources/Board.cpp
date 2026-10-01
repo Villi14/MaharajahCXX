@@ -288,17 +288,12 @@ void Board::generate_moves(MoveList& moves_list, const TypeMove type_move) const
         } else {
           moves_list.add(Move::encode_move(Move(source_square, target_square, pawn, no_pieces, false, false, false, false)));
 
-          // Double step: from the home rank under standard rules, from any rank under
-          // variant rules (custom armies start anywhere), or exactly the unmoved pawns
-          // when the position carries per-pawn state.
+          // Double step, once per pawn: exactly the unmoved pawns when the position
+          // tracks them (always with a variant side, whose army may start on any rank
+          // of its half), else from the home rank.
           const Squares double_target = target_square + forward;
-          bool can_double;
-          if(state.has_pawn_state) {
-            can_double = get_bit(state.pawn_unmoved, source_square);
-          } else {
-            const bool on_home_rank = is_white ? (source_square >= a2 && source_square <= h2) : (source_square >= a7 && source_square <= h7);
-            can_double = on_home_rank || (state.side_variant[side] && double_target != no_square);
-          }
+          const bool can_double = state.has_pawn_state ? get_bit(state.pawn_unmoved, source_square)
+                                                       : is_white ? (source_square >= a2 && source_square <= h2) : (source_square >= a7 && source_square <= h7);
 
           if(can_double && double_target != no_square && !get_bit(occupancy, double_target))
             moves_list.add(Move::encode_move(Move(source_square, double_target, pawn, no_pieces, false, true, false, false)));
@@ -481,6 +476,7 @@ void Board::parse_fen(const string_view fen) {
   if(parsed.side_variant[black])
     parsed.castle &= ~(bk | bq);
 
+  parsed.infer_pawn_state();
   state = parsed;
   update_occupancies();
   state.hash_key = generate_hash_key(state);

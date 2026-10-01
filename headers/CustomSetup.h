@@ -13,7 +13,7 @@ namespace maharajah {
 // position was found.
 bool generate_custom_position(Board& board, int side_to_move, unsigned int seed);
 
-// FEN of a generated custom position (always "... - - 0 1 Vv").
+// FEN of a generated custom position ("... - - 0 1 Vv" and the unmoved pawns).
 [[nodiscard]] std::string custom_position_fen(const Board& board);
 
 } // namespace maharajah

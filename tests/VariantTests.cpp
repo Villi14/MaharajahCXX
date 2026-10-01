@@ -121,7 +121,11 @@ TEST_F(variant_test_fixture, custom_positions_are_reproducible_and_valid) {
     ASSERT_TRUE(generate_custom_position(other, static_cast<int>(seed % 2), seed));
     const string fen = custom_position_fen(board);
     EXPECT_EQ(fen, custom_position_fen(other));
-    EXPECT_TRUE(fen.ends_with(" - - 0 1 Vv")) << fen;
+    // field 8 lists every pawn: none of them has moved
+    const string pawns = fen.substr(fen.rfind(' ') + 1);
+    EXPECT_TRUE(fen.ends_with(" - - 0 1 Vv " + pawns)) << fen;
+    EXPECT_EQ(static_cast<int>(pawns.size()), 2 * count_bits(board.state.bitboards[P] | board.state.bitboards[p])) << fen;
+    EXPECT_EQ(board.state.pawn_unmoved, board.state.bitboards[P] | board.state.bitboards[p]) << fen;
     EXPECT_EQ(count_bits(board.state.bitboards[K]), 1);
     EXPECT_EQ(count_bits(board.state.bitboards[k]), 1);
     EXPECT_FALSE(board.in_check()) << fen;

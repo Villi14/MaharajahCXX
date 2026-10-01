@@ -32,6 +32,20 @@ struct BoardState {
     return side == other.side && castle == other.castle && en_passant == other.en_passant && bitboards == other.bitboards;
   }
 
+  // A variant side's pawns may double-step from any rank, but only once, so a
+  // position with a variant side always tracks its unmoved pawns. Without that state
+  // (a FEN without field 8), a variant side's pawns on its own half count as unmoved
+  // (an army starts there) and a standard side's pawns on its home rank.
+  void infer_pawn_state() {
+    if(has_pawn_state || (!side_variant[white] && !side_variant[black]))
+      return;
+
+    constexpr u64 white_half{ 0xFFFFFFFF00000000ULL }, black_half{ 0x00000000FFFFFFFFULL };
+    constexpr u64 white_home_rank{ 0x00FF000000000000ULL }, black_home_rank{ 0x000000000000FF00ULL };
+    pawn_unmoved = (bitboards[P] & (side_variant[white] ? white_half : white_home_rank)) | (bitboards[p] & (side_variant[black] ? black_half : black_home_rank));
+    has_pawn_state = true;
+  }
+
   [[nodiscard]] bool has_compound_pieces() const {
     return bitboards[A] || bitboards[C] || bitboards[M] || bitboards[a] || bitboards[c] || bitboards[m];
   }

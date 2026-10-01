@@ -67,6 +67,7 @@ void apply_rules_profile(Engine& live, const int rules_profile) {
     state.standard_rules = false;
     state.castle = 0;
     state.side_variant = { true, true };
+    state.infer_pawn_state();
     state.hash_key = generate_hash_key(state);
     return;
   }
