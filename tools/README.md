@@ -15,6 +15,12 @@
   with both colours, Elo with a 95 % interval). Strength changes are measured with it,
   e.g. `python3 tools/match.py new/maharajah_tool old/maharajah_tool --pairs 200
   --movetime 50` (~5 min on an M2 Pro); use Release builds.
+- `compare_perft.py` — perft counts of the UCI engine (`go perft N`) against
+  Fairy-Stockfish with Maharajah_lab's `fsf/variants.ini`, on orthodox and both-sides
+  variant positions FSF can represent (no castling for a variant side, unmoved pawns
+  exactly on the home rank), e.g. `python3 tools/compare_perft.py
+  build-release/sources/Maharajah $FSF $LAB/fsf/variants.ini --depth 4 --generated 200
+  --tool build-release/tools/maharajah_tool`.
 - `texel.cpp` (`maharajah_texel`) — Texel tuning of `Evaluation::weights`.
   `maharajah_texel gen data.txt 12000 8 28` plays self-play games at depth 8 on 28
   threads and writes `FEN;result` lines; `maharajah_texel tune data.txt 2000 28 out.txt`

@@ -57,6 +57,13 @@ const PerftCase perft_cases[] = {
   { "queen_vs_pawns_d5", "8/8/8/8/8/2k5/1p6/1K1Q4 w - - 0 1", 5, 154550 },
   { "double_check_d5", "4k3/8/8/8/1b6/8/2n5/R3K3 w Q - 0 1", 5, 293603 },
   { "underpromotion_race_d5", "8/PPP4k/8/8/8/8/4Kppp/8 w - - 0 1", 5, 1745545 },
+  // variant positions, counted with Fairy-Stockfish (Maharajah_lab fsf/variants.ini,
+  // tools/compare_perft.py)
+  { "variant_compound_army_d4", "cnbakbnm/pppppppp/8/8/8/8/PPPPPPPP/CNBAKBNM w - - 0 1 Vv a2b2c2d2e2f2g2h2a7b7c7d7e7f7g7h7", 4, 452928 },
+  { "variant_promotion_d4", "1r2k3/P7/8/8/8/8/6p1/4K2R w - - 0 1 Vv -", 4, 179587 },
+  { "variant_promotion_capture_d4", "4k3/1P4P1/8/2m5/5A2/8/1p4p1/4K3 b - - 0 1 Vv -", 4, 766520 },
+  { "variant_en_passant_d4", "4k3/8/8/2PpP3/8/8/8/M3K2c w - d6 0 1 Vv -", 4, 16763 },
+  { "variant_knight_checks_d4", "m3k3/8/8/8/8/8/2PPP3/1N2K2C w - - 0 1 Vv c2d2e2", 4, 266451 },
 };
 
 class perft_test_fixture : public testing::TestWithParam<PerftCase> {

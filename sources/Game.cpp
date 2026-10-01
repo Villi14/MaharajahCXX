@@ -3,6 +3,7 @@
 #include "../headers/Clock.h"
 #include "../headers/Move.h"
 #include "../headers/Notation.h"
+#include "../headers/Perft.h"
 #include "../headers/Search.h"
 
 #include <cstdio>
@@ -228,6 +229,13 @@ void Game::search_position(const int depth) {
 
 // parse UCI "go" command, e.g. "go depth 8", "go movetime 1000", "go wtime 60000 btime 60000 winc 1000"
 void Game::parse_go(const string_view command) {
+  // "go perft N": legal move paths to depth N, per root move as in Stockfish
+  if(command.find("perft") != string_view::npos) {
+    const u64 nodes = Perft(engine_.board).perft_divide(go_argument(command, "perft", 1));
+    cout << "\nNodes searched: " << nodes << "\n\n" << flush;
+    return;
+  }
+
   TimeControl& time = engine_.time_control;
   time.reset();
 

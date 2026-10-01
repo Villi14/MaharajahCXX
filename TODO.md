@@ -101,8 +101,14 @@ identical.
       is 319 KB of wasm (C: 91 KB). Not yet deployed: the web game
       (`Maharajah_net/Maharajah.Api/wwwroot/assets/wasm`) still ships the C module,
       built 2026-08-01, before the pawn-wall sync.
-- [ ] Add a `perft` UCI command (both engines lack one) and compare perft counts for
-      variant positions.
+- [x] `go perft N` in the UCI binary (2026-10-01; MaharajahC lacks it): per-move
+      counts and `Nodes searched`, as in Stockfish. `tools/compare_perft.py` against
+      Fairy-Stockfish `c19b5f6` (Maharajah_lab `fsf/variants.ini`): 14 hand positions
+      (3 orthodox, 11 both-sides variant: compound armies, promotion to A/C/M with
+      and without capture, en passant, knight checks) at depths 1-5 and 34 generated
+      armies at depths 1-4 — 0 mismatches in 206 counts. 166 generated armies are
+      outside what FSF can represent (pawns unmoved off the home rank, mixed sides).
+      Five variant cases added to `PerftTests.cpp`.
 - [ ] Compare timed searches (`go movetime`, `mah_best_move_time`) — only fixed-depth
       searches are compared exactly; timed ones depend on the clock.
 - [ ] Hook the C++ `maharajah_ffi` library into the app instead of the C one and
