@@ -59,6 +59,8 @@ class Search {
   static constexpr int full_depth_moves{ 4 };
   static constexpr int reduction_limit{ 3 };
   static constexpr int aspiration_window{ 50 };
+  // history scores stay within +-history_limit, below the killer moves (8000, 9000)
+  static constexpr int history_limit{ 7000 };
 
   void reset();
   void communicate();
@@ -71,6 +73,7 @@ class Search {
   [[nodiscard]] bool should_return_draw_score() const;
   [[nodiscard]] int effective_depth(int depth) const;
 
+  void update_history(int move, int bonus);
   // `hash_move` (from the hash table, 0 if none) is searched first
   [[nodiscard]] int score_move(int move, int hash_move);
   void sort_moves(MoveList& moves_list, int hash_move = 0);

@@ -370,6 +370,9 @@ int Search::negamax(int alpha, int beta, int depth) {
 
   int best_move{ };
   int moves_searched{ };
+  // quiet moves searched without a cutoff, for the history malus
+  std::array<int, Limits::max_moves> quiet_moves;
+  int quiet_count{ };
   for(size_t i{ }; i < moves_list.size(); ++i) {
     const int move = moves_list[i];
     const bool capture = Move::get_move_capture(move);
@@ -434,10 +437,6 @@ int Search::negamax(int alpha, int beta, int depth) {
     if(score > alpha) {
       hash_flag = HashFlag::exact;
       best_move = move;
-
-      if(!capture)
-        history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)] += config.history_bonus_scale * depth * depth;
-
       alpha = score;
 
       // write PV move and copy the child's line
@@ -453,11 +452,19 @@ int Search::negamax(int alpha, int beta, int depth) {
         if(!capture) {
           killer_moves_[1][ply_] = killer_moves_[0][ply_];
           killer_moves_[0][ply_] = move;
+
+          const int bonus = std::min(config.history_bonus_scale * depth * depth, history_limit / 4);
+          update_history(move, bonus);
+          for(int index{ }; index < quiet_count; ++index)
+            update_history(quiet_moves[index], -bonus);
         }
 
         return beta;
       }
     }
+
+    if(!capture)
+      quiet_moves[quiet_count++] = move;
   }
 
   // no legal moves: mate or stalemate
@@ -534,6 +541,13 @@ int Search::quiescence(int alpha, int beta) {
   }
 
   return alpha;
+}
+
+// History with gravity: an entry moves towards +-history_limit by a step that shrinks
+// as it gets closer, so it stays bounded and below the killer move scores.
+void Search::update_history(const int move, const int bonus) {
+  int& entry = history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
+  entry += bonus - entry * std::abs(bonus) / history_limit;
 }
 
 int Search::score_move(const int move, const int hash_move) {
