@@ -5,6 +5,7 @@
 
 build/
 build-wasm/
+build-release/
 cmake-build-debug/
 build-ninja/
 out/

@@ -98,13 +98,19 @@ identical.
 Suggested order: match runner, TT move, history, tapered eval; one commit each, each
 backed by a match.
 
-- [ ] Next session (2026-10-01): read the absolute-strength match started the night
-      before — `bash lab elo --levels=5 --opponents=elo:2200 --games=40
-      --movetime=200` in Maharajah_lab (report in `build/elo/<2026-10-01 timestamp>/`;
-      lab games: odd = ours white) — and record the rating here. A partial first run
-      (aborted when the Mac slept) gave +7 =4 -11 in 22 games, ≈ 2140 FSF-Elo ±150.
-      If the run was cut short again, rerun it under `caffeinate -i` with the lid open.
-      Then start the match runner below.
+- [x] Absolute strength vs Fairy-Stockfish (2026-10-01): `bash lab elo --levels=5
+      --opponents=elo:2200 --games=40 --movetime=200` in Maharajah_lab, run under
+      `caffeinate -i`, 1 thread, Apple M2 Pro:
+      C++ (Release, 399c0b4) +16 =2 -22, 42.5 %, -53 Elo [-162, +47] ≈ 2150 FSF-Elo;
+      C baseline (Maharajah_ffi `maharajah_tool`, 54ef8d0) +10 =2 -28, 27.5 %,
+      -168 Elo [-308, -67] ≈ 2030 FSF-Elo. Reports in Maharajah_lab
+      `build/elo/2026-10-01T08-55-44-027900/` (C++) and `…T08-39-20-617567/` (C).
+      40 games are too few to separate the two (intervals overlap); the head-to-head
+      +25 Elo above is the better C++/C comparison. Point `MAHARAJAH_TOOL_BIN` at a
+      Release build in its own directory (`build-release/`): VS Code's CMake Tools
+      reconfigures `build/` as Debug, and two runs with that -O0 binary scored
+      -301 and -382 Elo.
+      Next: the match runner below.
 
 - [x] Parity decided (2026-09-30): identical moves were only a check that the port
       broke nothing, not a goal. Strength changes may diverge from MaharajahC and are
