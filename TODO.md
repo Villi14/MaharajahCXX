@@ -220,7 +220,9 @@ backed by a match.
       MaharajahC), so in a UCI game each move starts with an empty table. Clear it
       only on `ucinewgame`. The app path (`mah_*`, `maharajah_tool uci`) keeps it.
 - [ ] Texel-tune the evaluation parameters on self-play positions (they are
-      hand-set now).
+      hand-set now). Next item (2026-10-01): collect quiet positions with game
+      results from self-play, fit the parameters to the result, check by a match
+      against HEAD.
 - [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
       the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
