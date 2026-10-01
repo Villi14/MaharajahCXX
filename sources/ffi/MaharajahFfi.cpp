@@ -1,4 +1,3 @@
-#include "../../headers/Bitboard.h"
 #include "../../headers/CustomSetup.h"
 #include "../../headers/Engine.h"
 #include "../../headers/Search.h"

@@ -1,8 +1,6 @@
 #include "../headers/Bitboard.h"
 #include "../headers/tables/MagicNumbersTable.h"
 
-using std::array;
-
 namespace maharajah {
 
 u64 mask_pawn_attacks(const Colors color, const Squares square) {

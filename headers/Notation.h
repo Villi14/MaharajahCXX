@@ -2,6 +2,8 @@
 
 #include "Types.h"
 
+#include <array>
+
 namespace maharajah {
 
 struct Notation {

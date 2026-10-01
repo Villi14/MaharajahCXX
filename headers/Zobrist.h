@@ -1,6 +1,7 @@
 #pragma once
 
 #include "BoardState.h"
+#include "Constants.h"
 
 namespace maharajah {
 

@@ -1,5 +1,6 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Board.h"
+#include "../headers/Move.h"
 #include "../headers/Notation.h"
 #include "gtest/gtest.h"
 

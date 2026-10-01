@@ -1,4 +1,5 @@
 #include "../headers/Transposition.h"
+#include "../headers/Constants.h"
 
 #include <algorithm>
 #include <cstdint>

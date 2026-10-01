@@ -1,5 +1,6 @@
 #include "../headers/Evaluator.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Evaluation.h"
 
 #include <cstdlib>
 

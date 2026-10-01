@@ -2,7 +2,6 @@
 
 #include "BoardState.h"
 #include "EngineConfig.h"
-#include "Evaluation.h"
 
 namespace maharajah {
 

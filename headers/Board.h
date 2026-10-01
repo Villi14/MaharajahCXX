@@ -1,7 +1,6 @@
 #pragma once
 
 #include "BoardState.h"
-#include "Move.h"
 #include "MoveList.h"
 
 #include <cassert>

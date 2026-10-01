@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Constants.h"
-
 namespace maharajah {
 
 enum class EvalMode : int { classic, nnue };

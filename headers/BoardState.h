@@ -1,6 +1,8 @@
 #pragma once
 
-#include "Constants.h"
+#include "Types.h"
+
+#include <array>
 
 namespace maharajah {
 

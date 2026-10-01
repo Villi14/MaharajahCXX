@@ -1,6 +1,7 @@
 #include "../headers/Game.h"
 #include "../headers/Bitboard.h"
 #include "../headers/Clock.h"
+#include "../headers/Move.h"
 #include "../headers/Notation.h"
 #include "../headers/Search.h"
 

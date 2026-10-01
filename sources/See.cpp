@@ -1,6 +1,7 @@
 #include "../headers/See.h"
 #include "../headers/Bitboard.h"
 #include "../headers/Evaluation.h"
+#include "../headers/Move.h"
 
 #include <cstdlib>
 

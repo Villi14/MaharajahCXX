@@ -2,6 +2,8 @@
 
 #include "Types.h"
 
+#include <array>
+
 namespace maharajah {
 
 // Classic evaluation tables (tapered PeSTO-style opening/endgame scores).

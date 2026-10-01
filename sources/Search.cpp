@@ -1,7 +1,9 @@
 #include "../headers/Search.h"
 #include "../headers/Bitboard.h"
 #include "../headers/Clock.h"
+#include "../headers/Evaluation.h"
 #include "../headers/Evaluator.h"
+#include "../headers/Move.h"
 #include "../headers/See.h"
 
 #include <algorithm>

@@ -1,5 +1,6 @@
 #include "../headers/Board.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Move.h"
 #include "../headers/Notation.h"
 #include "../headers/Zobrist.h"
 

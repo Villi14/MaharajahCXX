@@ -1,6 +1,8 @@
 #include "../headers/EngineConfig.h"
+#include "../headers/Constants.h"
 
 #include <algorithm>
+#include <array>
 
 namespace maharajah {
 
