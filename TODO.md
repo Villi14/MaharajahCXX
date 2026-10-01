@@ -39,6 +39,16 @@ identical.
 | A/C/M start, 10 | 1045 | 1141 | 1.09 |
 | custom army, 10 | 1450 | 1661 | 1.15 |
 
+## Plan (2026-10-01)
+
+1. Small tasks on this branch, one commit each (a match where strength can change):
+   the UCI binary clears the TT only on `ucinewgame`; soft/hard time limits in
+   clock mode; a `perft` UCI command with variant perft counts.
+2. Confirm the gain: HEAD against the port (43464a7) and the C baseline with
+   `match.py`, and the elo:2200 Fairy-Stockfish run on this machine.
+3. Review the branch and merge it into `master`.
+4. NNUE in a new branch from `master`.
+
 ## To do
 
 - [ ] Review the branch and merge it into `master`.
@@ -236,8 +246,9 @@ backed by a match.
       openings that are lost from the start, higher depth).
 - [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
       the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
-      Next item (2026-10-01). `maharajah_texel gen` writes self-play positions with
-      results (FEN;result), a start for training data.
+      After the merge into `master`, in its own branch (see the plan above).
+      `maharajah_texel gen` writes self-play positions with results (FEN;result),
+      a start for training data.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
       (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
       share a lockless TT; one thread is unchanged (0 mismatches in
