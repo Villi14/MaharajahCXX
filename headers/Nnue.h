@@ -11,13 +11,14 @@
 
 namespace maharajah {
 
-// NNUE evaluation: (18 pieces x 64 squares) -> 256 per perspective -> 1, SCReLU.
+// NNUE evaluation: (18 pieces x 64 squares) -> hidden per perspective -> 1, SCReLU.
 // Every piece kind, compound pieces and kings included, is an input of its own. The
 // side to move's accumulator comes first in the output layer; a black perspective
-// sees the board flipped vertically and its own pieces as "own".
+// sees the board flipped vertically and its own pieces as "own". The hidden size is
+// read from the network file (a multiple of 32 up to max_hidden).
 struct NnueArch {
   static constexpr int inputs{ PieceCount::all * 64 };
-  static constexpr int hidden{ 256 };
+  static constexpr int max_hidden{ 1024 };
   // quantization: feature weights and biases x qa, output weights x qb
   static constexpr int qa{ 255 };
   static constexpr int qb{ 64 };
@@ -28,7 +29,9 @@ struct NnueArch {
   // feature by feature), feature biases, output weights (2 x hidden: side to move,
   // then the other side), all int16, and the int32 output bias; little-endian
   static constexpr std::size_t header_bytes{ 16 };
-  static constexpr std::size_t file_bytes{ header_bytes + 2 * (std::size_t{ inputs } * hidden + hidden + 2 * hidden) + 4 };
+  [[nodiscard]] static constexpr std::size_t file_bytes(const int hidden) {
+    return header_bytes + 2 * (std::size_t{ inputs } * hidden + hidden + 2 * std::size_t(hidden)) + 4;
+  }
 
   // input index of `piece` on `square` seen from `perspective`
   [[nodiscard]] static constexpr int feature(const Colors perspective, const int piece, const int square) {
@@ -38,8 +41,9 @@ struct NnueArch {
   }
 };
 
+// holds the values of any network up to max_hidden; only the first `hidden` are used
 struct alignas(64) NnueAccumulator {
-  std::array<std::array<int16_t, NnueArch::hidden>, 2> values;
+  std::array<std::array<int16_t, NnueArch::max_hidden>, 2> values;
   // hash key of the position these values belong to, valid when `computed`
   u64 key{ };
   bool computed{ };
@@ -61,8 +65,9 @@ class Nnue {
     return true;
   }
 
-  // Loads a network file (format in NnueArch). A file of another size, magic or
-  // shape is rejected and leaves the network unloaded.
+  // Loads a network file (format in NnueArch). A file of another magic, version,
+  // input count or unsupported hidden size, or of the wrong length, is rejected and
+  // leaves the network unloaded.
   bool load_weights(const char* path);
   bool load_weights_from_bytes(const unsigned char* bytes, std::size_t size, const char* weights_version_name);
   void unload_weights();
@@ -73,6 +78,11 @@ class Nnue {
 
   [[nodiscard]] const std::string& loaded_path() const {
     return loaded_path_;
+  }
+
+  // hidden size of the loaded network (0 when none)
+  [[nodiscard]] int hidden() const {
+    return hidden_;
   }
 
   // Requires loaded weights.
@@ -90,6 +100,7 @@ class Nnue {
   bool set_loaded_blob(const unsigned char* bytes, std::size_t size, const char* weights_version_name, const char* path);
 
   std::unique_ptr<Params> params_;
+  int hidden_{ };
   std::string weights_version_;
   std::string loaded_path_;
 };

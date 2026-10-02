@@ -36,8 +36,7 @@
 namespace maharajah::nnue_simd {
 
 // out += in
-template <std::size_t size>
-inline void vec_add(const int16_t* in, int16_t* out) {
+inline void vec_add(const int16_t* in, int16_t* out, const std::size_t size) {
 #if defined(MAHARAJAH_NNUE_AVX512)
   for(std::size_t i{ }; i < size; i += 32)
     _mm512_store_si512(out + i, _mm512_add_epi16(_mm512_load_si512(out + i), _mm512_load_si512(in + i)));
@@ -61,8 +60,7 @@ inline void vec_add(const int16_t* in, int16_t* out) {
 }
 
 // out -= in
-template <std::size_t size>
-inline void vec_sub(const int16_t* in, int16_t* out) {
+inline void vec_sub(const int16_t* in, int16_t* out, const std::size_t size) {
 #if defined(MAHARAJAH_NNUE_AVX512)
   for(std::size_t i{ }; i < size; i += 32)
     _mm512_store_si512(out + i, _mm512_sub_epi16(_mm512_load_si512(out + i), _mm512_load_si512(in + i)));
@@ -86,16 +84,14 @@ inline void vec_sub(const int16_t* in, int16_t* out) {
 }
 
 // out = in
-template <std::size_t size>
-inline void vec_copy(const int16_t* in, int16_t* out) {
+inline void vec_copy(const int16_t* in, int16_t* out, const std::size_t size) {
   for(std::size_t i{ }; i < size; ++i)
     out[i] = in[i];
 }
 
 // Output layer with SCReLU: sum of clamp(acc, 0, qa)^2 * weight. clamp * weight fits
 // int16 (qa 255, |weight| <= 127); the products are summed in int32.
-template <std::size_t size>
-inline int32_t screlu_dot(const int16_t* acc, const int16_t* weights, const int16_t qa) {
+inline int32_t screlu_dot(const int16_t* acc, const int16_t* weights, const std::size_t size, const int16_t qa) {
 #if defined(MAHARAJAH_NNUE_AVX512)
   const __m512i zero = _mm512_setzero_si512(), max = _mm512_set1_epi16(qa);
   __m512i sum = _mm512_setzero_si512();

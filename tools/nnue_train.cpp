@@ -1,6 +1,6 @@
 // Trains the NNUE network (Nnue.h) on self-play data from `maharajah_texel gen`.
 //
-//   maharajah_nnue_train DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed]
+//   maharajah_nnue_train DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden]
 //     DATA lines are "FEN;score;result" (score and result from white's point of view).
 //     The target blends the search score and the result:
 //     lambda * sigmoid(score / 400) + (1 - lambda) * result, fitted by AdamW on the
@@ -36,7 +36,6 @@ namespace F = torch::nn::functional;
 
 namespace {
 
-constexpr int hidden{ NnueArch::hidden };
 constexpr int batch_size{ 16384 };
 // float weights stay where the int16 quantization can hold them; an output weight
 // times qa must fit int16 (NnueSimd.h screlu_dot)
@@ -169,7 +168,8 @@ Batch make_batch(const Dataset& data, const std::vector<std::uint32_t>& order, c
 }
 
 struct NetworkImpl : torch::nn::Module {
-  NetworkImpl() {
+  explicit NetworkImpl(const int hidden)
+      : hidden(hidden) {
     feature_weights = register_parameter("feature_weights", torch::randn({ NnueArch::inputs, hidden }) * 0.05);
     feature_bias = register_parameter("feature_bias", torch::zeros({ hidden }));
     output_weights = register_parameter("output_weights", (torch::rand({ 2 * hidden, 1 }) * 2 - 1) / std::sqrt(2.0 * hidden));
@@ -192,6 +192,7 @@ struct NetworkImpl : torch::nn::Module {
     output_weights.clamp_(-output_clip, output_clip);
   }
 
+  int hidden;
   torch::Tensor feature_weights, feature_bias, output_weights, output_bias;
 };
 TORCH_MODULE(Network);
@@ -230,7 +231,7 @@ void write_network(Network& network, const std::string& path) {
   out.write("MHNN", 4);
   put_u32(out, NnueArch::version);
   put_u32(out, NnueArch::inputs);
-  put_u32(out, hidden);
+  put_u32(out, static_cast<std::uint32_t>(network->hidden));
   put_i16(out, network->feature_weights, NnueArch::qa);
   put_i16(out, network->feature_bias, NnueArch::qa);
   put_i16(out, network->output_weights, NnueArch::qb);
@@ -263,7 +264,7 @@ void check_quantization(Network& network, const Dataset& validation, const std::
             << " cp (mean |eval| " << abs_eval / static_cast<double>(n) << " cp)\n";
 }
 
-int run(const std::string& data_paths, const std::string& out_path, const int epochs, const int threads, const float lambda, const unsigned seed) {
+int run(const std::string& data_paths, const std::string& out_path, const int epochs, const int threads, const float lambda, const unsigned seed, const int hidden) {
   torch::set_num_threads(threads);
   torch::manual_seed(seed);
 
@@ -274,7 +275,7 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
     return 1;
   }
 
-  Network network;
+  Network network(hidden);
   constexpr double start_rate{ 1e-3 };
   torch::optim::AdamW optimizer(network->parameters(), torch::optim::AdamWOptions(start_rate).weight_decay(0.0));
 
@@ -318,12 +319,17 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
 
 int main(const int argc, char** argv) {
   if(argc < 3) {
-    std::cerr << "usage: " << argv[0] << " DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed]\n";
+    std::cerr << "usage: " << argv[0] << " DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden]\n";
     return 2;
   }
   const int epochs = argc > 3 ? std::stoi(argv[3]) : 20;
   const int threads = argc > 4 ? std::stoi(argv[4]) : 8;
   const float lambda = argc > 5 ? std::stof(argv[5]) : 0.75f;
   const unsigned seed = argc > 6 ? static_cast<unsigned>(std::stoul(argv[6])) : 1u;
-  return run(argv[1], argv[2], epochs, threads, lambda, seed);
+  const int hidden = argc > 7 ? std::stoi(argv[7]) : 256;
+  if(hidden <= 0 || hidden % 32 != 0 || hidden > NnueArch::max_hidden) {
+    std::cerr << "hidden must be a multiple of 32 up to " << NnueArch::max_hidden << '\n';
+    return 2;
+  }
+  return run(argv[1], argv[2], epochs, threads, lambda, seed, hidden);
 }

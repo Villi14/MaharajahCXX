@@ -7,6 +7,7 @@
 #include "TestPositions.h"
 #include "gtest/gtest.h"
 
+#include <algorithm>
 #include <random>
 #include <string>
 #include <vector>
@@ -21,8 +22,12 @@ const vector<unsigned char>& network() {
   return bytes;
 }
 
-bool accumulators_equal(const NnueAccumulator& left, const NnueAccumulator& right) {
-  return left.values == right.values;
+bool accumulators_equal(const NnueAccumulator& left, const NnueAccumulator& right, const int hidden) {
+  for(const Colors side : { white, black }) {
+    if(!std::equal(left.values[side].begin(), left.values[side].begin() + hidden, right.values[side].begin()))
+      return false;
+  }
+  return true;
 }
 
 // ranks mirrored, colours swapped, the other side to move
@@ -62,6 +67,9 @@ TEST(nnue_test, loads_only_a_network_of_its_own_shape) {
   bad = network();
   bad[12] = 1; // hidden size 257
   EXPECT_FALSE(nnue.load_weights_from_bytes(bad.data(), bad.size(), "shape"));
+  bad = random_network_bytes(1, 2048);
+  EXPECT_FALSE(nnue.load_weights_from_bytes(bad.data(), bad.size(), "too wide"));
+  EXPECT_EQ(nnue.hidden(), 0);
   EXPECT_FALSE(nnue.load_weights("/nonexistent/net.nnue"));
 }
 
@@ -76,10 +84,17 @@ TEST(nnue_test, mirrored_position_evaluates_the_same_for_the_side_to_move) {
   }
 }
 
-// every move kind, compound pieces and promotions to them included
-TEST(nnue_test, incremental_updates_match_a_full_refresh) {
+// every move kind, compound pieces and promotions to them included, for each size
+class nnue_size_test : public testing::TestWithParam<int> { };
+
+INSTANTIATE_TEST_SUITE_P(hidden_sizes, nnue_size_test, testing::Values(32, 256, 512, 1024));
+
+TEST_P(nnue_size_test, incremental_updates_match_a_full_refresh) {
+  const int hidden = GetParam();
+  const vector<unsigned char> bytes = random_network_bytes(static_cast<unsigned>(hidden), hidden);
   Nnue nnue;
-  ASSERT_TRUE(nnue.load_weights_from_bytes(network().data(), network().size(), "random-1"));
+  ASSERT_TRUE(nnue.load_weights_from_bytes(bytes.data(), bytes.size(), "random"));
+  ASSERT_EQ(nnue.hidden(), hidden);
 
   vector<string> fens{ string{ TestFen::tricky_position }, string{ TestFen::killer_position }, "4k3/1P4P1/8/8/8/8/1p4p1/4K3 w - - 0 1 Vv" };
   for(unsigned seed{ 1 }; seed <= 6; ++seed) {
@@ -111,7 +126,7 @@ TEST(nnue_test, incremental_updates_match_a_full_refresh) {
       ASSERT_TRUE(board.make_move(legal[uniform_int_distribution<size_t>(0, legal.size() - 1)(rng)], TypeMove::all_moves));
       nnue.update(board.history[board.ply - 1], board.state, parent, updated);
       nnue.refresh(board.state, refreshed);
-      ASSERT_TRUE(accumulators_equal(updated, refreshed)) << fen << " ply " << ply;
+      ASSERT_TRUE(accumulators_equal(updated, refreshed, hidden)) << fen << " ply " << ply;
       EXPECT_EQ(nnue.evaluate(updated, board.state.side), nnue.evaluate(board.state));
       parent = updated;
       ++updates;
