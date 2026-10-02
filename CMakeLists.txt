@@ -16,6 +16,13 @@ if(MAHARAJAH_SANITIZE AND NOT MSVC)
   add_link_options(-fsanitize=address,undefined)
 endif()
 
+# tune for the build machine's CPU (AVX2 etc. for the NNUE); the binaries then
+# need that CPU
+option(MAHARAJAH_NATIVE "Build with -march=native" OFF)
+if(MAHARAJAH_NATIVE AND NOT MSVC AND NOT EMSCRIPTEN)
+  add_compile_options(-march=native)
+endif()
+
 enable_testing()
 
 # reported in the UCI "id name" line of the engine and of maharajah_tool

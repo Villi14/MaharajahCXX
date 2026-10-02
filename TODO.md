@@ -304,6 +304,10 @@ backed by a match.
       | classic (`--custom-share 0`) | +320 =35 -245 | +44 [+17, +71] |
       | custom armies (`--custom-share 1`) | +334 =24 -242 | +54 [+29, +79] |
 
+      `-DMAHARAJAH_NATIVE=ON` (`-march=native`, AVX2 here): same nodes to the
+      same depths as the SSE2 build, no measurable speed-up with 256 hidden
+      (~1000 kN/s either way, classic ~410 on the same run); kept off by default
+      for bigger networks.
       Next: the network on the full ~10 M positions, then FSF elo:2200.
       Before 100 M+ positions: a packed binary data format (~40 bytes per
       position) read as a stream; the trainer now holds every text line in memory
