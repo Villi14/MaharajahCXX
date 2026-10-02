@@ -1,11 +1,12 @@
 // Texel tuning of the classic evaluation weights (Evaluation::weights).
 //
-//   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share]
+//   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share] [network]
 //     Self-play at a fixed depth from random openings (the start position plus random
 //     plies, or a generated custom army plus random plies). Writes "FEN;score;result"
 //     per position after the opening where the side to move is not in check and the
 //     best move is quiet: the search score and the result 1 / 0.5 / 0, both from
-//     white's point of view. Also the training data of tools/nnue_train.cpp.
+//     white's point of view. Also the training data of tools/nnue_train.cpp. With a
+//     network file the games are played (and scored) with the NNUE evaluation.
 //   maharajah_texel tune DATA [epochs] [threads] [out]
 //     Keeps the quiet positions (quiescence search = static evaluation, not in check),
 //     fits the sigmoid scale K, then fits both phases' weights to the results by Adam
@@ -49,6 +50,7 @@ struct GenOptions {
   int threads{ 1 };
   unsigned seed{ 1 };
   double custom_share{ 0.3 };
+  std::string network;
 };
 
 constexpr int max_plies{ 400 };
@@ -165,6 +167,13 @@ int run_gen(const GenOptions& options) {
     threads.emplace_back([&, index] {
       Engine engine;
       engine.transposition_table.resize(16);
+      if(!options.network.empty()) {
+        if(!engine.nnue.load_weights(options.network.c_str())) {
+          std::cerr << "cannot load " << options.network << '\n';
+          return;
+        }
+        engine.eval_config.eval_mode = EvalMode::nnue;
+      }
       std::mt19937 rng(options.seed * 7919u + static_cast<unsigned>(index));
       int game;
       while((game = next_game++) < options.games) {
@@ -504,13 +513,15 @@ int main(const int argc, char** argv) {
     options.threads = arg(5, options.threads);
     options.seed = arg(6, options.seed);
     options.custom_share = arg(7, options.custom_share);
+    if(argc > 8)
+      options.network = argv[8];
     return run_gen(options);
   }
 
   if(command == "tune" && argc > 2)
     return run_tune(argv[2], arg(3, 1000), arg(4, 1), argc > 5 ? argv[5] : "texel_weights.txt");
 
-  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share]\n"
+  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share] [network]\n"
             << "       " << argv[0] << " tune DATA [epochs] [threads] [out]\n";
   return 2;
 }
