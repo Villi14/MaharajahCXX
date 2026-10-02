@@ -321,8 +321,23 @@ backed by a match.
       | net2 vs classic eval | armies | +414 =18 -168 | +151 [+125, +179] |
 
       3 M → 10 M positions was worth +168 / +104: the network is limited by data.
-      Next: round 2, data from the engine with net2 (~2.5x faster, better scores),
-      ~30 M positions, net3 on old + new data; then FSF elo:2200.
+      Round 2 (2026-10-02): `maharajah_texel gen ... net2.nnue`, depth 8, half
+      armies: `n2d8_s1.txt` 2.6 M (28 threads) + `n2d8_s2.txt` 17.9 M (16
+      threads, turbo off after the VRM got too hot), ~840 positions/s. Network
+      `net3`: hidden size now read from the file (7396dc9), 512 hidden, all 30.5 M
+      positions, 20 epochs, 24 threads, 6 min per epoch; validation 0.0075, train
+      0.0070; quantized vs float 10.5 cp. Search speed, one core, turbo off:
+      net2 909 kN/s, net3 710, classic 339. Against net2, 300 pairs x 2, 50 ms/move:
+
+      | openings | result | Elo [95 %] |
+      |---|---|---|
+      | classic | +404 =46 -150 | +157 [+130, +186] |
+      | armies | +384 =21 -195 | +113 [+88, +140] |
+
+      Chained over the classic evaluation: ≈ +370 classic, ≈ +265 armies.
+      Trainer idea: build the next batch in a second thread while the current one
+      trains (the batch is now built in one thread and the other cores wait).
+      Next: round 3 with net3 as the teacher (net4), then FSF elo.
       Before 100 M+ positions: a packed binary data format (~40 bytes per
       position) read as a stream; the trainer now holds every text line in memory
       first (~15 GB for 100 M lines), which would not fit the 32 GB with the data.
