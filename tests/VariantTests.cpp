@@ -3,11 +3,13 @@
 #include "../headers/Engine.h"
 #include "../headers/Zobrist.h"
 #include "../headers/ffi/maharajah_ffi.h"
+#include "TestNetwork.h"
 #include "gtest/gtest.h"
 
 #include <array>
 #include <sstream>
 #include <string>
+#include <vector>
 
 using namespace std;
 using namespace maharajah;
@@ -230,15 +232,17 @@ TEST_F(ffi_test_fixture, reports_strength_and_eval_status) {
 
   ASSERT_EQ(mah_set_difficulty_level(2), 1);
   ASSERT_EQ(mah_set_eval_mode(1), 1);
-  const unsigned char weights[]{ 1, 2, 3 };
-  ASSERT_EQ(mah_load_weights_from_bytes(weights, 3, "test-net"), 1);
+  const unsigned char junk[]{ 1, 2, 3 };
+  EXPECT_EQ(mah_load_weights_from_bytes(junk, 3, "junk"), 0);
+  const vector<unsigned char> weights = random_network_bytes(5);
+  ASSERT_EQ(mah_load_weights_from_bytes(weights.data(), static_cast<int>(weights.size()), "test-net"), 1);
   ASSERT_EQ(mah_get_eval_status(status, sizeof(status)), 1);
-  EXPECT_STREQ(status, "nnue_stub_fallback");
+  EXPECT_STREQ(status, "nnue_ready");
 
   ASSERT_EQ(mah_get_nnue_info(info, sizeof(info)), 1);
   const string json{ info };
   EXPECT_NE(json.find("\"requestedEvalMode\":\"nnue\""), string::npos);
-  EXPECT_NE(json.find("\"activeEvalMode\":\"classic\""), string::npos);
+  EXPECT_NE(json.find("\"activeEvalMode\":\"nnue\""), string::npos);
   EXPECT_NE(json.find("\"weightsVersion\":\"test-net\""), string::npos);
   EXPECT_NE(json.find("\"uiDifficulty\":2"), string::npos);
   EXPECT_NE(json.find("\"skillLevel\":4"), string::npos);

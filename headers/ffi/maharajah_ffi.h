@@ -98,19 +98,16 @@ FFI_PLUGIN_EXPORT int mah_set_skill_level(int skill_level);
 // Set UI difficulty level in the range [1..5]. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_difficulty_level(int difficulty_level);
 
-// Set evaluation mode: 0 = classic, 1 = nnue.
-// Current NNUE mode is a staged integration path and may still run classic
-// fallback. Returns 1 on success.
+// Set evaluation mode: 0 = classic, 1 = nnue. NNUE without loaded weights
+// evaluates classically. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_eval_mode(int eval_mode);
 
-// Load NNUE weights from a file path for the staged NNUE integration path.
-// Loading weights does not imply that NNUE inference is already active. Returns
-// 1 on success.
+// Load NNUE weights from a file path; used once the eval mode is nnue. A file
+// that is not a network of this engine's shape is rejected. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_load_weights(const char* path);
 
-// Load NNUE weights from a bytes buffer for the staged NNUE integration path.
-// Loading weights does not imply that NNUE inference is already active. Returns
-// 1 on success.
+// Load NNUE weights from a bytes buffer, as mah_load_weights. Returns 1 on
+// success.
 FFI_PLUGIN_EXPORT int mah_load_weights_from_bytes(const unsigned char* bytes, int len, const char* weights_version_name);
 
 // Unload current NNUE weights and reset to fallback state. Returns 1 on
@@ -118,8 +115,7 @@ FFI_PLUGIN_EXPORT int mah_load_weights_from_bytes(const unsigned char* bytes, in
 FFI_PLUGIN_EXPORT int mah_unload_weights(void);
 
 // Get current eval backend status string.
-// Example values: classic_ready, nnue_not_loaded, nnue_stub_fallback,
-// nnue_ready. Returns 1 on success.
+// Values: classic_ready, nnue_ready. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_get_eval_status(char* out_status, int out_len);
 
 // Get current loaded weights version string, or empty if none. Returns 1 on

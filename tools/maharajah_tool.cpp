@@ -478,6 +478,7 @@ void UciSession::identify() {
   std::printf("option name Skill Level type spin default 10 min 1 max 10\n");
   std::printf("option name UI Difficulty type spin default 5 min 1 max 5\n");
   std::printf("option name Threads type spin default 1 min 1 max 64\n");
+  std::printf("option name EvalFile type string default <empty>\n");
   std::printf("uciok\n");
 }
 
@@ -485,6 +486,21 @@ void UciSession::setoption(const std::string_view command) {
   const std::size_t value = command.find(" value ");
   if(value == std::string_view::npos) {
     fail("setoption without a value.");
+    return;
+  }
+
+  // a network file switches to the NNUE evaluation, "<empty>" back to the classic one
+  if(command.find("name EvalFile") != std::string_view::npos) {
+    const std::string path{ command.substr(value + std::strlen(" value ")) };
+    if(path == "<empty>") {
+      mah_unload_weights();
+      mah_set_eval_mode(0);
+    } else if(mah_load_weights(path.c_str())) {
+      mah_set_eval_mode(1);
+    } else {
+      mah_set_eval_mode(0);
+      std::printf("info string cannot load the network %s\n", path.c_str());
+    }
     return;
   }
 

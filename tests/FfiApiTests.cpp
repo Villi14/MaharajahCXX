@@ -4,12 +4,14 @@
 #include "../headers/Search.h"
 #include "../headers/ffi/MaharajahFfiInternal.h"
 #include "../headers/ffi/maharajah_ffi.h"
+#include "TestNetwork.h"
 #include "gtest/gtest.h"
 
 #include <array>
 #include <cstdio>
 #include <string>
 #include <string_view>
+#include <vector>
 
 using namespace std;
 using namespace maharajah;
@@ -241,6 +243,18 @@ TEST_F(ffi_api_test_fixture, nnue_mode_is_requested_but_classic_stays_active) {
   ASSERT_TRUE(mah_set_position_fen("k7/5q2/8/4A3/8/8/8/K7 w - - 0 1 "));
   EXPECT_EQ(best_move(1), "e5f7");
 
+  // with a network the search evaluates with it
+  const vector<unsigned char> weights = random_network_bytes(2);
+  ASSERT_TRUE(mah_load_weights_from_bytes(weights.data(), static_cast<int>(weights.size()), "random-2"));
+  EXPECT_EQ(eval_status(), "nnue_ready");
+  const string active = nnue_info();
+  EXPECT_TRUE(contains(active, "\"activeEvalMode\":\"nnue\"")) << active;
+  EXPECT_TRUE(contains(active, "\"usingClassicFallback\":0")) << active;
+  EXPECT_TRUE(contains(active, "\"accumulatorInitialized\":1")) << active;
+  // random weights: any legal move
+  EXPECT_NE(best_move(1), "");
+  ASSERT_TRUE(mah_unload_weights());
+
   ASSERT_TRUE(mah_set_eval_mode(0));
   // an invalid mode falls back to classic
   ASSERT_TRUE(mah_set_eval_mode(99));
@@ -252,13 +266,15 @@ TEST_F(ffi_api_test_fixture, weights_load_and_unload) {
   {
     std::FILE* file = std::fopen(path.c_str(), "wb");
     ASSERT_NE(file, nullptr);
-    std::fputs("stub nnue weights\n", file);
+    const vector<unsigned char> weights = random_network_bytes(4);
+    std::fwrite(weights.data(), 1, weights.size(), file);
     std::fclose(file);
   }
 
   EXPECT_TRUE(mah_load_weights(path.c_str()));
   EXPECT_TRUE(mah_unload_weights());
-  EXPECT_TRUE(mah_load_weights_from_bytes(reinterpret_cast<const unsigned char*>("NNUE"), 4, "memory-v1"));
+  // not a network of this engine
+  EXPECT_FALSE(mah_load_weights_from_bytes(reinterpret_cast<const unsigned char*>("NNUE"), 4, "memory-v1"));
   EXPECT_TRUE(mah_unload_weights());
   std::remove(path.c_str());
 

@@ -2,8 +2,10 @@
 //
 //   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share]
 //     Self-play at a fixed depth from random openings (the start position plus random
-//     plies, or a generated custom army plus random plies). Writes "FEN;result" per
-//     position after the opening, result 1 / 0.5 / 0 from white's point of view.
+//     plies, or a generated custom army plus random plies). Writes "FEN;score;result"
+//     per position after the opening where the side to move is not in check and the
+//     best move is quiet: the search score and the result 1 / 0.5 / 0, both from
+//     white's point of view. Also the training data of tools/nnue_train.cpp.
 //   maharajah_texel tune DATA [epochs] [threads] [out]
 //     Keeps the quiet positions (quiescence search = static evaluation, not in check),
 //     fits the sigmoid scale K, then fits both phases' weights to the results by Adam
@@ -15,6 +17,7 @@
 #include "../headers/Engine.h"
 #include "../headers/Evaluation.h"
 #include "../headers/Evaluator.h"
+#include "../headers/Move.h"
 #include "../headers/Search.h"
 
 #include <algorithm>
@@ -97,6 +100,7 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
     engine.apply_move(Board::move_to_string(move));
   }
 
+  // "FEN;score" of the positions written for this game
   std::vector<std::string> fens;
   double result = 0.5;
   int white_wins{ }, black_wins{ }, quiet{ };
@@ -120,8 +124,8 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
     black_wins = score <= -win_score ? black_wins + 1 : 0;
     quiet = ply + opening_plies >= draw_from_ply && std::abs(score) <= draw_score ? quiet + 1 : 0;
 
-    if(!board.in_check())
-      fens.push_back(board.to_fen());
+    if(!board.in_check() && !Move::get_move_capture(searched.best_move) && !Move::is_promotion(searched.best_move) && std::abs(score) < Scores::mate_score)
+      fens.push_back(board.to_fen() + ';' + std::to_string(score));
 
     if(white_wins >= win_plies) {
       result = 1.0;
@@ -297,7 +301,7 @@ Dataset load(const std::string& path, const int threads) {
       for(std::size_t i = lines.size() * t / threads; i < lines.size() * (t + 1) / threads; ++i) {
         const std::string& line = lines[i];
         const std::size_t separator = line.rfind(';');
-        if(separator == std::string::npos || !engine.set_position(line.substr(0, separator)))
+        if(separator == std::string::npos || !engine.set_position(line.substr(0, line.find(';'))))
           continue;
         Board& board = engine.board;
         if(board.in_check()) {

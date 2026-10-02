@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 
+#include <memory>
 #include <ostream>
 
 namespace maharajah {
@@ -35,7 +36,12 @@ class Search {
       : engine_(engine)
       , board_(board)
       , thread_index_(thread_index)
-      , helper_(thread_index > 0) { }
+      , helper_(thread_index > 0) {
+    if(engine.eval_config.eval_mode == EvalMode::nnue && engine.nnue.has_loaded_weights()) {
+      nnue_ = &engine.nnue;
+      accumulators_ = std::make_unique<std::array<NnueAccumulator, Limits::max_ply + 1>>();
+    }
+  }
 
   // Searches to `depth` plies (or until stopped). Writes UCI "info" lines to `info` if given.
   SearchResult run(int depth, std::ostream* info = nullptr);
@@ -69,7 +75,10 @@ class Search {
   [[nodiscard]] bool stopped() const {
     return engine_.time_control.stopped.load(std::memory_order_relaxed);
   }
-  [[nodiscard]] int evaluate() const;
+  [[nodiscard]] int evaluate();
+  // NNUE evaluation of the current node: its accumulator is reused, updated from the
+  // parent's or rebuilt
+  [[nodiscard]] int evaluate_nnue();
   [[nodiscard]] bool should_return_draw_score() const;
   [[nodiscard]] int effective_depth(int depth) const;
 
@@ -105,6 +114,9 @@ class Search {
   int root_count_{ };
   std::array<int, Limits::max_moves> root_moves_{ };
   std::array<int, Limits::max_moves> root_scores_{ };
+  // set when the engine evaluates with a loaded network; accumulators by ply
+  const Nnue* nnue_{ };
+  std::unique_ptr<std::array<NnueAccumulator, Limits::max_ply + 1>> accumulators_;
 };
 
 // Lazy SMP: searches the engine's position with `engine.threads` threads that share

@@ -40,14 +40,14 @@ bool nnue_requested(const Engine& live) {
   return live.eval_config.eval_mode == EvalMode::nnue;
 }
 
-// the NNUE backend is never ready yet, so the active mode is always classic
+// the search evaluates with the network when NNUE is requested and weights are loaded
+bool nnue_active(const Engine& live) {
+  return nnue_requested(live) && live.nnue.has_loaded_weights();
+}
+
 const char* eval_status_string(const Engine& live) {
-  if(!nnue_requested(live))
-    return "classic_ready";
-  if(live.nnue.has_loaded_weights())
-    return "nnue_stub_fallback";
-  // NNUE requested but offline: the classic evaluation is the normal runtime state
-  return "classic_ready";
+  // NNUE requested without weights falls back to the classic evaluation
+  return nnue_active(live) ? "nnue_ready" : "classic_ready";
 }
 
 // the app owns stdin, so FFI searches never poll it
@@ -243,16 +243,16 @@ FFI_PLUGIN_EXPORT int mah_get_nnue_info(char* out_info, const int out_len) {
                                     "\"loadedPath\":\"%s\",\"weightsLoaded\":%d,\"nnueBackendReady\":%d,\"usingClassicFallback\":%d,"
                                     "\"uiDifficulty\":%d,\"skillLevel\":%d,\"accumulatorInitialized\":%d}",
                                     requested ? "nnue" : "classic",
-                                    "classic",
+                                    nnue_active(live) ? "nnue" : "classic",
                                     eval_status_string(live),
                                     live.nnue.weights_version().c_str(),
                                     live.nnue.loaded_path().c_str(),
                                     weights_loaded ? 1 : 0,
                                     Nnue::backend_ready() ? 1 : 0,
-                                    requested ? 1 : 0,
+                                    requested && !weights_loaded ? 1 : 0,
                                     live.search_config.ui_difficulty,
                                     live.search_config.skill_level,
-                                    0);
+                                    nnue_active(live) ? 1 : 0);
   return written >= 0 && written < out_len ? 1 : 0;
 }
 

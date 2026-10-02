@@ -5,6 +5,7 @@
 #include "../headers/EngineConfig.h"
 #include "../headers/Move.h"
 #include "../headers/Nnue.h"
+#include "TestNetwork.h"
 #include "../headers/Transposition.h"
 #include "gtest/gtest.h"
 
@@ -45,14 +46,13 @@ TEST(engine_config_test, skill_is_clamped_and_clears_the_difficulty) {
   EXPECT_EQ(config.max_depth_cap, Limits::max_ply);
 }
 
-TEST(engine_config_test, nnue_weights_load_from_memory_but_the_backend_stays_offline) {
-  constexpr array<unsigned char, 4> weights{ 0x4e, 0x4e, 0x55, 0x45 };
+TEST(engine_config_test, nnue_weights_load_from_memory) {
+  const vector<unsigned char> weights = random_network_bytes(3);
   Nnue nnue;
   EXPECT_FALSE(nnue.has_loaded_weights());
 
   ASSERT_TRUE(nnue.load_weights_from_bytes(weights.data(), weights.size(), "memory-v1"));
   EXPECT_TRUE(nnue.has_loaded_weights());
-  EXPECT_FALSE(Nnue::backend_ready());
   EXPECT_EQ(nnue.weights_version(), "memory-v1");
   EXPECT_EQ(nnue.loaded_path(), "<memory>");
 

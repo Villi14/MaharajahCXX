@@ -371,6 +371,7 @@ void Game::print_uci_info() {
   cout << "option name Hash type spin default " << default_hash_mb << " min " << min_hash_mb << " max " << max_hash_mb << "\n";
   cout << "option name Skill Level type spin default " << SearchConfig::max_skill << " min " << SearchConfig::min_skill << " max " << SearchConfig::max_skill << "\n";
   cout << "option name Threads type spin default " << Engine::min_threads << " min " << Engine::min_threads << " max " << Engine::max_threads << "\n";
+  cout << "option name EvalFile type string default <empty>\n";
   cout << "uciok\n" << flush;
 }
 
@@ -428,6 +429,20 @@ void Game::uci_loop() {
 
     else if(starts_with(input, "setoption name Threads value ")) {
       engine_.threads = clamp(atoi(input.c_str() + 29), Engine::min_threads, Engine::max_threads);
+    }
+
+    // a network file switches to the NNUE evaluation, "<empty>" back to the classic one
+    else if(starts_with(input, "setoption name EvalFile value ")) {
+      const string path = input.substr(30);
+      if(path.empty() || path == "<empty>") {
+        engine_.nnue.unload_weights();
+        engine_.eval_config.eval_mode = EvalMode::classic;
+      } else if(engine_.nnue.load_weights(path.c_str())) {
+        engine_.eval_config.eval_mode = EvalMode::nnue;
+      } else {
+        engine_.eval_config.eval_mode = EvalMode::classic;
+        cout << "info string cannot load the network " << path << "\n" << flush;
+      }
     }
 
     // "quit" arrived during a search

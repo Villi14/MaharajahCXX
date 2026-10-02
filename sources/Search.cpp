@@ -90,9 +90,22 @@ void Search::report_nodes() {
   reported_nodes_ = nodes_;
 }
 
-int Search::evaluate() const {
-  // the NNUE backend is not available yet, so every mode evaluates classically
-  return Evaluator::evaluate(board_.state);
+int Search::evaluate() {
+  return nnue_ ? evaluate_nnue() : Evaluator::evaluate(board_.state);
+}
+
+int Search::evaluate_nnue() {
+  const BoardState& state = board_.state;
+  NnueAccumulator& accumulator = (*accumulators_)[ply_];
+  if(!accumulator.computed || accumulator.key != state.hash_key) {
+    // the parent position is the state saved by the last make_move (or null move)
+    const NnueAccumulator* parent = ply_ > 0 ? &(*accumulators_)[ply_ - 1] : nullptr;
+    if(parent && board_.ply > 0 && parent->computed && parent->key == board_.history[board_.ply - 1].hash_key)
+      nnue_->update(board_.history[board_.ply - 1], state, *parent, accumulator);
+    else
+      nnue_->refresh(state, accumulator);
+  }
+  return nnue_->evaluate(accumulator, state.side);
 }
 
 int Search::effective_depth(const int depth) const {

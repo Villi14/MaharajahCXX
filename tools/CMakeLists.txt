@@ -6,6 +6,13 @@ target_link_libraries(maharajah_tool PRIVATE ${PROJECT_NAME}STATIC)
 add_executable(maharajah_texel texel.cpp)
 target_link_libraries(maharajah_texel PRIVATE ${PROJECT_NAME}STATIC)
 
+# NNUE trainer, only with libtorch (CMAKE_PREFIX_PATH=~/libtorch)
+find_package(Torch QUIET)
+if(Torch_FOUND)
+  add_executable(maharajah_nnue_train nnue_train.cpp)
+  target_link_libraries(maharajah_nnue_train PRIVATE ${PROJECT_NAME}STATIC ${TORCH_LIBRARIES})
+endif()
+
 add_test(NAME maharajah_tool_generate COMMAND maharajah_tool generate 1 7)
 add_test(NAME maharajah_tool_selfplay COMMAND maharajah_tool selfplay 1 1 20 7)
 
