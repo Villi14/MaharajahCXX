@@ -335,7 +335,7 @@ void Game::parse_position(string_view command) {
   try {
     bool valid = true;
 
-    if(const auto fen_position = setup.find("fen"); fen_position != string_view::npos && !setup.substr(0, fen_position).contains("startpos"))
+    if(const auto fen_position = setup.find("fen"); fen_position != string_view::npos && setup.substr(0, fen_position).find("startpos") == string_view::npos)
       valid = engine_.set_position(setup.substr(fen_position + 3));
     else
       engine_.set_position(Fen::start_position);
