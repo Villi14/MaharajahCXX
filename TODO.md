@@ -280,11 +280,25 @@ backed by a match.
       To try: fewer weights (material and the scalars, tables fixed), a penalty
       towards the current values, more and more balanced data (no random-ply
       openings that are lost from the start, higher depth).
-- [ ] NNUE: adapt https://github.com/jdart1/nnue (planned for the Ubuntu machine);
-      the `Nnue` class is a stub, `EvalMode::nnue` and `mah_load_weights*` exist.
-      After the merge into `master`, in its own branch (see the plan above).
-      `maharajah_texel gen` writes self-play positions with results (FEN;result),
-      a start for training data.
+- [ ] NNUE (branch `nnue`, started 2026-10-02). jdart1/nnue was not taken as a
+      whole: it reads only Stockfish HalfKP networks (10 piece kinds, no trainer),
+      and HalfKP with 16 kinds needs nnue-pytorch, a GPU and far more data. Its
+      row add/sub went into `headers/NnueSimd.h`. Own network instead:
+      (18 pieces x 64) -> 256 x 2 perspectives -> 1, SCReLU, int16, the compound
+      pieces as inputs of their own; accumulator per ply, updated by the bitboard
+      difference to the parent (0b3a379). UCI/tool option `EvalFile`.
+      Trainer `tools/nnue_train.cpp` on libtorch (`~/libtorch`, CPU, found through
+      `CMAKE_PREFIX_PATH`). Data: `maharajah_texel gen` writes "FEN;score;result"
+      for quiet positions; `~/nnue-data/d7_s1.txt`, depth 7, half custom armies.
+      Search with a network ~3x faster than with the classic evaluation (~650 vs
+      ~210 kN/s, SSE2 build, machine loaded). Next: first network, matches
+      against classic on classic openings and on armies (`match.py
+      --custom-share 0` / `1`, `--new-option EvalFile=...`), then FSF elo:2200.
+- [ ] Documentation in Ukrainian and English, with diagrams: how the engine works
+      (board, move generation, search, evaluation), how NNUE is used in it
+      (inputs, accumulator, quantization) and how the networks were trained (data,
+      trainer, rounds, match results). After the first network works (user,
+      2026-10-02).
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
       (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
       share a lockless TT; one thread is unchanged (0 mismatches in

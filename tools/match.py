@@ -3,6 +3,7 @@
 
 usage: match.py NEW BASE [--pairs N] [--movetime MS] [--jobs J] [--seed S] [--custom-share F]
                 [--hash MB] [--tc BASE+INC --arbiter TOOL]
+                [--new-option NAME=VALUE ...] [--base-option NAME=VALUE ...]
 
 NEW and BASE are maharajah_tool binaries (go movetime), or with --tc the UCI engine
 binaries (go wtime/btime; a path ending in /Maharajah), and then --arbiter names a
@@ -10,14 +11,15 @@ maharajah_tool. The Elo interval is 95 %, from the pairs of games of each openin
 
 Each opening is played twice with colours swapped. Openings: the start position plus
 random plies, and generated custom armies plus random plies. Arbiter: a third tool
-process on the BASE binary answers status/getfen/legalmoves.
+process on the BASE binary answers status/getfen/legalmoves. --new-option/--base-option
+send `setoption` to one engine, e.g. --new-option EvalFile=net.nnue.
 """
 import argparse, math, random, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor
 
 
 class Tool:
-    def __init__(self, binary, threads=1, hash_mb=64):
+    def __init__(self, binary, threads=1, hash_mb=64, options=()):
         # a maharajah_tool takes the `uci` argument; the UCI engine binary (Maharajah) none
         args = [binary] if binary.endswith('/Maharajah') else [binary, 'uci']
         self.p = subprocess.Popen(args, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
@@ -26,6 +28,9 @@ class Tool:
         self.send(f'setoption name Hash value {hash_mb}')
         if threads > 1:
             self.send(f'setoption name Threads value {threads}')
+        for option in options:
+            name, value = option.split('=', 1)
+            self.send(f'setoption name {name} value {value}')
 
     def send(self, line):
         self.p.stdin.write(line + '\n'); self.p.stdin.flush()
@@ -91,9 +96,10 @@ def insufficient(board):
     return not others or (len(others) == 1 and others[0] in 'NBnb')
 
 
-def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc=None, arbiter=None, hash_mb=64):
+def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc=None, arbiter=None, hash_mb=64,
+         new_options=(), base_options=()):
     """Returns the score of NEW: 1, 0.5 or 0. With tc=(base_ms, inc_ms) the engines play on a clock."""
-    new, base = Tool(new_bin, threads, hash_mb), Tool(base_bin, threads, hash_mb)
+    new, base = Tool(new_bin, threads, hash_mb, new_options), Tool(base_bin, threads, hash_mb, base_options)
     white, black = (new, base) if new_white else (base, new)
     arb = Tool(arbiter or base_bin)
     clock = [tc[0], tc[0]] if tc else None
@@ -181,6 +187,8 @@ def main():
     ap.add_argument('--custom-share', type=float, default=0.3)
     ap.add_argument('--tc', help='clock games base+inc in seconds, e.g. 5+0.05 (UCI binaries)')
     ap.add_argument('--arbiter', help='maharajah_tool for openings and adjudication (default BASE)')
+    ap.add_argument('--new-option', action='append', default=[], help='NAME=VALUE setoption for NEW (repeatable)')
+    ap.add_argument('--base-option', action='append', default=[], help='NAME=VALUE setoption for BASE (repeatable)')
     a = ap.parse_args()
     tc = None
     if a.tc:
@@ -193,7 +201,8 @@ def main():
     t0 = time.time()
 
     def job(i, new_white):
-        s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter, hash_mb=a.hash)
+        s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter, hash_mb=a.hash,
+                 new_options=a.new_option, base_options=a.base_option)
         with lock:
             results[i].append(s)
             done[0] += 1
