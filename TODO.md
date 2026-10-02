@@ -308,7 +308,21 @@ backed by a match.
       same depths as the SSE2 build, no measurable speed-up with 256 hidden
       (~1000 kN/s either way, classic ~410 on the same run); kept off by default
       for bigger networks.
-      Next: the network on the full ~10 M positions, then FSF elo:2200.
+      Second network `net2`: all 9 998 907 positions of `d7_s1.txt` (120 000
+      games), same settings, 71 s per epoch; validation 0.0067, train 0.0061
+      (different held-out set than net1); quantized vs float 8.7 cp. Matches,
+      same setup:
+
+      | match | openings | result | Elo [95 %] |
+      |---|---|---|---|
+      | net2 vs net1 | classic | +422 =26 -152 | +168 [+142, +197] |
+      | net2 vs net1 | armies | +379 =16 -205 | +104 [+78, +131] |
+      | net2 vs classic eval | classic | +443 =43 -114 | +214 [+185, +246] |
+      | net2 vs classic eval | armies | +414 =18 -168 | +151 [+125, +179] |
+
+      3 M → 10 M positions was worth +168 / +104: the network is limited by data.
+      Next: round 2, data from the engine with net2 (~2.5x faster, better scores),
+      ~30 M positions, net3 on old + new data; then FSF elo:2200.
       Before 100 M+ positions: a packed binary data format (~40 bytes per
       position) read as a stream; the trainer now holds every text line in memory
       first (~15 GB for 100 M lines), which would not fit the 32 GB with the data.
