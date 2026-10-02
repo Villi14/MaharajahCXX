@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>
+#include <iomanip>
 #include <iostream>
 #include <sstream>
 #include <stdexcept>
@@ -20,6 +21,16 @@
 #else
 #  include <sys/select.h>
 #  include <unistd.h>
+#endif
+
+// CMake defines MAHARAJAH_VERSION as a string literal. The Flutter build hook
+// can't: on Windows it runs cl.exe through cmd.exe, which mangles the command
+// line when an argument carries quotes. It passes the bare MAHARAJAH_VERSION_NUMBER
+// instead, and the string is made here.
+#if !defined(MAHARAJAH_VERSION) && defined(MAHARAJAH_VERSION_NUMBER)
+#  define MAHARAJAH_STRINGIFY_(x) #x
+#  define MAHARAJAH_STRINGIFY(x) MAHARAJAH_STRINGIFY_(x)
+#  define MAHARAJAH_VERSION MAHARAJAH_STRINGIFY(MAHARAJAH_VERSION_NUMBER)
 #endif
 
 using namespace std;
@@ -105,7 +116,7 @@ string Game::print_bitboard(const u64 bitboard, const bool print_to_console) {
 
         if(!file) {
           string rank_string = to_string(BoardGeometry::ranks - rank);
-          ss << format(" {} ", rank_string);
+          ss << " " << rank_string << " ";
         }
         ss << " ";
         const bool bit{ get_bit(bitboard, square) };
@@ -140,19 +151,28 @@ string Game::print_board(const bool print_to_console) const {
           piece_int = static_cast<int>(piece);
       }
 
-      ss << format(" {}", (piece_int == -1) ? "." : Notation::display_pieces[piece_int]);
+      ss << " ";
+      if(piece_int == -1)
+        ss << ".";
+      else
+        ss << Notation::display_pieces[piece_int];
     }
     ss << "\n";
   }
 
   ss << "\n    a b c d e f g h\n\n";
-  ss << format("    Side:     {}\n", engine_.board.state.side ? "black" : "white");
-  ss << format("    En passant:  {}\n", (engine_.board.state.en_passant != no_square) ? Notation::square_to_coordinates[engine_.board.state.en_passant] : "no");
-  ss << format("    Castling:  {}{}{}{}\n",
-               (engine_.board.state.castle & wk) ? 'K' : '-',
-               (engine_.board.state.castle & wq) ? 'Q' : '-',
-               (engine_.board.state.castle & bk) ? 'k' : '-',
-               (engine_.board.state.castle & bq) ? 'q' : '-');
+  ss << "    Side:     " << (engine_.board.state.side ? "black" : "white") << "\n";
+  ss << "    En passant:  ";
+  if(engine_.board.state.en_passant != no_square)
+    ss << Notation::square_to_coordinates[engine_.board.state.en_passant];
+  else
+    ss << "no";
+  ss << "\n";
+  ss << "    Castling:  "
+     << ((engine_.board.state.castle & wk) ? 'K' : '-')
+     << ((engine_.board.state.castle & wq) ? 'Q' : '-')
+     << ((engine_.board.state.castle & bk) ? 'k' : '-')
+     << ((engine_.board.state.castle & bq) ? 'q' : '-') << "\n";
   ss << "\n";
 
   string str = ss.str();
@@ -201,16 +221,15 @@ void Game::print_move_list() {
   for(size_t move_count{ }; move_count < engine_.board.moves_list.size(); ++move_count) {
     const int move = engine_.board.moves_list[move_count];
 
-    ss << format("      {:5}   {}         {}         {}         {}         {}\n",
-                 Board::move_to_string(move),
-                 Notation::display_pieces[Move::get_move_piece(move)],
-                 Move::get_move_capture(move) ? 1 : 0,
-                 Move::get_move_double(move) ? 1 : 0,
-                 Move::get_move_enpassant(move) ? 1 : 0,
-                 Move::get_move_castling(move) ? 1 : 0);
+    ss << "      " << left << setw(5) << Board::move_to_string(move) << right
+       << "   " << Notation::display_pieces[Move::get_move_piece(move)]
+       << "         " << (Move::get_move_capture(move) ? 1 : 0)
+       << "         " << (Move::get_move_double(move) ? 1 : 0)
+       << "         " << (Move::get_move_enpassant(move) ? 1 : 0)
+       << "         " << (Move::get_move_castling(move) ? 1 : 0) << "\n";
   }
 
-  ss << format("\n\n     Total number of moves: {}\n\n", engine_.board.moves_list.size());
+  ss << "\n\n     Total number of moves: " << engine_.board.moves_list.size() << "\n\n";
 
   cout << ss.str();
 }
@@ -349,9 +368,9 @@ void Game::parse_position(string_view command) {
 void Game::print_uci_info() {
   cout << "id name Maharajah " << MAHARAJAH_VERSION << "\n";
   cout << "id author Villi\n";
-  cout << format("option name Hash type spin default {} min {} max {}\n", default_hash_mb, min_hash_mb, max_hash_mb);
-  cout << format("option name Skill Level type spin default {} min {} max {}\n", SearchConfig::max_skill, SearchConfig::min_skill, SearchConfig::max_skill);
-  cout << format("option name Threads type spin default {} min {} max {}\n", Engine::min_threads, Engine::min_threads, Engine::max_threads);
+  cout << "option name Hash type spin default " << default_hash_mb << " min " << min_hash_mb << " max " << max_hash_mb << "\n";
+  cout << "option name Skill Level type spin default " << SearchConfig::max_skill << " min " << SearchConfig::min_skill << " max " << SearchConfig::max_skill << "\n";
+  cout << "option name Threads type spin default " << Engine::min_threads << " min " << Engine::min_threads << " max " << Engine::max_threads << "\n";
   cout << "uciok\n" << flush;
 }
 

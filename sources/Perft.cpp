@@ -1,6 +1,7 @@
 #include "../headers/Perft.h"
 #include "../headers/Clock.h"
 
+#include <iomanip>
 #include <iostream>
 
 using namespace std;
@@ -89,7 +90,8 @@ void Perft::perft_test(int depth) {
     total_nodes += nodes_for_move;
     board_.pop_state();
 
-    cout << format("      move: {:5}    nodes: {}\n", Board::move_to_string(move), nodes_for_move);
+    cout << "      move: " << left << setw(5) << Board::move_to_string(move) << right
+         << "    nodes: " << nodes_for_move << "\n";
   }
 
   cout << "\n    Depth: " << depth;

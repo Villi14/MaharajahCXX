@@ -6,6 +6,10 @@
 #include <array>
 #include <cassert>
 
+#if defined(_MSC_VER)
+#  include <intrin.h> // __popcnt64, _BitScanForward64
+#endif
+
 namespace maharajah {
 
 // Precomputed attack sets, indexed by square (sliders by square and magic index).
