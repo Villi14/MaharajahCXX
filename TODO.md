@@ -291,9 +291,23 @@ backed by a match.
       `CMAKE_PREFIX_PATH`). Data: `maharajah_texel gen` writes "FEN;score;result"
       for quiet positions; `~/nnue-data/d7_s1.txt`, depth 7, half custom armies.
       Search with a network ~3x faster than with the classic evaluation (~650 vs
-      ~210 kN/s, SSE2 build, machine loaded). Next: first network, matches
-      against classic on classic openings and on armies (`match.py
-      --custom-share 0` / `1`, `--new-option EvalFile=...`), then FSF elo:2200.
+      ~210 kN/s, SSE2 build, machine loaded).
+      First network `net1` (2026-10-02, `~/nnue-data/nets/net1.nnue`): the first
+      3 M positions of `d7_s1.txt` (32 % with compound pieces; results 40 % / 20 %
+      / 40 %), 30 epochs, lambda 0.75, 28 threads, 22 s per epoch. Validation loss
+      0.0609 → 0.0053 (train 0.0043, starts to overfit); quantized vs float mean
+      |diff| 8.4 cp (mean |eval| 390). Same `maharajah_tool` with and without
+      `EvalFile`, 300 pairs x 2, 50 ms/move, 2 x 12 jobs, generation paused:
+
+      | openings | result | Elo [95 %] |
+      |---|---|---|
+      | classic (`--custom-share 0`) | +320 =35 -245 | +44 [+17, +71] |
+      | custom armies (`--custom-share 1`) | +334 =24 -242 | +54 [+29, +79] |
+
+      Next: the network on the full ~10 M positions, then FSF elo:2200.
+      Before 100 M+ positions: a packed binary data format (~40 bytes per
+      position) read as a stream; the trainer now holds every text line in memory
+      first (~15 GB for 100 M lines), which would not fit the 32 GB with the data.
 - [ ] Documentation in Ukrainian and English, with diagrams: how the engine works
       (board, move generation, search, evaluation), how NNUE is used in it
       (inputs, accumulator, quantization) and how the networks were trained (data,
