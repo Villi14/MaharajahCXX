@@ -334,7 +334,8 @@ backed by a match.
       DOU/Habr; Ukrainian and English), in chapters: (1) the C → C++ port with
       exact parity (0 mismatches) and +25 Elo from speed; (2) the measured search
       gains (≈ +140 in self-play, UCI fixes +94 / +105) including the rejected
-      attempts; (3) NNUE with the compound pieces, trained only on own data, round
+      attempts, and Lazy SMP (1.27 → 9.61 MN/s on 1 → 8 threads, 4 threads vs 1
+      +70 Elo, lockless shared TT, clean under TSan); (3) NNUE with the compound pieces, trained only on own data, round
       by round; (4) the road to 2850.
 - [ ] A page for the engine on the Chess Programming Wiki (chessprogramming.org)
       once the documentation exists: author, language, licence, repository,
