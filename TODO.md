@@ -299,6 +299,11 @@ backed by a match.
       (inputs, accumulator, quantization) and how the networks were trained (data,
       trainer, rounds, match results). After the first network works (user,
       2026-10-02).
+- [ ] A page for the engine on the Chess Programming Wiki (chessprogramming.org)
+      once the documentation exists: author, language, licence, repository,
+      techniques (bitboards, magics, PVS, LMR, null move, TT, Lazy SMP, NNUE
+      architecture), the compound pieces and the army generator, ratings. Accounts
+      there are requested from the admins (check). Later a TalkChess announcement.
 - [x] Lazy SMP (2026-09-30): `run_search` in `Search.cpp`, UCI/tool option `Threads`
       (1-64, default 1), `mah_set_threads`. Helpers search copies of the board and
       share a lockless TT; one thread is unchanged (0 mismatches in
