@@ -330,7 +330,12 @@ backed by a match.
       (board, move generation, search, evaluation), how NNUE is used in it
       (inputs, accumulator, quantization) and how the networks were trained (data,
       trainer, rounds, match results). After the first network works (user,
-      2026-10-02).
+      2026-10-02). Also a story of the project for articles (TalkChess, Reddit,
+      DOU/Habr; Ukrainian and English), in chapters: (1) the C → C++ port with
+      exact parity (0 mismatches) and +25 Elo from speed; (2) the measured search
+      gains (≈ +140 in self-play, UCI fixes +94 / +105) including the rejected
+      attempts; (3) NNUE with the compound pieces, trained only on own data, round
+      by round; (4) the road to 2850.
 - [ ] A page for the engine on the Chess Programming Wiki (chessprogramming.org)
       once the documentation exists: author, language, licence, repository,
       techniques (bitboards, magics, PVS, LMR, null move, TT, Lazy SMP, NNUE
