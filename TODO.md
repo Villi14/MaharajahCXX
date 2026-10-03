@@ -335,12 +335,21 @@ backed by a match.
       | armies | +384 =21 -195 | +113 [+88, +140] |
 
       Chained over the classic evaluation: ≈ +370 classic, ≈ +265 armies.
-      Trainer idea: build the next batch in a second thread while the current one
-      trains (the batch is now built in one thread and the other cores wait).
-      Next: round 3 with net3 as the teacher (net4), then FSF elo.
-      Before 100 M+ positions: a packed binary data format (~40 bytes per
-      position) read as a stream; the trainer now holds every text line in memory
-      first (~15 GB for 100 M lines), which would not fit the 32 GB with the data.
+      Trainer, checked 2026-10-03 (512 hidden): building a batch is 1-2 % of an
+      epoch, so building the next one in a second thread gains nothing (tried,
+      dropped). The time is in libtorch: backward ~70 %, forward ~25 %, AdamW ~2 %
+      (4 threads). A hand-written embedding_bag (weight gradient split by hidden
+      columns) gave the same losses but was slower at 24 threads (30 s vs 20 s an
+      epoch on 1.5 M positions), dropped. Next idea if training gets too slow: one
+      fused op for features + SCReLU + output (no 16384 x 1024 temporaries).
+      The text is now read and parsed in chunks of 2 M lines: peak memory on
+      17.9 M positions 4.4 → 2.3 GB, so ~70 M positions fit in ~9 GB.
+      Round 3 (started 2026-10-03): `round3_gen.sh`, net3 as the teacher, depth 7,
+      half armies, 24 threads, 480 000 games → `n3d7_s1.txt` (~1250 positions/s,
+      ~40 M positions, ~9 h). Then net4 at 512 and 768 hidden on all ~70 M
+      positions, matched against net3; then FSF elo.
+      Before 150 M+ positions: a packed binary data format (~40 bytes per
+      position) read as a stream.
 - [ ] Documentation in Ukrainian and English, with diagrams: how the engine works
       (board, move generation, search, evaluation), how NNUE is used in it
       (inputs, accumulator, quantization) and how the networks were trained (data,

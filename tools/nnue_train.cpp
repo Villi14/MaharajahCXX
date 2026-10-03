@@ -79,48 +79,12 @@ void append(Dataset& data, const BoardState& state, const float white_score, con
 }
 
 // Reads every file of the comma-separated list; every 50th position goes to `validation`.
+// The text is read and parsed in chunks, so only one chunk of lines is in memory at a time.
 void load(const std::string& paths, const int threads, Dataset& training, Dataset& validation) {
+  constexpr std::size_t chunk_lines{ 2'000'000 };
   std::vector<std::string> lines;
-  std::stringstream list(paths);
-  for(std::string path; std::getline(list, path, ',');) {
-    std::ifstream in(path);
-    if(!in)
-      std::cerr << "cannot read " << path << '\n';
-    for(std::string line; std::getline(in, line);) {
-      if(!line.empty())
-        lines.push_back(std::move(line));
-    }
-  }
-  std::cerr << lines.size() << " lines read\n";
-
-  std::vector<Dataset> train_parts(static_cast<std::size_t>(threads)), valid_parts(static_cast<std::size_t>(threads));
+  std::size_t total{ };
   std::atomic<long> rejected{ };
-  std::vector<std::thread> workers;
-  for(int t{ }; t < threads; ++t) {
-    workers.emplace_back([&, t] {
-      Board board;
-      for(std::size_t i = lines.size() * t / threads; i < lines.size() * (t + 1) / threads; ++i) {
-        const std::string& line = lines[i];
-        const std::size_t first = line.find(';'), last = line.rfind(';');
-        if(first == std::string::npos || first == last) {
-          ++rejected;
-          continue;
-        }
-        try {
-          board.parse_fen(std::string_view(line).substr(0, first));
-        } catch(const std::exception&) {
-          ++rejected;
-          continue;
-        }
-        const float score = std::stof(line.substr(first + 1, last - first - 1));
-        const float result = std::stof(line.substr(last + 1));
-        const bool held_out = i % 50 == 0;
-        append(held_out ? valid_parts[static_cast<std::size_t>(t)] : train_parts[static_cast<std::size_t>(t)], board.state, score, result, line.substr(0, first), held_out);
-      }
-    });
-  }
-  for(std::thread& worker : workers)
-    worker.join();
 
   const auto merge = [](std::vector<Dataset>& parts, Dataset& out) {
     for(Dataset& part : parts) {
@@ -136,8 +100,57 @@ void load(const std::string& paths, const int threads, Dataset& training, Datase
       part = Dataset{ };
     }
   };
-  merge(train_parts, training);
-  merge(valid_parts, validation);
+
+  // parses `lines` (global line numbers from `total`) and appends them in their order
+  const auto parse = [&] {
+    std::vector<Dataset> train_parts(static_cast<std::size_t>(threads)), valid_parts(static_cast<std::size_t>(threads));
+    std::vector<std::thread> workers;
+    for(int t{ }; t < threads; ++t) {
+      workers.emplace_back([&, t] {
+        Board board;
+        for(std::size_t i = lines.size() * t / threads; i < lines.size() * (t + 1) / threads; ++i) {
+          const std::string& line = lines[i];
+          const std::size_t first = line.find(';'), last = line.rfind(';');
+          if(first == std::string::npos || first == last) {
+            ++rejected;
+            continue;
+          }
+          try {
+            board.parse_fen(std::string_view(line).substr(0, first));
+          } catch(const std::exception&) {
+            ++rejected;
+            continue;
+          }
+          const float score = std::stof(line.substr(first + 1, last - first - 1));
+          const float result = std::stof(line.substr(last + 1));
+          const bool held_out = (total + i) % 50 == 0;
+          append(held_out ? valid_parts[static_cast<std::size_t>(t)] : train_parts[static_cast<std::size_t>(t)], board.state, score, result, line.substr(0, first), held_out);
+        }
+      });
+    }
+    for(std::thread& worker : workers)
+      worker.join();
+    merge(train_parts, training);
+    merge(valid_parts, validation);
+    total += lines.size();
+    lines.clear();
+  };
+
+  std::stringstream list(paths);
+  for(std::string path; std::getline(list, path, ',');) {
+    std::ifstream in(path);
+    if(!in)
+      std::cerr << "cannot read " << path << '\n';
+    for(std::string line; std::getline(in, line);) {
+      if(line.empty())
+        continue;
+      lines.push_back(std::move(line));
+      if(lines.size() == chunk_lines)
+        parse();
+    }
+  }
+  parse();
+  std::cerr << total << " lines read\n";
   std::cerr << training.size() << " training, " << validation.size() << " validation positions, " << rejected << " lines rejected\n";
 }
 
