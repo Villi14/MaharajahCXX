@@ -16,12 +16,12 @@ using namespace maharajah;
 
 // engine_config_smoke.c
 
-TEST(engine_config_test, default_profile_is_full_strength_classic) {
+TEST(engine_config_test, default_profile_is_full_strength_nnue) {
   const SearchConfig config = SearchConfig::for_difficulty(SearchConfig::max_difficulty);
   EXPECT_EQ(config.ui_difficulty, 5);
   EXPECT_EQ(config.skill_level, 10);
   EXPECT_EQ(config.max_depth_cap, Limits::max_ply);
-  EXPECT_EQ(EvalConfig{ }.eval_mode, EvalMode::classic);
+  EXPECT_EQ(EvalConfig{ }.eval_mode, EvalMode::nnue);
 }
 
 TEST(engine_config_test, difficulty_is_clamped_and_mapped_to_skill) {

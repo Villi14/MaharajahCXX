@@ -167,12 +167,12 @@ int run_gen(const GenOptions& options) {
     threads.emplace_back([&, index] {
       Engine engine;
       engine.transposition_table.resize(16);
-      if(!options.network.empty()) {
-        if(!engine.nnue.load_weights(options.network.c_str())) {
-          std::cerr << "cannot load " << options.network << '\n';
-          return;
-        }
-        engine.eval_config.eval_mode = EvalMode::nnue;
+      // without a network file the games are played with the classic evaluation
+      if(options.network.empty()) {
+        engine.eval_config.eval_mode = EvalMode::classic;
+      } else if(!engine.nnue.load_weights(options.network.c_str())) {
+        std::cerr << "cannot load " << options.network << '\n';
+        return;
       }
       std::mt19937 rng(options.seed * 7919u + static_cast<unsigned>(index));
       int game;

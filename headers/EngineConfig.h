@@ -35,9 +35,10 @@ struct SearchConfig {
   [[nodiscard]] static SearchConfig for_difficulty(int difficulty_level);
 };
 
-// The evaluation weights are in Evaluation.h.
+// NNUE by default (every Engine loads the built-in network); the classic
+// evaluation's weights are in Evaluation.h.
 struct EvalConfig {
-  EvalMode eval_mode{ EvalMode::classic };
+  EvalMode eval_mode{ EvalMode::nnue };
 };
 
 } // namespace maharajah

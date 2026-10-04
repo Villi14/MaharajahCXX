@@ -7,6 +7,7 @@ Engine::Engine() {
   // the skill-level random stream continues where hash key generation stopped
   random.state = ZobristKeys::get().random_state;
   board.parse_fen(Fen::start_position);
+  nnue.load_default_weights();
 }
 
 bool Engine::set_position(const std::string_view fen) {

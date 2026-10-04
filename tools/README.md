@@ -9,6 +9,10 @@
   `tools/maharajah_tool.c`; see the main [README](../README.md#maharajah_tool). Its
   smoke tests are in `tests/`.
 - `build_wasm.sh` — builds the browser module (`mah_wasm_*`) with Emscripten.
+- `embed_net.py` — writes `sources/NnueDefault.cpp`, the network compiled into the
+  engine, from a `.nnue` file (`python3 tools/embed_net.py nets/net4_768.nnue`). Every
+  engine starts with it; UCI `EvalFile` loads another file (`<empty>` restores the
+  built-in one) and `UseNNUE false` switches to the classic evaluation.
 - `compare_wasm.mjs` — loads MaharajahC's and this engine's browser modules in Node and
   diffs the results of the same `mah_wasm_*` calls.
 - `match.py` — head-to-head match between two builds (parallel games, each opening

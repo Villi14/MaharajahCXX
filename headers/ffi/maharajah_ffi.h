@@ -98,8 +98,8 @@ FFI_PLUGIN_EXPORT int mah_set_skill_level(int skill_level);
 // Set UI difficulty level in the range [1..5]. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_difficulty_level(int difficulty_level);
 
-// Set evaluation mode: 0 = classic, 1 = nnue. NNUE without loaded weights
-// evaluates classically. Returns 1 on success.
+// Set evaluation mode: 0 = classic, 1 = nnue (the default, with the built-in
+// network). NNUE without loaded weights evaluates classically. Returns 1 on success.
 FFI_PLUGIN_EXPORT int mah_set_eval_mode(int eval_mode);
 
 // Load NNUE weights from a file path; used once the eval mode is nnue. A file
@@ -109,6 +109,10 @@ FFI_PLUGIN_EXPORT int mah_load_weights(const char* path);
 // Load NNUE weights from a bytes buffer, as mah_load_weights. Returns 1 on
 // success.
 FFI_PLUGIN_EXPORT int mah_load_weights_from_bytes(const unsigned char* bytes, int len, const char* weights_version_name);
+
+// Load the network compiled into the engine (loaded at start). Returns 1 on
+// success.
+FFI_PLUGIN_EXPORT int mah_load_default_weights(void);
 
 // Unload current NNUE weights and reset to fallback state. Returns 1 on
 // success.

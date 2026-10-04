@@ -230,6 +230,8 @@ TEST_F(ffi_api_test_fixture, difficulty_and_skill_select_the_search_profile) {
 }
 
 TEST_F(ffi_api_test_fixture, nnue_mode_is_requested_but_classic_stays_active) {
+  // without the built-in network
+  ASSERT_TRUE(mah_unload_weights());
   ASSERT_TRUE(mah_set_eval_mode(1));
   EXPECT_EQ(eval_status(), "classic_ready");
 

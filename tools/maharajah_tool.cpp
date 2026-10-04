@@ -479,6 +479,7 @@ void UciSession::identify() {
   std::printf("option name UI Difficulty type spin default 5 min 1 max 5\n");
   std::printf("option name Threads type spin default 1 min 1 max 64\n");
   std::printf("option name EvalFile type string default <empty>\n");
+  std::printf("option name UseNNUE type check default true\n");
   std::printf("uciok\n");
 }
 
@@ -489,18 +490,21 @@ void UciSession::setoption(const std::string_view command) {
     return;
   }
 
-  // a network file switches to the NNUE evaluation, "<empty>" back to the classic one
+  // a network file replaces the built-in network, "<empty>" restores it; a file that
+  // cannot be loaded leaves the classic evaluation
   if(command.find("name EvalFile") != std::string_view::npos) {
     const std::string path{ command.substr(value + std::strlen(" value ")) };
     if(path == "<empty>") {
-      mah_unload_weights();
-      mah_set_eval_mode(0);
-    } else if(mah_load_weights(path.c_str())) {
-      mah_set_eval_mode(1);
-    } else {
-      mah_set_eval_mode(0);
+      mah_load_default_weights();
+    } else if(!mah_load_weights(path.c_str())) {
       std::printf("info string cannot load the network %s\n", path.c_str());
     }
+    return;
+  }
+
+  // "false" switches to the classic evaluation
+  if(command.find("name UseNNUE") != std::string_view::npos) {
+    mah_set_eval_mode(command.substr(value + std::strlen(" value ")) == "false" ? 0 : 1);
     return;
   }
 

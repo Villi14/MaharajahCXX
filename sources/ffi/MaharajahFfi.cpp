@@ -96,7 +96,9 @@ FFI_PLUGIN_EXPORT int mah_init(void) {
     engine = std::make_unique<Engine>();
 
   engine->search_config = SearchConfig::for_difficulty(SearchConfig::max_difficulty);
-  engine->eval_config.eval_mode = EvalMode::classic;
+  engine->eval_config.eval_mode = EvalMode::nnue;
+  if(!engine->nnue.has_loaded_weights())
+    engine->nnue.load_default_weights();
   engine->board.parse_fen(Fen::start_position);
   engine->transposition_table.clear();
   return 1;
@@ -215,6 +217,10 @@ FFI_PLUGIN_EXPORT int mah_load_weights_from_bytes(const unsigned char* bytes, co
     return 0;
 
   return live.nnue.load_weights_from_bytes(bytes, static_cast<std::size_t>(len), weights_version_name) ? 1 : 0;
+}
+
+FFI_PLUGIN_EXPORT int mah_load_default_weights(void) {
+  return live_engine().nnue.load_default_weights() ? 1 : 0;
 }
 
 FFI_PLUGIN_EXPORT int mah_unload_weights(void) {

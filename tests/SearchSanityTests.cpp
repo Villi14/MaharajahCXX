@@ -3,6 +3,7 @@
 
 #include "../headers/ffi/MaharajahFfiInternal.h"
 #include "../headers/ffi/maharajah_ffi.h"
+#include "gmock/gmock.h"
 #include "gtest/gtest.h"
 
 #include <array>
@@ -44,9 +45,10 @@ TEST_F(search_sanity_test_fixture, compound_pieces_capture_the_queen) {
   EXPECT_EQ(best_move("k7/8/8/3M4/8/8/8/K6q w - - 0 1 ", 2), "d5h1");
 }
 
+// the king or the rook takes the queen (the rook with check is as good)
 TEST_F(search_sanity_test_fixture, escapes_check_by_capturing_safely) {
-  EXPECT_EQ(best_move("6k1/8/8/8/8/8/6q1/6RK w - - 0 1 ", 1), "h1g2");
-  EXPECT_EQ(best_move("6k1/8/8/8/3M4/8/6q1/6RK w - - 0 1 ", 2), "h1g2");
+  EXPECT_THAT(best_move("6k1/8/8/8/8/8/6q1/6RK w - - 0 1 ", 1), testing::AnyOf("h1g2", "g1g2"));
+  EXPECT_THAT(best_move("6k1/8/8/8/3M4/8/6q1/6RK w - - 0 1 ", 2), testing::AnyOf("h1g2", "g1g2"));
 }
 
 TEST_F(search_sanity_test_fixture, does_not_grab_the_poisoned_pawn_and_punishes_it) {

@@ -1,6 +1,7 @@
 #include "../headers/Nnue.h"
 
 #include "../headers/Bitboard.h"
+#include "../headers/NnueDefault.h"
 #include "../headers/NnueSimd.h"
 
 #include <algorithm>
@@ -100,6 +101,10 @@ bool Nnue::load_weights(const char* path) {
 
 bool Nnue::load_weights_from_bytes(const unsigned char* bytes, const std::size_t size, const char* weights_version_name) {
   return set_loaded_blob(bytes, size, weights_version_name, "<memory>");
+}
+
+bool Nnue::load_default_weights() {
+  return set_loaded_blob(reinterpret_cast<const unsigned char*>(default_network_words), default_network_size, default_network_name, "<built-in>");
 }
 
 void Nnue::unload_weights() {

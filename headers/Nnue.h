@@ -70,6 +70,8 @@ class Nnue {
   // leaves the network unloaded.
   bool load_weights(const char* path);
   bool load_weights_from_bytes(const unsigned char* bytes, std::size_t size, const char* weights_version_name);
+  // the network compiled into the engine (NnueDefault.h)
+  bool load_default_weights();
   void unload_weights();
 
   [[nodiscard]] const std::string& weights_version() const {

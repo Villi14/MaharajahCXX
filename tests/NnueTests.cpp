@@ -141,6 +141,7 @@ TEST(nnue_test, search_evaluates_with_the_network_when_requested) {
   ASSERT_TRUE(engine.nnue.load_weights_from_bytes(network().data(), network().size(), "random-1"));
   engine.set_position(TestFen::tricky_position);
 
+  engine.eval_config.eval_mode = EvalMode::classic;
   const SearchResult classic = Search(engine).run(5);
   engine.transposition_table.clear();
   engine.eval_config.eval_mode = EvalMode::nnue;

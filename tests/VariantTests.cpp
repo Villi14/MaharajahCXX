@@ -227,8 +227,9 @@ TEST_F(ffi_test_fixture, generates_custom_positions) {
 
 TEST_F(ffi_test_fixture, reports_strength_and_eval_status) {
   char status[64]{ }, info[512]{ };
+  // the built-in network
   ASSERT_EQ(mah_get_eval_status(status, sizeof(status)), 1);
-  EXPECT_STREQ(status, "classic_ready");
+  EXPECT_STREQ(status, "nnue_ready");
 
   ASSERT_EQ(mah_set_difficulty_level(2), 1);
   ASSERT_EQ(mah_set_eval_mode(1), 1);
