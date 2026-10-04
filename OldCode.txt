@@ -1,42 +1,42 @@
-// stringstream ss;
-// ofstream fs("bishop_attacks_on_the_fly.txt");
-// for(Squares square{ a8 }; square < no_square; ++square) {
-//   ss << "{";
-//   u64 attack_mask = mask_bishop_attacks(squares(square));
-//   for(int index{}; index < 1 << bishop_relevant_bits[square]; index++) {
-//     u64 occupancies = set_occupancy(index, bishop_relevant_bits[square], attack_mask);
-//     ss << print_bitboard(bishop_attacks_on_the_fly(squares(square), occupancies), true);
-//   }
-//   ss << "},\n";
-// }
-// fs << ss.str();
-// fs.close();
+stringstream ss;
+ofstream fs("bishop_attacks_on_the_fly.txt");
+for(Squares square{ a8 }; square < no_square; ++square) {
+  ss << "{";
+  u64 attack_mask = mask_bishop_attacks(squares(square));
+  for(int index{}; index < 1 << bishop_relevant_bits[square]; index++) {
+    u64 occupancies = set_occupancy(index, bishop_relevant_bits[square], attack_mask);
+    ss << print_bitboard(bishop_attacks_on_the_fly(squares(square), occupancies), true);
+  }
+  ss << "},\n";
+}
+fs << ss.str();
+fs.close();
 
-// stringstream ss;
-// ofstream fs("rook_attacks.txt");
-// bool bishop = false;
-// for(Squares square{ a8 }; square < no_square; ++square) {
-//   const u64 attack_mask = bishop ? bishop_masks[square] = mask_bishop_attacks(square) : rook_masks[square] = mask_rook_attacks(square);
-//   const int relevant_bits_count = count_bits(attack_mask);
-//   const int occupancy_indices = (1 << relevant_bits_count);
-//    ss << "{\n";
-//   for(int index{}; index < occupancy_indices; index++) {
-//     if(bishop) {
-//       const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-//       const u64 magic_index = (occupancy * bishop_magic_numbers[square]) >> (end_bit - bishop_relevant_bits[square]);
-//       bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
-//       ss << print_bitboard(bishop_attacks[square][magic_index], true);
-//     } else {
-//       const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
-//       const u64 magic_index = (occupancy * rook_magic_numbers[square]) >> (end_bit - rook_relevant_bits[square]);
-//       rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
-//       ss << print_bitboard(rook_attacks[square][magic_index], true);
-//     }
-//   }
-//   ss << "},\n";
-// }
-// fs << ss.str();
-// fs.close();
+stringstream ss;
+ofstream fs("rook_attacks.txt");
+bool bishop = false;
+for(Squares square{ a8 }; square < no_square; ++square) {
+  const u64 attack_mask = bishop ? bishop_masks[square] = mask_bishop_attacks(square) : rook_masks[square] = mask_rook_attacks(square);
+  const int relevant_bits_count = count_bits(attack_mask);
+  const int occupancy_indices = (1 << relevant_bits_count);
+   ss << "{\n";
+  for(int index{}; index < occupancy_indices; index++) {
+    if(bishop) {
+      const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+      const u64 magic_index = (occupancy * bishop_magic_numbers[square]) >> (end_bit - bishop_relevant_bits[square]);
+      bishop_attacks[square][magic_index] = bishop_attacks_on_the_fly(square, occupancy);
+      ss << print_bitboard(bishop_attacks[square][magic_index], true);
+    } else {
+      const u64 occupancy = set_occupancy(index, relevant_bits_count, attack_mask);
+      const u64 magic_index = (occupancy * rook_magic_numbers[square]) >> (end_bit - rook_relevant_bits[square]);
+      rook_attacks[square][magic_index] = rook_attacks_on_the_fly(square, occupancy);
+      ss << print_bitboard(rook_attacks[square][magic_index], true);
+    }
+  }
+  ss << "},\n";
+}
+fs << ss.str();
+fs.close();
   
 void game::magic_to_file() {
     stringstream ss_bishop;
@@ -67,16 +67,16 @@ void game::magic_to_file() {
   fs_rook.close();
 }
 
-// void game::print_to_file() {
-//  stringstream ss;
-// ofstream fs("mask_bishop_attacks.txt");
-//  ss << "{" << std::hex ;
-// for(Squares square{ a8 }; square < no_square; ++square) {
-//   u64 attack_mask = mask_bishop_attacks(square);
-//   ss << "0x";
-//   ss << attack_mask << ", ";
-// }
-// ss << "},\n";
-// fs << ss.str();
-// fs.close();
-// }
+void game::print_to_file() {
+ stringstream ss;
+ofstream fs("mask_bishop_attacks.txt");
+ ss << "{" << std::hex;
+for(Squares square{ a8 }; square < no_square; ++square) {
+  u64 attack_mask = mask_bishop_attacks(square);
+  ss << "0x";
+  ss << attack_mask << ", ";
+}
+ss << "},\n";
+fs << ss.str();
+fs.close();
+}
