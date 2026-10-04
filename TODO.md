@@ -344,10 +344,24 @@ backed by a match.
       fused op for features + SCReLU + output (no 16384 x 1024 temporaries).
       The text is now read and parsed in chunks of 2 M lines: peak memory on
       17.9 M positions 4.4 → 2.3 GB, so ~70 M positions fit in ~9 GB.
-      Round 3 (started 2026-10-03): `round3_gen.sh`, net3 as the teacher, depth 7,
-      half armies, 24 threads, 480 000 games → `n3d7_s1.txt` (~1250 positions/s,
-      ~40 M positions, ~9 h). Then net4 at 512 and 768 hidden on all ~70 M
-      positions, matched against net3; then FSF elo.
+      Round 3 (2026-10-03): net3 as the teacher, depth 7, half armies, 24 threads,
+      ~1250 positions/s → `n3d7_s1..s3.txt`. Network `net4_768`: 768 hidden, all
+      ~68 M positions (d7_s1 + n2d8 + n3d7), 20 epochs, 24 threads, ~25 min per
+      epoch; validation 0.0084, train 0.0079 (other data than net3, not
+      comparable); quantized vs float 10.1 cp. Against net3, 300 pairs x 2,
+      50 ms/move:
+
+      | openings | result | Elo [95 %] |
+      |---|---|---|
+      | classic | +355 =61 -184 | +102 [+78, +126] |
+      | armies | +346 =21 -233 | +66 [+45, +88] |
+
+      net4 at 512 hidden skipped (user: only if 768 is not clearly better).
+      Against Fairy-Stockfish UCI_Elo 2500 (same setup as the 2026-10-01 rerun:
+      lab `elo_match`, level 5, 520 ms/move, 1 thread, 24 x 40 games; network via
+      `EvalFile`): +470 =117 -373, 55.1 %, +35 Elo [+15, +56] ≈ 2535 FSF-Elo
+      (classic evaluation ≈ 2210 on 2026-10-01). Next: search speed of net4 on
+      one core; a stronger anchor (FSF 2700); round 4 with net4 as the teacher.
       Before 150 M+ positions: a packed binary data format (~40 bytes per
       position) read as a stream.
 - [ ] Documentation in Ukrainian and English, with diagrams: how the engine works
