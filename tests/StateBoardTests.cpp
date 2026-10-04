@@ -14,7 +14,6 @@ TEST(board_state_test, default_state_is_an_empty_standard_board) {
   EXPECT_TRUE(state.standard_rules);
   EXPECT_FALSE(state.side_variant[white]);
   EXPECT_FALSE(state.side_variant[black]);
-  EXPECT_FALSE(state.has_pawn_state);
   EXPECT_EQ(state.pawn_unmoved, zero);
   EXPECT_EQ(state.hash_key, zero);
   for(const u64 bitboard : state.bitboards)

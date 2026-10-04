@@ -147,6 +147,16 @@ TEST_F(ffi_api_test_fixture, rules_profiles_control_the_halfmove_draw_rules) {
   EXPECT_FALSE(live.board.state.standard_rules);
 }
 
+// forcing variant rules keeps a variant side's field 8 and gives a classic side's
+// home-rank pawns their one double step
+TEST_F(ffi_api_test_fixture, variant_profile_keeps_the_pawn_history) {
+  ASSERT_TRUE(mah_set_position_fen_with_rules("4k3/p7/2p5/8/8/2P5/P7/4K3 w - - 0 1 ", mah_rules_variant));
+  EXPECT_EQ(get_fen(1), "4k3/p7/2p5/8/8/2P5/P7/4K3 w - - 0 1 Vv a7a2");
+
+  ASSERT_TRUE(mah_set_position_fen_with_rules("4k3/p7/2p5/8/8/2P5/P7/4K3 w - - 0 1 Vv c3c6", mah_rules_variant));
+  EXPECT_EQ(get_fen(1), "4k3/p7/2p5/8/8/2P5/P7/4K3 w - - 0 1 Vv c6c3");
+}
+
 TEST_F(ffi_api_test_fixture, amazon_promotion_under_the_variant_profile) {
   ASSERT_TRUE(mah_set_position_fen_with_rules("7k/P7/8/8/8/8/8/K7 w - - 0 1 ", mah_rules_variant));
   EXPECT_TRUE(mah_apply_move("a7a8m"));

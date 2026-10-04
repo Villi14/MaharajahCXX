@@ -8,13 +8,14 @@ generation, SEE, evaluation and draw rules:
 - `C` / `c` — Chancellor (rook + knight)
 - `M` / `m` — Amazon / "Maharajah" (queen + knight)
 
-Variant rules are decided per side: a variant side may promote to A/C/M, double-step its
-pawns from any rank, and never castles. FEN takes two optional extra fields:
+Variant rules are decided per side: a variant side may promote to A/C/M, double-step each
+pawn once from its start square, and never castles. FEN takes two optional extra fields:
 
 - field 7 — variant rights: `V` for White, `v` for Black, `-` for neither. Without it,
-  a board with compound pieces plays variant rules for both sides.
-- field 8 — squares of pawns that have never moved (e.g. `c3e3`, or `-`). When present
-  it decides pawn double steps instead of the rank.
+  a side is classic unless it holds a compound piece.
+- field 8 — the variant side's pawns that have never moved (e.g. `c3e3`, or `-`). It is
+  the only source of a variant pawn's double step: with `-` or without the field none may
+  double-step. A classic side's pawns are never listed and double-step from rank 2 / 7.
 
 Search: iterative deepening PVS with aspiration windows, transposition table, null-move
 pruning, late-move reductions, futility and late-move pruning, killer/history ordering and

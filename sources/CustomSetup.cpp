@@ -259,8 +259,7 @@ bool generate_custom_position(Board& board, int side_to_move, const unsigned int
     state.standard_rules = false;
     state.side_variant = { true, true };
     // every pawn of a fresh army is unmoved
-    state.has_pawn_state = false;
-    state.infer_pawn_state();
+    state.pawn_unmoved = state.variant_pawns();
     board.update_occupancies();
     state.hash_key = generate_hash_key(state);
 

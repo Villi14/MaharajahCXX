@@ -53,13 +53,19 @@ TEST_F(variant_test_fixture, compound_pieces_give_check) {
   EXPECT_FALSE(board.is_square_attacked(d1, black));
 }
 
-TEST_F(variant_test_fixture, fen_derives_variant_rules_from_compound_material) {
+// without field 7 a side is classic unless it holds a compound piece
+TEST_F(variant_test_fixture, fen_derives_variant_rules_per_side_from_compound_material) {
   board.parse_fen("r3k2r/8/8/8/8/8/8/R2AK2R w KQkq - 0 1");
   EXPECT_FALSE(board.state.standard_rules);
   EXPECT_TRUE(board.state.side_variant[white]);
-  EXPECT_TRUE(board.state.side_variant[black]);
-  // variant sides never castle
-  EXPECT_EQ(board.state.castle, 0);
+  EXPECT_FALSE(board.state.side_variant[black]);
+  // a variant side never castles, the classic one keeps its rights
+  EXPECT_EQ(board.state.castle, bk | bq);
+
+  board.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+  EXPECT_FALSE(board.state.side_variant[white]);
+  EXPECT_FALSE(board.state.side_variant[black]);
+  EXPECT_EQ(board.state.castle, wk | wq | bk | bq);
 }
 
 TEST_F(variant_test_fixture, fen_field_seven_sets_rules_per_side) {
@@ -71,7 +77,7 @@ TEST_F(variant_test_fixture, fen_field_seven_sets_rules_per_side) {
 }
 
 TEST_F(variant_test_fixture, variant_pawns_double_step_from_any_rank) {
-  board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 V");
+  board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 V d3");
   EXPECT_TRUE(has_move(board, "d3d5"));
   board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 -");
   EXPECT_FALSE(has_move(board, "d3d5"));
@@ -79,7 +85,6 @@ TEST_F(variant_test_fixture, variant_pawns_double_step_from_any_rank) {
 
 TEST_F(variant_test_fixture, fen_field_eight_tracks_unmoved_pawns) {
   board.parse_fen("4k3/8/8/8/8/2P1P3/8/4K3 w - - 0 1 V c3");
-  EXPECT_TRUE(board.state.has_pawn_state);
   EXPECT_TRUE(has_move(board, "c3c5"));
   EXPECT_FALSE(has_move(board, "e3e5"));
 
@@ -102,6 +107,13 @@ TEST_F(variant_test_fixture, fen_round_trips_all_fields) {
   // a legacy six-field FEN gains the variant field
   board.parse_fen(Fen::start_position);
   EXPECT_EQ(board.to_fen(1), string(Fen::start_position) + " -");
+
+  // field 8 lists only the variant side's pawns: a classic side's are dropped, and a
+  // variant side without field 8 writes "-"
+  board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v a7b7c7d7e7a2b2");
+  EXPECT_EQ(board.to_fen(1), "rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v a7b7c7d7e7");
+  board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v");
+  EXPECT_EQ(board.to_fen(1), "rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v -");
 }
 
 TEST_F(variant_test_fixture, incremental_hash_matches_a_fresh_hash) {

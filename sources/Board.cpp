@@ -288,12 +288,12 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
         } else {
           out_moves.add(Move::encode_move(Move(source_square, target_square, pawn, no_pieces, false, false, false, false)));
 
-          // Double step, once per pawn: exactly the unmoved pawns when the position
-          // tracks them (always with a variant side, whose army may start on any rank
-          // of its half), else from the home rank.
+          // Double step, once per pawn: a variant side's pawn only while field 8 lists
+          // it (its army may start on any rank of its half), a classic side's from the
+          // home rank.
           const Squares double_target = target_square + forward;
-          const bool can_double = state.has_pawn_state ? get_bit(state.pawn_unmoved, source_square)
-                                                       : is_white ? (source_square >= a2 && source_square <= h2) : (source_square >= a7 && source_square <= h7);
+          const bool can_double = state.side_variant[side] ? get_bit(state.pawn_unmoved, source_square)
+                                                           : is_white ? (source_square >= a2 && source_square <= h2) : (source_square >= a7 && source_square <= h7);
 
           if(can_double && double_target != no_square && !get_bit(occupancy, double_target))
             out_moves.add(Move::encode_move(Move(source_square, double_target, pawn, no_pieces, false, true, false, false)));
@@ -440,17 +440,14 @@ void Board::parse_fen(const string_view fen) {
   if(!halfmove_field.empty())
     from_chars(halfmove_field.data(), halfmove_field.data() + halfmove_field.size(), parsed.halfmove);
 
-  if(!pawn_field.empty()) {
-    parsed.has_pawn_state = true;
-    if(pawn_field != "-") {
-      if(pawn_field.size() % 2 != 0)
+  if(!pawn_field.empty() && pawn_field != "-") {
+    if(pawn_field.size() % 2 != 0)
+      throw invalid();
+    for(size_t i{ }; i < pawn_field.size(); i += 2) {
+      const Squares square = parse_square(string_view(pawn_field).substr(i, 2));
+      if(square == no_square)
         throw invalid();
-      for(size_t i{ }; i < pawn_field.size(); i += 2) {
-        const Squares square = parse_square(string_view(pawn_field).substr(i, 2));
-        if(square == no_square)
-          throw invalid();
-        set_bit(parsed.pawn_unmoved, square);
-      }
+      set_bit(parsed.pawn_unmoved, square);
     }
   }
 
@@ -466,9 +463,12 @@ void Board::parse_fen(const string_view fen) {
         throw invalid();
     }
   } else {
-    // no per-side field: a board carrying compound material plays variant rules on both sides
-    parsed.side_variant = { !parsed.standard_rules, !parsed.standard_rules };
+    // no per-side field: classic by default, variant for a side holding a compound piece
+    parsed.side_variant = { parsed.has_compound_pieces(white), parsed.has_compound_pieces(black) };
   }
+
+  // field 8 lists only the variant sides' pawns; without it no variant pawn may double-step
+  parsed.pawn_unmoved &= parsed.variant_pawns();
 
   // a variant side never castles, whatever the castling field claims
   if(parsed.side_variant[white])
@@ -476,7 +476,6 @@ void Board::parse_fen(const string_view fen) {
   if(parsed.side_variant[black])
     parsed.castle &= ~(bk | bq);
 
-  parsed.infer_pawn_state();
   state = parsed;
   update_occupancies();
   state.hash_key = generate_hash_key(state);
@@ -548,9 +547,9 @@ string Board::to_fen(int fullmove_number) const {
   if(!state.side_variant[white] && !state.side_variant[black])
     fen += '-';
 
-  if(state.has_pawn_state) {
-    // squares whose pawn is gone are dropped
-    u64 unmoved_pawns = state.pawn_unmoved & (state.bitboards[P] | state.bitboards[p]);
+  // field 8 with a variant side only, listing its pawns; squares whose pawn is gone are dropped
+  if(state.side_variant[white] || state.side_variant[black]) {
+    u64 unmoved_pawns = state.pawn_unmoved & state.variant_pawns();
     fen += ' ';
     if(!unmoved_pawns)
       fen += '-';

@@ -321,7 +321,7 @@ TEST_F(search_test_fixture, uci_info_lines_carry_score_depth_and_pv) {
 TEST_F(search_test_fixture, uci_position_fen_with_moves_keeps_the_fen_fields) {
   // the moves list must not be read as the optional variant / unmoved-pawn FEN fields
   (void)run_uci(game, "position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4 e7e5\nquit\n");
-  EXPECT_FALSE(board().state.has_pawn_state);
+  EXPECT_EQ(board().state.pawn_unmoved, zero);
   EXPECT_EQ(board().repetition_index, 2);
   EXPECT_NE(game.parse_move("d2d4"), 0);
 }

@@ -68,6 +68,15 @@ identical.
       positions. The baseline binary `build-compare/` (tag `baseline-2026-09-30`)
       keeps the old rule. Not yet rebuilt: the app's FFI library and the web
       game's wasm module (Maharajah_ui writes field 8, so the app should not hit it).
+- [x] Pawn rules per MAHARAJAH_RULES §4/§5/§7 (2026-10-04), replacing the inference above:
+      field 8 is the only source of a variant pawn's double step (`-` or missing → none),
+      lists only the variant side's pawns (a classic side's are dropped on parse and never
+      written), and a classic side double-steps from rank 2/7 whatever field 8 says. A
+      six-field FEN makes a side variant only if it holds a compound piece (was: both
+      sides as soon as one compound is on the board). `infer_pawn_state` and
+      `has_pawn_state` are gone; a fresh army lists all its pawns, the FFI variant
+      profile gives a side the FEN made classic its home-rank pawns. MaharajahC still has
+      the old rule, so `compare_engines.py` differs on six-field variant FENs.
 - [x] Port `maharajah_tool` (`tools/maharajah_tool.cpp`, smoke tests in
       `tools/tests/`) and `ask_engine.py` (2026-09-30).
 - [x] Port MaharajahC's smoke tests to gtest (2026-09-30): `RulesTests.cpp`

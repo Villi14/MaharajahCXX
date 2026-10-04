@@ -64,10 +64,16 @@ void apply_rules_profile(Engine& live, const int rules_profile) {
   BoardState& state = live.board.state;
 
   if(rules_profile == mah_rules_variant) {
+    // a side the FEN made classic brings its pawns' history along: those on the home
+    // rank are unmoved; a variant side keeps its field 8
+    constexpr u64 white_home_rank{ 0x00FF000000000000ULL }, black_home_rank{ 0x000000000000FF00ULL };
+    if(!state.side_variant[white])
+      state.pawn_unmoved |= state.bitboards[P] & white_home_rank;
+    if(!state.side_variant[black])
+      state.pawn_unmoved |= state.bitboards[p] & black_home_rank;
     state.standard_rules = false;
     state.castle = 0;
     state.side_variant = { true, true };
-    state.infer_pawn_state();
     state.hash_key = generate_hash_key(state);
     return;
   }
@@ -75,6 +81,7 @@ void apply_rules_profile(Engine& live, const int rules_profile) {
   if(rules_profile == mah_rules_standard && !state.has_compound_pieces()) {
     state.standard_rules = true;
     state.side_variant = { false, false };
+    state.pawn_unmoved = zero;
     state.hash_key = generate_hash_key(state);
   }
 }
