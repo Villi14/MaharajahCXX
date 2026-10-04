@@ -9,6 +9,8 @@ list(FILTER ENGINE_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 # No -flto: with LTO (emcc 6.0.10) a thrown exception is never caught.
 # The search keeps a move list per ply on the stack (MaharajahC uses globals), which
 # overflows Emscripten's default 64 KB stack; 1 MB covers max_ply plies with room.
+# -msimd128 -msse2: Emscripten maps the SSE2 NNUE code onto wasm SIMD (551 kN/s vs 130
+# scalar in Node, 2026-10-04); every current browser has it (Safari since 16.4).
 if(EMSCRIPTEN)
   set(MAHARAJAH_WASM_EXPORTS
     _mah_wasm_init _mah_wasm_set_position_fen _mah_wasm_apply_move _mah_wasm_game_status
@@ -16,7 +18,7 @@ if(EMSCRIPTEN)
   list(JOIN MAHARAJAH_WASM_EXPORTS "," MAHARAJAH_WASM_EXPORTS)
 
   add_executable(maharajah_engine ${ENGINE_SOURCES})
-  target_compile_options(maharajah_engine PRIVATE -fwasm-exceptions)
+  target_compile_options(maharajah_engine PRIVATE -fwasm-exceptions -msimd128 -msse2)
   target_link_options(maharajah_engine PRIVATE
     -fwasm-exceptions
     -sALLOW_MEMORY_GROWTH=1
