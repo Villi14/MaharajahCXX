@@ -362,6 +362,26 @@ backed by a match.
       `EvalFile`): +470 =117 -373, 55.1 %, +35 Elo [+15, +56] ≈ 2535 FSF-Elo
       (classic evaluation ≈ 2210 on 2026-10-01). Next: search speed of net4 on
       one core; a stronger anchor (FSF 2700); round 4 with net4 as the teacher.
+      Built in (2026-10-04, e799d26): net4_768 compiled into the engine, NNUE by
+      default (`UseNNUE false` for the classic evaluation). Time to the bench
+      depths (8 positions of `bench_engines.py`), NNUE / classic: x86 0.95 / 2.0 s,
+      WASM scalar 5.2 / 1.7 s, WASM SIMD (`-msimd128 -msse2`, e9c9d95) 1.2 / 1.7 s,
+      Nokia 6.1 (2018, arm64 NEON) 4.7 / 4.45 s.
+      Difficulty ladder (2026-10-04, `~/nnue-data/ladder/ladder.sh`): the same
+      master binary, classic vs NNUE, lab `elo_match`, 520 ms/move, each level
+      against two FSF UCI_Elo anchors, 80 games per pairing (two-anchor estimate
+      weighted by p(1-p); single pairings are ±60-80):
+
+      | level | C engine 2026-07-25 | C++ classic | C++ NNUE | NNUE gain |
+      |---|---|---|---|---|
+      | L1 (depth 1) | 1100 | 1184 | 1348 | +164 |
+      | L2 (depth 2) | 1590 | 1588 | 1709 | +121 |
+      | L3 (depth 4) | 1700 | 1703 | 1885 | +182 |
+      | L4 (depth 6) | 1810 | 1942 | 2065 | +123 |
+      | L5 (520 ms) | 2080 (200 ms M2) | 2210 | 2535 | +325 |
+
+      Monotone, every level gains; still uneven at the ends (NNUE L1→L2 +361,
+      L4→L5 +470; in the app L5 thinks 5 s, so it is stronger still).
       Before 150 M+ positions: a packed binary data format (~40 bytes per
       position) read as a stream.
 - [ ] Documentation in Ukrainian and English, with diagrams: how the engine works
