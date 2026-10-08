@@ -58,6 +58,21 @@ identical.
 - [ ] Engine strength for 1.0.1 (branch `engine-1.0.1`, 2026-10-08): see
       [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
       buckets), round 4 → net5, L5 threads and the ladder.
+      State 2026-10-08 (moved to Ubuntu; this is a WIP commit, squashed at the end):
+      - [x] Step 0, SPRT in `match.py` (see the match runner below).
+      - [~] 1.1 continuation history (1 and 2 plies, one shared int16 table on the heap;
+            ordering score `(2·history + cont1 + cont2) / 4`; not yet in LMR). Measured
+            on the Mac vs e07a949, `--sprt 0,10 --custom-share 0 --movetime 50 --seed 11`,
+            stopped after 1100 games: +9 Elo [-8, +26], LLR +0.54 — rerun to the end on
+            Ubuntu, then `--custom-share 1`.
+      - [ ] 1.2 "improving" (static eval > 2 plies ago): RFP `margin·(depth − improving)`,
+            LMP a third earlier and LMR +1 when not improving. Written and compiled on
+            top of 1.1, not tested or measured — baseline is the 1.1 build.
+      - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
+            dropping its capture-only check gives a quiet move's SEE (the existing
+            e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
+      - On Ubuntu first: ctest (Debug + ASan/UBSan) on this commit; freeze the e07a949
+        and 1.1 binaries before building 1.2.
 
 - [ ] Review the branch and merge it into `master`.
 - [x] Variant pawns double-stepped more than once (2026-10-01): without FEN field 8
@@ -187,7 +202,12 @@ backed by a match.
       `maharajah_tool` (`status`/`getfen`/`legalmoves`, threefold, 50 moves,
       bare kings, 400 plies), Elo with a 95 % interval from the game pairs. 200
       openings x 2 at 50 ms/move take ~5 min on the M2 Pro (8 games in parallel).
-      Still open: SPRT stop, a fixed opening book, logging against the C baseline
+      SPRT stop (2026-10-08): `--sprt 0,5` (logistic Elo, `--alpha/--beta` 0.05),
+      pentanomial GSPRT on the pairs, `--pairs` is the cap, no stop before 20 pairs
+      (a few pairs give a wild LLR). Simulated, 40 % draws: true +0 → H1 0/30, ~9700
+      pairs; true +5 → H1 29/30, ~5900 pairs; true +10 → ~3000 pairs. So [0, 5] costs
+      up to ~20 k games (~4 h at 50 ms, 8 jobs); [0, 10] about a quarter of that.
+      Still open: a fixed opening book, logging against the C baseline
       (`../MaharajahC/build-compare/maharajah_tool` works as BASE). The `--tc` clock
       mode (UCI binaries, `go wtime/btime`) is written but not yet run.
 - [x] Results 2026-10-01, each build against the one before, 200 openings x 2

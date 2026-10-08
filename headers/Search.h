@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 
+#include <cstdint>
 #include <memory>
 #include <ostream>
 
@@ -41,6 +42,7 @@ class Search {
       nnue_ = &engine.nnue;
       accumulators_ = std::make_unique<std::array<NnueAccumulator, Limits::max_ply + 1>>();
     }
+    continuation_history_ = std::make_unique<ContinuationHistory>();
   }
 
   // Searches to `depth` plies (or until stopped). Writes UCI "info" lines to `info` if given.
@@ -67,6 +69,10 @@ class Search {
   static constexpr int aspiration_window{ 50 };
   // history scores stay within +-history_limit, below the killer moves (8000, 9000)
   static constexpr int history_limit{ 7000 };
+  // a move's piece and target square, the index of the continuation history tables
+  static constexpr int piece_squares{ PieceCount::all * BoardGeometry::squares };
+  // [piece and target of the move 1 or 2 plies earlier][piece and target of this move]
+  using ContinuationHistory = std::array<std::array<std::int16_t, piece_squares>, piece_squares>;
 
   void reset();
   void communicate();
@@ -83,6 +89,11 @@ class Search {
   [[nodiscard]] int effective_depth(int depth) const;
 
   void update_history(int move, int bonus);
+  // history of a quiet move: from-to history plus the continuation history of the
+  // moves 1 and 2 plies earlier, within +-history_limit
+  [[nodiscard]] int quiet_history(int move) const;
+  // the move played `back` plies above the current node, 0 for none or a null move
+  [[nodiscard]] int previous_move(int back) const;
   // `hash_move` (from the hash table, 0 if none) is searched first
   [[nodiscard]] int score_move(int move, int hash_move);
   void sort_moves(MoveList& moves_list, int hash_move = 0);
@@ -109,6 +120,12 @@ class Search {
   bool score_pv_{ };
   std::array<std::array<int, Limits::max_ply + 1>, 2> killer_moves_{ };
   std::array<std::array<int, BoardGeometry::squares>, PieceCount::all> history_moves_{ };
+  // static evaluation of each ply's node, no_static_eval when in check
+  static constexpr int no_static_eval{ -infinity - 1 };
+  std::array<int, Limits::max_ply + 1> static_evals_{ };
+  // the move searched from each ply (0 for a null move), for the continuation history
+  std::array<int, Limits::max_ply + 1> move_stack_{ };
+  std::unique_ptr<ContinuationHistory> continuation_history_;
   std::array<int, Limits::max_ply + 1> pv_length_{ };
   std::array<std::array<int, Limits::max_ply + 1>, Limits::max_ply + 1> pv_table_{ };
   int root_count_{ };

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Head-to-head match between two engine builds (first version: fixed games, no SPRT yet).
+"""Head-to-head match between two engine builds: a fixed number of pairs, or SPRT.
 
 usage: match.py NEW BASE [--pairs N] [--movetime MS] [--jobs J] [--seed S] [--custom-share F]
                 [--hash MB] [--tc BASE+INC --arbiter TOOL]
+                [--sprt ELO0,ELO1 [--alpha A] [--beta B]]
                 [--new-option NAME=VALUE ...] [--base-option NAME=VALUE ...]
 
 NEW and BASE are maharajah_tool binaries (go movetime), or with --tc the UCI engine
@@ -13,6 +14,10 @@ Each opening is played twice with colours swapped. Openings: the start position 
 random plies, and generated custom armies plus random plies. Arbiter: a third tool
 process on the BASE binary answers status/getfen/legalmoves. --new-option/--base-option
 send `setoption` to one engine, e.g. --new-option EvalFile=net.nnue.
+
+--sprt ELO0,ELO1 stops as soon as H0 (NEW is ELO0 stronger) or H1 (ELO1 stronger) is
+accepted; logistic Elo, pentanomial GSPRT on the game pairs (the normal approximation
+used by fishtest and cutechess). --pairs is then the cap; reaching it is inconclusive.
 """
 import argparse, math, random, subprocess, sys, threading, time
 from concurrent.futures import ThreadPoolExecutor
@@ -156,7 +161,7 @@ def elo(score):
     return -400 * math.log10(1 / score - 1)
 
 
-def report(pairs_done, label=''):
+def report(pairs_done, label='', sprt=None):
     games = [s for pair in pairs_done for s in pair]
     n = len(games)
     if not n:
@@ -172,7 +177,29 @@ def report(pairs_done, label=''):
     else:
         se = 0.5 / math.sqrt(n)
     lo, hi = elo(mean - 1.96 * se), elo(mean + 1.96 * se)
-    print(f'{label}games {n}: +{w} ={d} -{l}  {100*mean:.1f}%  {elo(mean):+.0f} Elo [{lo:+.0f}, {hi:+.0f}]', flush=True)
+    extra = ''
+    if sprt:
+        llr, lower, upper = sprt_llr(pairs_done, *sprt)
+        extra = f'  LLR {llr:+.2f} [{lower:+.2f}, {upper:+.2f}]'
+    print(f'{label}games {n}: +{w} ={d} -{l}  {100*mean:.1f}%  {elo(mean):+.0f} Elo [{lo:+.0f}, {hi:+.0f}]{extra}', flush=True)
+
+
+SPRT_MIN_PAIRS = 20
+
+
+def sprt_llr(pairs_done, elo0, elo1, alpha, beta):
+    """(LLR, lower bound, upper bound) of the pentanomial GSPRT for logistic Elo bounds."""
+    lower, upper = math.log(beta / (1 - alpha)), math.log((1 - beta) / alpha)
+    ps = [sum(p) / 2 for p in pairs_done if len(p) == 2]
+    n = len(ps)
+    if n < SPRT_MIN_PAIRS:  # a handful of pairs has a tiny variance and a wild LLR
+        return 0.0, lower, upper
+    m = sum(ps) / n
+    var = sum((x - m) ** 2 for x in ps) / n
+    if var <= 0:
+        return 0.0, lower, upper
+    s0, s1 = (1 / (1 + 10 ** (-e / 400)) for e in (elo0, elo1))
+    return n * (s1 - s0) * (2 * m - s0 - s1) / (2 * var), lower, upper
 
 
 def main():
@@ -187,6 +214,9 @@ def main():
     ap.add_argument('--custom-share', type=float, default=0.3)
     ap.add_argument('--tc', help='clock games base+inc in seconds, e.g. 5+0.05 (UCI binaries)')
     ap.add_argument('--arbiter', help='maharajah_tool for openings and adjudication (default BASE)')
+    ap.add_argument('--sprt', help='ELO0,ELO1: stop when either hypothesis is accepted (--pairs is the cap)')
+    ap.add_argument('--alpha', type=float, default=0.05)
+    ap.add_argument('--beta', type=float, default=0.05)
     ap.add_argument('--new-option', action='append', default=[], help='NAME=VALUE setoption for NEW (repeatable)')
     ap.add_argument('--base-option', action='append', default=[], help='NAME=VALUE setoption for BASE (repeatable)')
     a = ap.parse_args()
@@ -194,26 +224,43 @@ def main():
     if a.tc:
         b, i = a.tc.split('+')
         tc = (int(float(b) * 1000), int(float(i) * 1000))
+    sprt = None
+    if a.sprt:
+        e0, e1 = (float(x) for x in a.sprt.split(','))
+        sprt = (e0, e1, a.alpha, a.beta)
     openings = make_openings(a.arbiter or a.base, a.pairs, a.seed, a.custom_share)
     results = [[] for _ in openings]
     lock = threading.Lock()
     done = [0]
+    stop = threading.Event()
+    verdict = ['']
     t0 = time.time()
 
     def job(i, new_white):
+        if stop.is_set():
+            return
         s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter, hash_mb=a.hash,
                  new_options=a.new_option, base_options=a.base_option)
         with lock:
             results[i].append(s)
             done[0] += 1
             if done[0] % 50 == 0:
-                report([r for r in results if r], f'[{time.time()-t0:.0f}s] ')
+                report([r for r in results if r], f'[{time.time()-t0:.0f}s] ', sprt)
+            if sprt and not stop.is_set() and len(results[i]) == 2:
+                llr, lower, upper = sprt_llr(results, *sprt)
+                if llr <= lower or llr >= upper:
+                    verdict[0] = (('H0 accepted (no gain)' if llr <= lower else 'H1 accepted (gain)')
+                                  + f' at LLR {llr:+.2f} after {sum(len(r) == 2 for r in results)} pairs')
+                    stop.set()
 
     with ThreadPoolExecutor(a.jobs) as pool:
         futures = [pool.submit(job, i, c) for i in range(len(openings)) for c in (True, False)]
         for f in futures:
             f.result()
-    report(results, 'FINAL ')
+    report([r for r in results if r], 'FINAL ', sprt)
+    if sprt:
+        print(f'SPRT [{sprt[0]:g}, {sprt[1]:g}]: {verdict[0] or "inconclusive, --pairs reached"}'
+              ' (games still running at the stop are counted)', flush=True)
 
 
 if __name__ == '__main__':
