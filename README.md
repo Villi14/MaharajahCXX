@@ -112,3 +112,7 @@ Perft results are checked against <https://www.chessprogramming.org/Perft_Result
 ### <https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html>
 
 ### <https://gekomad.github.io/Cinnamon/BitboardCalculator/>
+
+## License
+
+Released under the [MIT License](LICENSE).
