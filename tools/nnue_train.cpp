@@ -1,12 +1,15 @@
 // Trains the NNUE network (Nnue.h) on self-play data from `maharajah_texel gen`.
 //
-//   maharajah_nnue_train DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden]
+//   maharajah_nnue_train DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden] [decay] [mirror]
 //     DATA lines are "FEN;score;result" (score and result from white's point of view).
 //     The target blends the search score and the result:
 //     lambda * sigmoid(score / 400) + (1 - lambda) * result, fitted by AdamW on the
 //     mean squared error of sigmoid(network output). 2 % of the positions are held
 //     out for validation. The float network is quantized as Nnue.h reads it and
 //     checked against the engine's evaluation of the held-out positions.
+//     The rate drops tenfold over the last `decay` share of the epochs (default 0.3).
+//     mirror 1: a training position without castling rights is mirrored a<->h with
+//     probability 1/2 in each epoch (castling is the only file-asymmetric rule).
 //     Writes OUT.nnue after every epoch and the float network to OUT.nnue.pt at the end.
 //     Built only when CMake finds libtorch (CMAKE_PREFIX_PATH=~/libtorch).
 #include "../headers/Board.h"
@@ -50,6 +53,8 @@ struct Dataset {
   std::vector<std::int16_t> side_to_move, other;
   std::vector<std::uint32_t> first;
   std::vector<std::uint8_t> count;
+  // no castling rights: the position mirrored a<->h has the same value
+  std::vector<std::uint8_t> mirrorable;
   // side to move's point of view
   std::vector<float> score, result;
   std::vector<std::string> fens;
@@ -72,6 +77,7 @@ void append(Dataset& data, const BoardState& state, const float white_score, con
     }
   }
   data.count.push_back(static_cast<std::uint8_t>(count));
+  data.mirrorable.push_back(state.castle == 0);
   data.score.push_back(side == white ? white_score : -white_score);
   data.result.push_back(side == white ? white_result : 1.0f - white_result);
   if(keep_fen)
@@ -94,6 +100,7 @@ void load(const std::string& paths, const int threads, Dataset& training, Datase
       out.side_to_move.insert(out.side_to_move.end(), part.side_to_move.begin(), part.side_to_move.end());
       out.other.insert(out.other.end(), part.other.begin(), part.other.end());
       out.count.insert(out.count.end(), part.count.begin(), part.count.end());
+      out.mirrorable.insert(out.mirrorable.end(), part.mirrorable.begin(), part.mirrorable.end());
       out.score.insert(out.score.end(), part.score.begin(), part.score.end());
       out.result.insert(out.result.end(), part.result.begin(), part.result.end());
       out.fens.insert(out.fens.end(), part.fens.begin(), part.fens.end());
@@ -158,7 +165,10 @@ struct Batch {
   torch::Tensor side_to_move, side_to_move_offsets, other, other_offsets, target;
 };
 
-Batch make_batch(const Dataset& data, const std::vector<std::uint32_t>& order, const std::size_t begin, const std::size_t end, const float lambda) {
+// mirror_epoch >= 0: mirrorable positions are mirrored a<->h (feature ^ 7 flips the file)
+// by a hash of the position and the epoch, so about half of them in each epoch
+Batch make_batch(const Dataset& data, const std::vector<std::uint32_t>& order, const std::size_t begin, const std::size_t end, const float lambda,
+                 const int mirror_epoch = -1) {
   std::vector<std::int64_t> stm, nstm, offsets;
   std::vector<float> target;
   stm.reserve((end - begin) * 34);
@@ -166,9 +176,10 @@ Batch make_batch(const Dataset& data, const std::vector<std::uint32_t>& order, c
   for(std::size_t i{ begin }; i < end; ++i) {
     const std::uint32_t index = order[i];
     offsets.push_back(static_cast<std::int64_t>(stm.size()));
+    const int flip = mirror_epoch >= 0 && data.mirrorable[index] && ((index * 2654435761u + static_cast<std::uint32_t>(mirror_epoch) * 40503u) & 0x10000u) ? 7 : 0;
     for(std::uint32_t j{ data.first[index] }; j < data.first[index] + data.count[index]; ++j) {
-      stm.push_back(data.side_to_move[j]);
-      nstm.push_back(data.other[j]);
+      stm.push_back(data.side_to_move[j] ^ flip);
+      nstm.push_back(data.other[j] ^ flip);
     }
     const float score_target = 1.0f / (1.0f + std::exp(-data.score[index] / static_cast<float>(eval_scale)));
     target.push_back(lambda * score_target + (1.0f - lambda) * data.result[index]);
@@ -277,7 +288,8 @@ void check_quantization(Network& network, const Dataset& validation, const std::
             << " cp (mean |eval| " << abs_eval / static_cast<double>(n) << " cp)\n";
 }
 
-int run(const std::string& data_paths, const std::string& out_path, const int epochs, const int threads, const float lambda, const unsigned seed, const int hidden) {
+int run(const std::string& data_paths, const std::string& out_path, const int epochs, const int threads, const float lambda, const unsigned seed, const int hidden,
+        const double decay, const bool mirror) {
   torch::set_num_threads(threads);
   torch::manual_seed(seed);
 
@@ -298,8 +310,8 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
   std::cerr << "validation loss " << validation_loss(network, validation, lambda) << " before training\n";
 
   for(int epoch{ 1 }; epoch <= epochs; ++epoch) {
-    // the rate drops tenfold over the last 30 % of the epochs, cosine-shaped
-    const double progress = std::clamp((static_cast<double>(epoch - 1) / epochs - 0.7) / 0.3, 0.0, 1.0);
+    // the rate drops tenfold over the last `decay` share of the epochs, cosine-shaped
+    const double progress = std::clamp((static_cast<double>(epoch - 1) / epochs - (1 - decay)) / decay, 0.0, 1.0);
     const double rate = start_rate * (0.1 + 0.9 * 0.5 * (1 + std::cos(std::numbers::pi * progress)));
     for(auto& group : optimizer.param_groups())
       static_cast<torch::optim::AdamWOptions&>(group.options()).lr(rate);
@@ -308,7 +320,7 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
     double sum{ };
     const auto start = std::chrono::steady_clock::now();
     for(std::size_t begin{ }; begin + batch_size <= training.size(); begin += batch_size) {
-      const Batch batch = make_batch(training, order, begin, begin + batch_size, lambda);
+      const Batch batch = make_batch(training, order, begin, begin + batch_size, lambda, mirror ? epoch : -1);
       optimizer.zero_grad();
       const torch::Tensor loss = (torch::sigmoid(network->forward(batch)) - batch.target).square().mean();
       loss.backward();
@@ -332,7 +344,7 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
 
 int main(const int argc, char** argv) {
   if(argc < 3) {
-    std::cerr << "usage: " << argv[0] << " DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden]\n";
+    std::cerr << "usage: " << argv[0] << " DATA[,DATA...] OUT.nnue [epochs] [threads] [lambda] [seed] [hidden] [decay] [mirror]\n";
     return 2;
   }
   const int epochs = argc > 3 ? std::stoi(argv[3]) : 20;
@@ -340,9 +352,11 @@ int main(const int argc, char** argv) {
   const float lambda = argc > 5 ? std::stof(argv[5]) : 0.75f;
   const unsigned seed = argc > 6 ? static_cast<unsigned>(std::stoul(argv[6])) : 1u;
   const int hidden = argc > 7 ? std::stoi(argv[7]) : 256;
+  const double decay = argc > 8 ? std::clamp(std::stod(argv[8]), 0.05, 1.0) : 0.3;
+  const bool mirror = argc > 9 && std::stoi(argv[9]) != 0;
   if(hidden <= 0 || hidden % 32 != 0 || hidden > NnueArch::max_hidden) {
     std::cerr << "hidden must be a multiple of 32 up to " << NnueArch::max_hidden << '\n';
     return 2;
   }
-  return run(argv[1], argv[2], epochs, threads, lambda, seed, hidden);
+  return run(argv[1], argv[2], epochs, threads, lambda, seed, hidden, decay, mirror);
 }
