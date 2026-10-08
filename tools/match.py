@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Head-to-head match between two engine builds: a fixed number of pairs, or SPRT.
 
-usage: match.py NEW BASE [--pairs N] [--movetime MS] [--jobs J] [--seed S] [--custom-share F]
+usage: match.py NEW BASE [--pairs N] [--movetime MS] [--new-movetime MS] [--jobs J] [--seed S] [--custom-share F]
                 [--hash MB] [--tc BASE+INC --arbiter TOOL]
                 [--sprt ELO0,ELO1 [--alpha A] [--beta B]]
                 [--new-option NAME=VALUE ...] [--base-option NAME=VALUE ...]
@@ -102,7 +102,7 @@ def insufficient(board):
 
 
 def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc=None, arbiter=None, hash_mb=64,
-         new_options=(), base_options=()):
+         new_options=(), base_options=(), new_movetime=None):
     """Returns the score of NEW: 1, 0.5 or 0. With tc=(base_ms, inc_ms) the engines play on a clock."""
     new, base = Tool(new_bin, threads, hash_mb, new_options), Tool(base_bin, threads, hash_mb, base_options)
     white, black = (new, base) if new_white else (base, new)
@@ -143,7 +143,7 @@ def play(new_bin, base_bin, fen, new_white, movetime, threads, max_plies=400, tc
                     result = 0.0 if mover_white else 1.0; break
                 clock[side] += tc[1]
             else:
-                engine.send(f'go movetime {movetime}')
+                engine.send(f'go movetime {new_movetime if new_movetime and engine is new else movetime}')
                 best = engine.until('bestmove')[0].split()[1]
             if best == '(none)':
                 result = 0.0 if mover_white else 1.0; break
@@ -207,6 +207,7 @@ def main():
     ap.add_argument('new'); ap.add_argument('base')
     ap.add_argument('--pairs', type=int, default=100)
     ap.add_argument('--movetime', type=int, default=100)
+    ap.add_argument('--new-movetime', type=int, help='movetime of NEW only (time odds); BASE keeps --movetime')
     ap.add_argument('--jobs', type=int, default=8)
     ap.add_argument('--threads', type=int, default=1)
     ap.add_argument('--hash', type=int, default=64, help='Hash in MB for both engines')
@@ -240,7 +241,7 @@ def main():
         if stop.is_set():
             return
         s = play(a.new, a.base, openings[i], new_white, a.movetime, a.threads, tc=tc, arbiter=a.arbiter, hash_mb=a.hash,
-                 new_options=a.new_option, base_options=a.base_option)
+                 new_options=a.new_option, base_options=a.base_option, new_movetime=a.new_movetime)
         with lock:
             results[i].append(s)
             done[0] += 1

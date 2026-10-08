@@ -73,6 +73,16 @@ identical.
             stopped at 2350 games: +10 [-2, +22]. Alone vs e07a949 (continuation history
             off), `--sprt 30,50 --seed 32 --jobs 24`: **+20 Elo [-3, +43]** after 692
             games, H0 accepted. Below +50, reverted (code in 4ba9b06).
+      - [x] Threads on phones, measured 2026-10-08. Nokia 6.1 (8 × A53: 4 × 2.2 + 4 × 1.84 GHz),
+            `maharajah_tool` built with NDK r28 (`build-android`), time to fixed depths
+            (1 thread ≈ 4-5 s, 8 positions of `bench_engines.py`, median of 3): 2 threads
+            ×1.19, **4 threads ×1.72**, 8 threads ×2.41; 28 → 30 °C (on USB, battery not
+            measured). One desktop core ≈ 5× a Nokia core. Time odds on the desktop (new
+            `match.py --new-movetime`): base at 1720 ms vs base at 1000 ms, `--sprt 30,50
+            --custom-share 0.5 --seed 41 --jobs 24`: **+88 Elo [+56, +121]**, H1 after 235
+            games. Neither the app (FFI), the server (`UciPositionEvaluator`) nor the site
+            (WASM, no pthreads) calls `mah_set_threads` / `Threads` — all run 1 thread.
+            Next (monorepo): `mah_set_threads(max(1, cores / 2))` at L5 (iPhone 6s → 1).
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
