@@ -58,21 +58,25 @@ identical.
 - [ ] Engine strength for 1.0.1 (branch `engine-1.0.1`, 2026-10-08): see
       [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
       buckets), round 4 → net5, L5 threads and the ladder.
-      State 2026-10-08 (moved to Ubuntu; this is a WIP commit, squashed at the end):
+      State 2026-10-08. **Threshold (owner, 2026-10-08): a change is kept only for ≥ +50 Elo**;
+      SPRT `--sprt 30,50` decides in a few hundred games. Frozen binaries in
+      `~/nnue-data/m101/bin/`. Ubuntu, 50 ms/move, `--custom-share 0`, turbo off; ctest
+      Debug + ASan/UBSan 298/298 on 5594a84.
       - [x] Step 0, SPRT in `match.py` (see the match runner below).
       - [~] 1.1 continuation history (1 and 2 plies, one shared int16 table on the heap;
-            ordering score `(2·history + cont1 + cont2) / 4`; not yet in LMR). Measured
-            on the Mac vs e07a949, `--sprt 0,10 --custom-share 0 --movetime 50 --seed 11`,
-            stopped after 1100 games: +9 Elo [-8, +26], LLR +0.54 — rerun to the end on
-            Ubuntu, then `--custom-share 1`.
-      - [ ] 1.2 "improving" (static eval > 2 plies ago): RFP `margin·(depth − improving)`,
-            LMP a third earlier and LMR +1 when not improving. Written and compiled on
-            top of 1.1, not tested or measured — baseline is the 1.1 build.
+            ordering score `(2·history + cont1 + cont2) / 4`; not in LMR). Mac vs e07a949,
+            `--sprt 0,10`, stopped at 1100 games: +9 [-8, +26]. Ubuntu vs e07a949,
+            `--sprt 0,10 --seed 21`, stopped at 2350 games: **-0 Elo [-12, +11]**,
+            LLR -1.55. No gain, reverted (code in 4ba9b06).
+      - [~] 1.2 "improving" (static eval > 2 plies ago): RFP `margin·(depth − improving)`,
+            LMP a third earlier and LMR +1 when not improving. On top of 1.1, `--seed 22`,
+            stopped at 2350 games: +10 [-2, +22]. Alone vs e07a949 (continuation history
+            off), `--sprt 30,50 --seed 32 --jobs 24`: **+20 Elo [-3, +43]** after 692
+            games, H0 accepted. Below +50, reverted (code in 4ba9b06).
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
-      - On Ubuntu first: ctest (Debug + ASan/UBSan) on this commit; freeze the e07a949
-        and 1.1 binaries before building 1.2.
+            Unlikely to reach +50 on its own, like 1.1/1.2.
 
 - [x] Review the branch and merge it into `master` — done: one linear `main`, tag `v1.0.0`
       (2026-10-08).

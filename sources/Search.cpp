@@ -40,11 +40,6 @@ const auto late_move_reductions = [] {
   return table;
 }();
 
-// index of a move's piece and target square in the continuation history
-int piece_square(const int move) {
-  return Move::get_move_piece(move) * BoardGeometry::squares + Move::get_move_target(move);
-}
-
 } // namespace
 
 void TimeControl::set_movetime(const int movetime_ms) {
@@ -69,10 +64,6 @@ void Search::reset() {
 
   killer_moves_ = { };
   history_moves_ = { };
-  move_stack_ = { };
-  static_evals_ = { };
-  for(auto& row : *continuation_history_)
-    row.fill(0);
   pv_table_ = { };
   pv_length_ = { };
   root_moves_ = { };
@@ -362,9 +353,6 @@ int Search::negamax(int alpha, int beta, int depth) {
     static_eval = evaluate();
     has_static_eval = true;
   }
-  static_evals_[ply_] = has_static_eval ? static_eval : no_static_eval;
-  // the side to move stands better than two plies ago: prune less, reduce less
-  const bool improving = has_static_eval && ply_ >= 2 && static_evals_[ply_ - 2] != no_static_eval && static_eval > static_evals_[ply_ - 2];
 
   const SearchConfig& config = engine_.search_config;
 
@@ -375,7 +363,7 @@ int Search::negamax(int alpha, int beta, int depth) {
 
   // reverse futility pruning
   if(depth <= 2 && ply_ && !in_check && !pv_node) {
-    if(static_eval - config.reverse_futility_margin_per_depth * (depth - improving) >= beta)
+    if(static_eval - config.reverse_futility_margin_per_depth * depth >= beta)
       return static_eval;
   }
 
@@ -392,7 +380,6 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(depth >= 3 && !in_check && ply_ && !pv_node && own_non_pawn_material && static_eval >= beta) {
     const ZobristKeys& keys = ZobristKeys::get();
     board_.push_state();
-    move_stack_[ply_] = 0;
     ++ply_;
     board_.remember_position();
 
@@ -441,12 +428,10 @@ int Search::negamax(int alpha, int beta, int depth) {
     if(prunable && has_static_eval && legal_moves > 0 && static_eval + config.futility_margin_per_depth * depth <= alpha)
       continue;
 
-    // late move pruning, a third earlier when the position is not improving
-    const int late_move_count = config.late_move_pruning_base + config.late_move_pruning_scale * depth;
-    if(prunable && moves_searched >= (improving ? late_move_count : late_move_count - late_move_count / 3))
+    // late move pruning
+    if(prunable && moves_searched >= config.late_move_pruning_base + config.late_move_pruning_scale * depth)
       continue;
 
-    move_stack_[ply_] = move;
     ++ply_;
     board_.remember_position();
 
@@ -464,7 +449,7 @@ int Search::negamax(int alpha, int beta, int depth) {
     } else {
       // late move reduction: at least one ply, less in PV nodes, never into quiescence
       if(moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && is_quiet_move) {
-        const int reduction = late_move_reductions[std::min(depth, Limits::max_ply)][std::min(moves_searched, Limits::max_moves - 1)] - (pv_node ? 1 : 0) + (improving ? 0 : 1);
+        const int reduction = late_move_reductions[std::min(depth, Limits::max_ply)][std::min(moves_searched, Limits::max_moves - 1)] - (pv_node ? 1 : 0);
         score = -negamax(-alpha - 1, -alpha, depth - 1 - std::clamp(reduction, 1, depth - 2));
       } else
         score = alpha + 1;
@@ -611,27 +596,8 @@ int Search::quiescence(int alpha, int beta) {
 // History with gravity: an entry moves towards +-history_limit by a step that shrinks
 // as it gets closer, so it stays bounded and below the killer move scores.
 void Search::update_history(const int move, const int bonus) {
-  const auto gravity = [bonus](auto& entry) {
-    entry += bonus - entry * std::abs(bonus) / history_limit;
-  };
-  gravity(history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)]);
-  for(int back{ 1 }; back <= 2; ++back) {
-    if(const int previous = previous_move(back))
-      gravity((*continuation_history_)[piece_square(previous)][piece_square(move)]);
-  }
-}
-
-int Search::previous_move(const int back) const {
-  return ply_ >= back ? move_stack_[ply_ - back] : 0;
-}
-
-int Search::quiet_history(const int move) const {
-  int score = 2 * history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
-  for(int back{ 1 }; back <= 2; ++back) {
-    if(const int previous = previous_move(back))
-      score += (*continuation_history_)[piece_square(previous)][piece_square(move)];
-  }
-  return score / 4;
+  int& entry = history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
+  entry += bonus - entry * std::abs(bonus) / history_limit;
 }
 
 int Search::score_move(const int move, const int hash_move) {
@@ -671,7 +637,7 @@ int Search::score_move(const int move, const int hash_move) {
     return 9000;
   if(killer_moves_[1][ply_] == move)
     return 8000;
-  return quiet_history(move);
+  return history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
 }
 
 void Search::sort_moves(MoveList& moves_list, const int hash_move) {
@@ -731,7 +697,6 @@ int Search::verify_root_candidate_score(const int move) {
   const bool saved_score_pv = score_pv_;
   int score = -infinity;
 
-  move_stack_[ply_] = move;
   ++ply_;
   board_.remember_position();
 
