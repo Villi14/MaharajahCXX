@@ -50,7 +50,7 @@ identical.
    on a clock.
 2. Confirm the gain: HEAD against the port (43464a7) and the C baseline with
    `match.py`, and the elo:2200 Fairy-Stockfish run on this machine.
-3. Review the branch and merge it into `master`.
+3. Review the branch and merge it into `master` (done, `main` tag `v1.0.0`).
 4. NNUE in a new branch from `master`.
 
 ## To do
@@ -74,8 +74,10 @@ identical.
       - On Ubuntu first: ctest (Debug + ASan/UBSan) on this commit; freeze the e07a949
         and 1.1 binaries before building 1.2.
 
-- [ ] Review the branch and merge it into `master`.
-- [x] Variant pawns double-stepped more than once (2026-10-01): without FEN field 8
+- [x] Review the branch and merge it into `master` — done: one linear `main`, tag `v1.0.0`
+      (2026-10-08).
+- [x] Variant pawns double-stepped more than once (2026-10-01) — **superseded** by the
+      2026-10-04 entry below; `infer_pawn_state` no longer exists. Without FEN field 8
       a variant side's pawns could double-step from any rank, any number of times
       (a4-a6, then a6-a8 without promoting, stuck on the last rank). The rule is one
       double step per pawn, from its start square on its own half. A position with a
@@ -96,6 +98,12 @@ identical.
       `has_pawn_state` are gone; a fresh army lists all its pawns, the FFI variant
       profile gives a side the FEN made classic its home-rank pawns. MaharajahC still has
       the old rule, so `compare_engines.py` differs on six-field variant FENs.
+      Re-checked 2026-10-08 against MAHARAJAH_RULES §4/§5/§7, nothing to fix: field 7
+      decides each side, a six-field FEN is classic unless the side holds a compound piece
+      (`Board.cpp` FEN parser), a variant side never castles, field 8 is masked to the
+      variant side's pawns on parse and written only with a variant side (`to_fen`), a
+      variant pawn double-steps only while listed, a classic one only from rank 2/7
+      (move generator); ctest 298/298.
 - [x] Port `maharajah_tool` (`tools/maharajah_tool.cpp`, smoke tests in
       `tools/tests/`) and `ask_engine.py` (2026-09-30).
 - [x] Port MaharajahC's smoke tests to gtest (2026-09-30): `RulesTests.cpp`
