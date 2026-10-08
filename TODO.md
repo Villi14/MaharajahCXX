@@ -83,6 +83,16 @@ identical.
             games. Neither the app (FFI), the server (`UciPositionEvaluator`) nor the site
             (WASM, no pthreads) calls `mah_set_threads` / `Threads` — all run 1 thread.
             Next (monorepo): `mah_set_threads(max(1, cores / 2))` at L5 (iPhone 6s → 1).
+      - [x] NNUE pilots on 10-15 % (owner's rule 2026-10-08: test on a fraction first, full run
+            only on a clear gain). 6.8 M random positions of n3d7 + r4 (`~/nnue-data/pilot/`),
+            768 hidden, λ 0.75; matches vs P0 `--sprt 30,50 --custom-share 0.5`, 50 ms/move:
+            P0 baseline (20 epochs, decay 0.3): train 0.00777, validation 0.01001 — heavy
+            overfitting at this size. **P1** 30 epochs, decay 0.5: train 0.00724, validation
+            0.01005, **-55 Elo [-106, -6]**, H0 after 102 games — dropped (at full size net4
+            did not overfit, so this need not carry over). **P2** mirror a<->h (`nnue_train`
+            option, 4fa364c; 88 % of the positions have no castling right): validation 0.01012
+            (unmirrored set), **+94 Elo [+55, +136]**, H1 after 249 games. Full run: `net5a`
+            = n3d7 + r4 (44.8 M) with mirroring, 20 epochs, then vs net4_768 (2026-10-09).
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
