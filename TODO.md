@@ -55,6 +55,10 @@ identical.
 
 ## To do
 
+- [ ] Engine strength for 1.0.1 (branch `engine-1.0.1`, 2026-10-08): see
+      [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
+      buckets), round 4 → net5, L5 threads and the ladder.
+
 - [ ] Review the branch and merge it into `master`.
 - [x] Variant pawns double-stepped more than once (2026-10-01): without FEN field 8
       a variant side's pawns could double-step from any rank, any number of times
