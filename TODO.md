@@ -92,10 +92,12 @@ identical.
             did not overfit, so this need not carry over). **P2** mirror a<->h (`nnue_train`
             option, 4fa364c; 88 % of the positions have no castling right): validation 0.01012
             (unmirrored set), **+94 Elo [+55, +136]**, H1 after 249 games.
-      - [ ] Next, postponed by the owner (2026-10-09): `net5a` = n3d7 + r4 (44.8 M) with
-            mirroring, 768, 20 epochs, 24 threads (~5-6 h), then vs net4_768
-            `--sprt 30,50`; script ready in `~/nnue-data/pilot/net5a.sh`. Expect less than
-            +94 at full size (the pilot was data-starved).
+      - [x] `net5a` (2026-10-09, `~/nnue-data/nets/net5a.nnue`): n3d7 + r4 chunks 0000-0043
+            (44.8 M), mirroring, 768, 20 epochs, 24 threads, turbo off, 966 s per epoch
+            (5 h 20 min). Validation 0.01087 → 0.00886, train 0.00856 (no overfitting);
+            quantized vs float 11.4 cp. Against net4_768, `--sprt 30,50 --custom-share 0.5
+            --seed 61 --jobs 24`, 50 ms/move: +203 =18 -122, **+84 Elo [+51, +118]**, H1 after
+            343 games. Not yet built into the engine.
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
