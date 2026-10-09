@@ -30,6 +30,11 @@
   threads and writes `FEN;result` lines; `maharajah_texel tune data.txt 2000 28 out.txt`
   fits the weights to the results on the quiet positions and writes a `weights` block
   in the layout of `headers/Evaluation.h` (with 0 epochs, the current one unchanged).
+- `nnue/` — a data round and a network on the training machine (Linux, `~/nnue-data`):
+  `check.sh` prints the binaries, networks, data files and machine state; `gen.sh HOURS`
+  generates `r5/chunk_NNNN.txt` with a teacher network until the time is over;
+  `train.sh NAME` trains on n3d7 + r4 + r5 with mirroring; `match_nets.sh NEW BASE` plays
+  one SPRT match per opening set. Settings are environment variables, see each script.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 
