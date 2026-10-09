@@ -8,6 +8,8 @@ build-wasm/
 build-release/
 build-test/
 build-native/
+build-android/
+build-asan/
 cmake-build-debug/
 build-ninja/
 out/
