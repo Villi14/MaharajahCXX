@@ -58,6 +58,20 @@ identical.
 - [ ] Engine strength for 1.0.1 (branch `engine-1.0.1`, 2026-10-08): see
       [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
       buckets), round 4 → net5, L5 threads and the ladder.
+      **Next session (agreed 2026-10-09), in this order:**
+      1. Build net5a into the engine instead of net4_768 (`embed_net.py`, ctest incl.
+         ASan/UBSan, bench x86 / WASM SIMD / Nokia 6.1 — same 768 width, so no speed
+         change expected); then copy the engine into the monorepo's `Maharajah_ffi`.
+      2. Threads at L5 in the app (monorepo, `Maharajah_ui` / `maharajah_ffi.dart`):
+         `mah_set_threads(max(1, cores / 2))`, cores from `sysconf(_SC_NPROCESSORS_CONF)`
+         on Android (Nokia 6.1 → 4, iPhone 6s → 1); check UI smoothness and heat on the
+         Nokia. Server `UciPositionEvaluator`: `setoption name Threads`. Site WASM: later.
+      3. Optional: net5a vs net4 on armies only (`--custom-share 1`), a few minutes.
+      4. Next pilots (10-15 %, `~/nnue-data/pilot/p15.txt`, P0 as base): output buckets
+         (pilot on 20-30 %), relabeling at depth 10, λ. Generation-by-node-limit idea for
+         the next data round (deeper endgame labels at the same cost).
+      Before any match/training: `sudo systemctl stop nnue-gen`, then
+      `sudo ~/nnue-data/r4/fan.sh 90`, check `no_turbo` = 1.
       State 2026-10-08. **Threshold (owner, 2026-10-08): a change is kept only for ≥ +50 Elo**;
       SPRT `--sprt 30,50` decides in a few hundred games. Frozen binaries in
       `~/nnue-data/m101/bin/`. Ubuntu, 50 ms/move, `--custom-share 0`, turbo off; ctest
