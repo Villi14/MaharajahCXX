@@ -98,6 +98,14 @@ identical.
             quantized vs float 11.4 cp. Against net4_768, `--sprt 30,50 --custom-share 0.5
             --seed 61 --jobs 24`, 50 ms/move: +203 =18 -122, **+84 Elo [+51, +118]**, H1 after
             343 games. Not yet built into the engine.
+            Against Fairy-Stockfish (2026-10-09, `~/nnue-data/elo/fsf_net5a.sh`): lab
+            `elo_match`, level 5, 520 ms/move, engine e07a949 (`m101/bin/tool_base`) with
+            `EvalFile` net5a, 14 cores, turbo off. 1 thread: vs UCI_Elo 2500 +143 =46 -91
+            (280 games, 59.3 %, +65 [+24, +108] ≈ 2565; net4 was 55.1 % ≈ 2535); vs 2700
+            +128 =43 -109 (280, 53.4 %, +24 [-17, +65] ≈ 2724) — the two anchors disagree by
+            ~160, FSF's UCI_Elo scale is compressed at the top. 4 threads vs 2700: +103 =28 -69
+            (200 games — `elo_match` caps a run at 40 games, 20 openings × 2; 58.5 %, +60 ≈
+            2760), i.e. +36 over 1 thread on the same anchor.
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
