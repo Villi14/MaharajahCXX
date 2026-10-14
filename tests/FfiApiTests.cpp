@@ -77,6 +77,21 @@ class ffi_api_test_fixture : public testing::Test {
     return mah_best_move_time(movetime_ms, move.data(), static_cast<int>(move.size())) ? move.data() : "";
   }
 
+  struct analysis {
+    string move;
+    int score_cp{ -1 };
+    int mate_in{ -1 };
+    int depth{ -1 };
+  };
+
+  static analysis analyze(const int depth) {
+    analysis result;
+    array<char, 16> move{ };
+    if(mah_analyze_depth(depth, move.data(), static_cast<int>(move.size()), &result.score_cp, &result.mate_in, &result.depth))
+      result.move = move.data();
+    return result;
+  }
+
   static string nnue_info() {
     array<char, 512> info{ };
     EXPECT_TRUE(mah_get_nnue_info(info.data(), static_cast<int>(info.size())));
@@ -209,6 +224,70 @@ TEST_F(ffi_api_test_fixture, search_avoids_a_repeating_move) {
 
   array<char, 4> small{ };
   EXPECT_FALSE(mah_best_move_depth(1, small.data(), static_cast<int>(small.size())));
+}
+
+TEST_F(ffi_api_test_fixture, analysis_reports_mate_for_the_side_to_move) {
+  // White Kg6, Rb1, black Kg8: Rb8 mates
+  ASSERT_TRUE(mah_set_position_fen("6k1/8/6K1/8/8/8/8/1R6 w - - 0 1"));
+  analysis result = analyze(4);
+  EXPECT_EQ(result.move, "b1b8");
+  EXPECT_EQ(result.mate_in, 1);
+  EXPECT_EQ(result.score_cp, Scores::mate_score);
+  EXPECT_GE(result.depth, 1);
+
+  // the same picture from Black's side: whatever it plays, Rb8 mates
+  ASSERT_TRUE(mah_set_position_fen("7k/8/6K1/8/8/8/8/1R6 b - - 0 1"));
+  result = analyze(4);
+  EXPECT_EQ(result.mate_in, -1);
+  EXPECT_EQ(result.score_cp, -Scores::mate_score);
+
+  // Morphy's mate in two: 1. Ra6 bxa6 2. b7#
+  ASSERT_TRUE(mah_set_position_fen("kbK5/pp6/1P6/8/8/8/8/R7 w - - 0 1"));
+  result = analyze(6);
+  EXPECT_EQ(result.mate_in, 2);
+}
+
+TEST_F(ffi_api_test_fixture, analysis_reports_a_material_edge_in_centipawns) {
+  // a queen up, no mate within the horizon
+  ASSERT_TRUE(mah_set_position_fen("4k3/pppppppp/8/8/8/8/PPPPPPPP/3QK3 w - - 0 1"));
+  analysis result = analyze(3);
+  EXPECT_NE(result.move, "");
+  EXPECT_EQ(result.mate_in, 0);
+  EXPECT_GT(result.score_cp, 500);
+  EXPECT_LT(result.score_cp, Scores::mate_score);
+  EXPECT_EQ(result.depth, 3);
+
+  // the outputs are optional
+  array<char, 16> move{ };
+  EXPECT_TRUE(mah_analyze_depth(1, move.data(), static_cast<int>(move.size()), nullptr, nullptr, nullptr));
+  EXPECT_TRUE(mah_analyze_time(10, 0, move.data(), static_cast<int>(move.size()), nullptr, nullptr, nullptr));
+
+  // a depth cap stops the timed search however much time is left
+  int depth{ };
+  ASSERT_TRUE(mah_set_position_startpos());
+  EXPECT_TRUE(mah_analyze_time(60000, 4, move.data(), static_cast<int>(move.size()), nullptr, nullptr, &depth));
+  EXPECT_EQ(depth, 4);
+}
+
+TEST_F(ffi_api_test_fixture, analysis_without_a_legal_move_leaves_the_outputs) {
+  // Black is checkmated
+  ASSERT_TRUE(mah_set_position_fen("1R4k1/8/6K1/8/8/8/8/8 b - - 0 1"));
+  const analysis result = analyze(3);
+  EXPECT_EQ(result.move, "");
+  EXPECT_EQ(result.score_cp, -1);
+  EXPECT_EQ(result.mate_in, -1);
+  EXPECT_EQ(result.depth, -1);
+}
+
+TEST_F(ffi_api_test_fixture, analysis_is_full_strength_and_keeps_the_difficulty) {
+  // At difficulty 1 the search is capped and may pick a near-best move; the
+  // analysis must still see the mate in two, and difficulty 1 must survive it.
+  ASSERT_TRUE(mah_set_difficulty_level(1));
+  ASSERT_TRUE(mah_set_position_fen("kbK5/pp6/1P6/8/8/8/8/R7 w - - 0 1"));
+  const analysis result = analyze(6);
+  EXPECT_EQ(result.mate_in, 2);
+  EXPECT_EQ(result.depth, 6);
+  EXPECT_TRUE(contains(nnue_info(), "\"uiDifficulty\":1"));
 }
 
 TEST_F(ffi_api_test_fixture, difficulty_and_skill_select_the_search_profile) {

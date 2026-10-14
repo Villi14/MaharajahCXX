@@ -443,6 +443,17 @@ void UciSession::go(const std::string_view command) {
     // no search limit: a fixed, modest default keeps a stray `go` from running forever
     found = mah_best_move_time(1000, move.data(), static_cast<int>(move.size()));
 
+  // score of the last completed iteration, same notation as Search::print_info
+  // (the server's game analysis reads it)
+  const SearchResult& result = ffi::last_search_result();
+  if(found && result.depth > 0) {
+    if(const int mate_in = Scores::mate_in_moves(result.score))
+      std::printf("info score mate %d", mate_in);
+    else
+      std::printf("info score cp %d", result.score);
+    std::printf(" depth %d nodes %llu\n", result.depth, static_cast<unsigned long long>(ffi::last_search_nodes()));
+  }
+
   std::printf("bestmove %s\n", found ? move.data() : "(none)");
 }
 

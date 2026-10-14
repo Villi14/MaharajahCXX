@@ -169,10 +169,8 @@ bool Search::should_return_draw_score() const {
 
 void Search::print_info(std::ostream& out, const int score, const int depth, const int elapsed) const {
   const u64 nodes = nodes_ + engine_.time_control.helper_nodes.load(std::memory_order_relaxed);
-  if(score > -mate_value && score < -mate_score)
-    out << "info score mate " << -(score + mate_value) / 2 - 1;
-  else if(score > mate_score && score < mate_value)
-    out << "info score mate " << (mate_value - score) / 2 + 1;
+  if(const int mate_in = Scores::mate_in_moves(score))
+    out << "info score mate " << mate_in;
   else
     out << "info score cp " << score;
   out << " depth " << depth << " nodes " << nodes << " time " << elapsed << " pv ";

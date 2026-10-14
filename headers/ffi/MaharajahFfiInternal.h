@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Engine.h"
+#include "../Search.h"
 
 // C++-side access to the engine behind the mah_* functions, for native tools that
 // drive the engine through the C interface but also need its internals
@@ -13,5 +14,9 @@ Engine& live_engine();
 
 // Nodes searched by the last mah_best_move_depth() / mah_best_move_time() call.
 [[nodiscard]] u64 last_search_nodes();
+
+// The whole result of that call: score (side to move, mate scores beyond
+// +-Scores::mate_score) and depth of the last completed iteration.
+[[nodiscard]] const SearchResult& last_search_result();
 
 } // namespace maharajah::ffi

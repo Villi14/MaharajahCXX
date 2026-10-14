@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <cstdio>
 #include <string>
 
 using namespace std;
@@ -58,6 +59,29 @@ TEST_F(WasmApi, BestMoveTimeReturnsLegalMove) {
   const string move{ mah_wasm_best_move_time(50) };
   ASSERT_GE(move.size(), 4u);
   EXPECT_EQ(mah_wasm_apply_move(move.c_str()), 1);
+}
+
+TEST_F(WasmApi, AnalyzeTimeReportsMoveScoreMateAndDepth) {
+  // White Kg6, Rb1, black Kg8: Rb8 mates
+  ASSERT_EQ(mah_wasm_set_position_fen("6k1/8/6K1/8/8/8/8/1R6 w - - 0 1"), 1);
+  const string analysis{ mah_wasm_analyze_time(100, 0) };
+  char move[8]{ };
+  int score{ }, mate{ }, depth{ };
+  ASSERT_EQ(std::sscanf(analysis.c_str(), "%7s %d %d %d", move, &score, &mate, &depth), 4) << analysis;
+  EXPECT_EQ(string{ move }, "b1b8");
+  EXPECT_EQ(score, 48000);
+  EXPECT_EQ(mate, 1);
+  EXPECT_GE(depth, 1);
+
+  // checkmated: no move, no analysis
+  ASSERT_EQ(mah_wasm_set_position_fen("1R4k1/8/6K1/8/8/8/8/8 b - - 0 1"), 1);
+  EXPECT_EQ(string{ mah_wasm_analyze_time(50, 0) }, "");
+
+  // the depth cap ends the search however much time is left
+  ASSERT_EQ(mah_wasm_set_position_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"), 1);
+  const string capped{ mah_wasm_analyze_time(60000, 3) };
+  ASSERT_EQ(std::sscanf(capped.c_str(), "%7s %d %d %d", move, &score, &mate, &depth), 4) << capped;
+  EXPECT_EQ(depth, 3);
 }
 
 TEST_F(WasmApi, GameStatusAndNoMove) {

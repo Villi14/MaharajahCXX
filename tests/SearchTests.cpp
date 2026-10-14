@@ -318,6 +318,23 @@ TEST_F(search_test_fixture, uci_info_lines_carry_score_depth_and_pv) {
   EXPECT_NE(out.find("bestmove a1a8"), string::npos);
 }
 
+TEST_F(search_test_fixture, uci_reports_being_mated_in_one_as_mate_minus_one) {
+  // whatever Black plays, Rb8 mates: one move, so "mate -1" as UCI defines it
+  const string out = run_uci(game, "position fen 7k/8/6K1/8/8/8/8/1R6 b - - 0 1\ngo depth 4\nquit\n");
+  EXPECT_NE(out.find("info score mate -1 depth 4 "), string::npos) << out;
+}
+
+TEST(scores_test, mate_in_moves_counts_moves_for_both_sides) {
+  using maharajah::Scores;
+  EXPECT_EQ(Scores::mate_in_moves(Scores::mate_value - 1), 1);
+  EXPECT_EQ(Scores::mate_in_moves(Scores::mate_value - 3), 2);
+  EXPECT_EQ(Scores::mate_in_moves(-Scores::mate_value + 2), -1);
+  EXPECT_EQ(Scores::mate_in_moves(-Scores::mate_value + 4), -2);
+  EXPECT_EQ(Scores::mate_in_moves(0), 0);
+  EXPECT_EQ(Scores::mate_in_moves(Scores::mate_score), 0);
+  EXPECT_EQ(Scores::mate_in_moves(-Scores::mate_score), 0);
+}
+
 TEST_F(search_test_fixture, uci_position_fen_with_moves_keeps_the_fen_fields) {
   // the moves list must not be read as the optional variant / unmoved-pawn FEN fields
   (void)run_uci(game, "position fen rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1 moves e2e4 e7e5\nquit\n");

@@ -1,9 +1,12 @@
 #include "../../headers/wasm/maharajah_wasm.h"
 
+#include <cstdio>
+
 namespace {
 
 char fen_buffer[256];
 char move_buffer[8];
+char analysis_buffer[48];
 
 } // namespace
 
@@ -39,4 +42,12 @@ FFI_PLUGIN_EXPORT const char* mah_wasm_best_move_time(const int movetime_ms) {
   if(!mah_best_move_time(movetime_ms, move_buffer, static_cast<int>(sizeof(move_buffer))))
     return "";
   return move_buffer;
+}
+
+FFI_PLUGIN_EXPORT const char* mah_wasm_analyze_time(const int movetime_ms, const int max_depth) {
+  int score_cp{ }, mate_in{ }, depth{ };
+  if(!mah_analyze_time(movetime_ms, max_depth, move_buffer, static_cast<int>(sizeof(move_buffer)), &score_cp, &mate_in, &depth))
+    return "";
+  std::snprintf(analysis_buffer, sizeof(analysis_buffer), "%s %d %d %d", move_buffer, score_cp, mate_in, depth);
+  return analysis_buffer;
 }

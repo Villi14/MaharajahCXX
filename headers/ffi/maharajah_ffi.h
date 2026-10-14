@@ -79,6 +79,23 @@ FFI_PLUGIN_EXPORT int mah_best_move_depth(int depth, char* out_move, int out_len
 // found.
 FFI_PLUGIN_EXPORT int mah_best_move_time(int movetime_ms, char* out_move, int out_len);
 
+// Analysis search: like mah_best_move_depth / mah_best_move_time, but always at
+// full strength (difficulty 5) whatever difficulty or skill is configured, which
+// it leaves untouched, and it also reports how the position stands. All three
+// outputs are from the side to move's point of view and may be NULL:
+//   out_score_cp  centipawns of the last completed iteration; when there is a
+//                 mate it is +-48000 (Scores::mate_score), so it still sorts
+//   out_mate_in   moves to mate: > 0 the side to move mates, < 0 it is mated,
+//                 0 no mate found
+//   out_depth     depth of the last completed iteration
+// Returns 1 if a move is found; on 0 (no legal move, bad buffer) the outputs
+// are left unchanged.
+FFI_PLUGIN_EXPORT int mah_analyze_depth(int depth, char* out_move, int out_len, int* out_score_cp, int* out_mate_in, int* out_depth);
+// By time, stopping early at max_depth when it is above 0. The cap keeps the
+// search finite where the clock does not move during it (a browser under a
+// headless test's virtual time), and costs nothing where it does.
+FFI_PLUGIN_EXPORT int mah_analyze_time(int movetime_ms, int max_depth, char* out_move, int out_len, int* out_score_cp, int* out_mate_in, int* out_depth);
+
 // Generate a reasonable custom-start FEN.
 // side_to_move: 0 = white, 1 = black, any other value = random.
 // Returns 1 on success.

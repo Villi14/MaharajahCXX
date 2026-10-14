@@ -26,6 +26,17 @@ struct Scores {
   static constexpr int mate_value{ 49000 };
   // scores beyond +-mate_score are mate scores
   static constexpr int mate_score{ 48000 };
+
+  // Moves (not plies) to mate in UCI's "score mate" sense: > 0 the side to move
+  // mates, < 0 it is mated, 0 for a score that is not a mate. A mate found at ply
+  // n scores mate_value - n: odd n for the side to move, even n against it.
+  [[nodiscard]] static constexpr int mate_in_moves(const int score) {
+    if(score > mate_score && score < mate_value)
+      return (mate_value - score + 1) / 2;
+    if(score < -mate_score && score > -mate_value)
+      return -(mate_value + score) / 2;
+    return 0;
+  }
 };
 
 struct FileMask {

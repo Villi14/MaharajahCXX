@@ -21,6 +21,7 @@ constexpr int ffi_max_hash_mb{ 1024 };
 
 std::unique_ptr<Engine> engine;
 u64 last_nodes{ };
+SearchResult last_result{ };
 
 int copy_out_string(const std::string& value, char* out, const int out_len) {
   if(out == nullptr || out_len <= 0 || static_cast<std::size_t>(out_len) < value.size() + 1)
@@ -55,7 +56,26 @@ int search_best_move(Engine& live, const int depth) {
   live.time_control.poll_input = false;
   const SearchResult result = run_search(live, depth);
   last_nodes = result.nodes;
+  last_result = result;
   return result.best_move;
+}
+
+// a full-strength search that restores the configured strength afterwards
+int analyze(Engine& live, const int depth, char* out_move, const int out_len, int* out_score_cp, int* out_mate_in, int* out_depth) {
+  const SearchConfig configured = live.search_config;
+  live.search_config = SearchConfig::for_difficulty(SearchConfig::max_difficulty);
+  const int move = search_best_move(live, depth);
+  live.search_config = configured;
+  if(!copy_out_move(move, out_move, out_len))
+    return 0;
+
+  if(out_score_cp)
+    *out_score_cp = std::clamp(last_result.score, -Scores::mate_score, Scores::mate_score);
+  if(out_mate_in)
+    *out_mate_in = Scores::mate_in_moves(last_result.score);
+  if(out_depth)
+    *out_depth = last_result.depth;
+  return 1;
 }
 
 // auto keeps what the FEN says (including per-side variant rights); the explicit
@@ -96,6 +116,10 @@ Engine& maharajah::ffi::live_engine() {
 
 u64 maharajah::ffi::last_search_nodes() {
   return last_nodes;
+}
+
+const SearchResult& maharajah::ffi::last_search_result() {
+  return last_result;
 }
 
 FFI_PLUGIN_EXPORT int mah_init(void) {
@@ -176,6 +200,19 @@ FFI_PLUGIN_EXPORT int mah_best_move_time(const int movetime_ms, char* out_move, 
   Engine& live = live_engine();
   live.time_control.set_movetime(movetime_ms);
   return copy_out_move(search_best_move(live, Limits::max_ply), out_move, out_len);
+}
+
+FFI_PLUGIN_EXPORT int mah_analyze_depth(const int depth, char* out_move, const int out_len, int* out_score_cp, int* out_mate_in, int* out_depth) {
+  Engine& live = live_engine();
+  live.time_control.reset();
+  return analyze(live, std::max(depth, 1), out_move, out_len, out_score_cp, out_mate_in, out_depth);
+}
+
+FFI_PLUGIN_EXPORT int mah_analyze_time(const int movetime_ms, const int max_depth, char* out_move, const int out_len, int* out_score_cp, int* out_mate_in, int* out_depth) {
+  Engine& live = live_engine();
+  live.time_control.set_movetime(movetime_ms);
+  const int depth = max_depth > 0 ? std::min(max_depth, static_cast<int>(Limits::max_ply)) : Limits::max_ply;
+  return analyze(live, depth, out_move, out_len, out_score_cp, out_mate_in, out_depth);
 }
 
 FFI_PLUGIN_EXPORT int mah_generate_custom_position_fen(const int side_to_move, const unsigned int seed, char* out_fen, const int out_len) {

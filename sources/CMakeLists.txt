@@ -14,7 +14,8 @@ list(FILTER ENGINE_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 if(EMSCRIPTEN)
   set(MAHARAJAH_WASM_EXPORTS
     _mah_wasm_init _mah_wasm_set_position_fen _mah_wasm_apply_move _mah_wasm_game_status
-    _mah_wasm_get_fen _mah_wasm_best_move_depth _mah_wasm_best_move_time)
+    _mah_wasm_get_fen _mah_wasm_best_move_depth _mah_wasm_best_move_time
+    _mah_wasm_analyze_time)
   list(JOIN MAHARAJAH_WASM_EXPORTS "," MAHARAJAH_WASM_EXPORTS)
 
   add_executable(maharajah_engine ${ENGINE_SOURCES})
