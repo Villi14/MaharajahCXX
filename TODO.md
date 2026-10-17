@@ -55,7 +55,7 @@ identical.
 
 ## To do
 
-- [ ] Engine strength for 1.0.1 (branch `engine-1.0.1`, 2026-10-08): see
+- [ ] Engine strength for 1.0.1 (branch `engine-1.1.0`, renamed from `engine-1.0.1` 2026-10-17): see
       [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
       buckets), round 4 → net5, L5 threads and the ladder.
       **Next session (agreed 2026-10-09), in this order:**
@@ -120,6 +120,12 @@ identical.
             ~160, FSF's UCI_Elo scale is compressed at the top. 4 threads vs 2700: +103 =28 -69
             (200 games — `elo_match` caps a run at 40 games, 20 openings × 2; 58.5 %, +60 ≈
             2760), i.e. +36 over 1 thread on the same anchor.
+      - [ ] `net5` (plan of 2026-10-17): train on r4 only once it reaches **~40 M positions**
+            (net4 chunks 0000-0119 ≈ 20 M + net5a chunks 0120+ ≈ 20 M, i.e. up to about chunk
+            0240; 8.13 M net5a on 2026-10-17 10:24, ~0.73 M/h at 10 threads with turbo).
+            Recipe as net5a (mirror, 768, 20 epochs), then `--sprt 30,50` vs net5a. If it
+            misses the goal: generate more games with net5 as the teacher and retrain
+            (r4 + n3d7 stays a fallback).
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
