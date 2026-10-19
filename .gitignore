@@ -10,6 +10,7 @@ build-test/
 build-native/
 build-android/
 build-asan/
+build-anchor/
 cmake-build-debug/
 build-ninja/
 out/

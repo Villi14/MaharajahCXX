@@ -66,6 +66,9 @@ identical.
          `mah_set_threads(max(1, cores / 2))`, cores from `sysconf(_SC_NPROCESSORS_CONF)`
          on Android (Nokia 6.1 → 4, iPhone 6s → 1); check UI smoothness and heat on the
          Nokia. Server `UciPositionEvaluator`: `setoption name Threads`. Site WASM: later.
+         Owner, 2026-10-18: a switch in the app settings (multi-threaded engine on/off)
+         with a note that several threads drain the battery faster on mobile devices;
+         on by default; it applies to level 5 only (L1-L4 always play one thread).
       3. Optional: net5a vs net4 on armies only (`--custom-share 1`), a few minutes.
       4. Next pilots (10-15 %, `~/nnue-data/pilot/p15.txt`, P0 as base): output buckets
          (pilot on 20-30 %), relabeling at depth 10, λ. Generation-by-node-limit idea for
@@ -126,6 +129,26 @@ identical.
             Recipe as net5a (mirror, 768, 20 epochs), then `--sprt 30,50` vs net5a. If it
             misses the goal: generate more games with net5 as the teacher and retrain
             (r4 + n3d7 stays a fallback).
+            Then Elo against Fairy-Stockfish as for net5a (`~/nnue-data/elo/fsf_net5a.sh` →
+            `fsf_net5.sh`): main run 4 threads vs UCI_Elo **2850** (FSF's cap; net5 is
+            expected near it, where the estimate is sharpest), 400 games; control 1 thread
+            vs 2700, 280 games, to compare directly with net5a's 53.4 %.
+            Stop rule (owner, 2026-10-18): at or near 2850 the network training ends —
+            strong enough for play against people; next is shipping the net in the app.
+            Result (2026-10-18, `~/nnue-data/nets/net5.nnue`): r4 chunks 0000-0243 (40.25 M),
+            806 s per epoch (4 h 30 min). Validation 0.06926 → 0.009069, train 0.008789;
+            quantized vs float 14.4 cp (net5a 11.4). `tools/nnue/match_nets.sh net5 net5a`,
+            50 ms/move, turbo off: classic +388 =84 -328 (800 games,
+            53.8 %, **+26 Elo [+6, +46]**, LLR -2.58, inconclusive at --pairs); armies
+            +70 =4 -90 (164 games, 43.9 %, -43 Elo [-90, +3], H0 — an early stop on noise);
+            armies rematch without SPRT, seed 81: +429 =23 -348 (800 games, 55.1 %,
+            **+35 Elo [+15, +56]**). The army share is the same in r4 and n3d7 (27-28 %).
+            net5 is stronger than net5a by ~+30 on both sets, below the +50 of the SPRT.
+            Against Fairy-Stockfish (2026-10-18, `~/nnue-data/elo/fsf_net5.sh`, setup as for
+            net5a, turbo off): 4 threads vs UCI_Elo 2850 +204 =57 -139 (400 games, 58.1 %,
+            **+57 Elo [+25, +89] ≈ 2905**) — the stop rule's 2850 is reached. The FSF scale is
+            compressed at the top: net5a 4 threads ≈ 2760 on the 2700 anchor, i.e. ≈ +145 via
+            FSF against ≈ +30 in the direct match. Next anchor: CCRL-rated engines.
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
