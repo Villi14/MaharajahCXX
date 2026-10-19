@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Writes sources/NnueDefault.cpp, the network compiled into the engine, from a .nnue file.
 
-Usage: python3 tools/embed_net.py nets/net4_768.nnue
+Usage: python3 tools/embed_net.py nets/net5.nnue
 
 The bytes go in as little-endian 64-bit words: an array of 1.7 M byte values takes
 compilers far longer, and MSVC caps string literals at 64 KB. Every target (x86-64,

@@ -30,7 +30,7 @@ Even on the slowest phone, level 5 is far stronger than any human player.
 
 ## Multi-threading
 
-Modern processors have several cores. With **Multi-threaded engine** turned on in the
+Modern processors have several cores. With **Multi-threaded Engine** turned on in the
 settings, Maharajah thinks on several cores at once and plays stronger; the more cores, the
 bigger the gain. On our test computer, level 5 on 4 cores scored 64 % against Stash 27.0
 (where 1 core scored 40 %) — roughly **3150** on the same scale.

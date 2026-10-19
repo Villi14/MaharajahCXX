@@ -4,7 +4,7 @@
 # Logs in $NNUE_DATA/matches/.
 #
 # Usage: tools/nnue/match_nets.sh NEW BASE [extra match.py arguments]
-#   NEW/BASE: .nnue paths or names in NETS_DIR (net6, net5a, net4_768)
+#   NEW/BASE: .nnue paths or names in NETS_DIR (net6, net5a, net5)
 #   SHARES="0 1" SPRT=30,50 MOVETIME=50 JOBS=24 PAIRS=400 SEED=71 PREPARE=1
 set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/env.sh"
