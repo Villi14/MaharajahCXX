@@ -173,8 +173,13 @@ identical.
             versions with CCRL Blitz ratings 1271-3049, TC 60+0.6, 1 thread, book 8moves_v3):
             L5 vs Stash 25.0 (2933) and 27.0 (3049), 400 games each, then the ladder L1-L4.
             First run (75ea924, without the null-move fix) stopped at 250 games vs 25.0:
-            +116 =38 -96 (54 %, ≈ +28 ≈ 2960); rerun with the fix started 10:50, results to
-            be added here.
+            +116 =38 -96 (54 %, ≈ +28 ≈ 2960). Rerun with the fix (ea3e6a4 + cedff82,
+            `anchors/ours/maharajah-ea3e6a4-nmp2`): vs 25.0 +207 =73 -120 (60.9 %, +77 ± 31),
+            vs 27.0 +121 =78 -201 (40.0 %, −70 ± 31) → **L5 ≈ 2995 ± 22**. Ladder (100 games
+            per pairing): L1 ≈ 860, L2 ≈ 1260, L3 ≈ 1600, L4 ≈ 2010; skill 9 ≈ 2250 (vs 17.0,
+            kept out: L1-L4 steps stay ≈ +400, one jump to L5). L5 4 threads vs 27.0: +30 =4
+            -16 (50 games, 64 %, ≈ 3150, ≈ +170 over 1 thread). Bench Nokia 6.1: 115 k nps
+            (1 thread) / 446 k (4) vs Xeon 636 k / 2.41 M. Write-up: `STRENGTH.md`.
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
