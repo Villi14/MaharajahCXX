@@ -1,5 +1,11 @@
 # Tools
 
+`compare_engines.py`, `bench_engines.py` and `compare_wasm.mjs` were written for the port
+from MaharajahC, when both engines searched identically. The search and the evaluation have
+changed since (NNUE, pruning), so the outputs no longer match (checked 2026-10-19: the start
+position at depth 6 differs even with `UseNNUE false`); `bench_engines.py` is still useful
+for node counts and speed of this engine alone.
+
 - `compare_engines.py` — plays identical UCI and FFI sessions against MaharajahC and
   this engine and diffs every `info` line (score, depth, nodes, PV) and `bestmove`.
 - `bench_engines.py` — search speed of both engines on the same positions and depths
@@ -10,7 +16,7 @@
   smoke tests are in `tests/`.
 - `build_wasm.sh` — builds the browser module (`mah_wasm_*`) with Emscripten.
 - `embed_net.py` — writes `sources/NnueDefault.cpp`, the network compiled into the
-  engine, from a `.nnue` file (`python3 tools/embed_net.py nets/net4_768.nnue`). Every
+  engine, from a `.nnue` file (`python3 tools/embed_net.py nets/net5.nnue`). Every
   engine starts with it; UCI `EvalFile` loads another file (`<empty>` restores the
   built-in one) and `UseNNUE false` switches to the classic evaluation.
 - `compare_wasm.mjs` — loads MaharajahC's and this engine's browser modules in Node and
@@ -18,7 +24,10 @@
 - `match.py` — head-to-head match between two builds (parallel games, each opening
   with both colours, Elo with a 95 % interval). Strength changes are measured with it,
   e.g. `python3 tools/match.py new/maharajah_tool old/maharajah_tool --pairs 200
-  --movetime 50` (~5 min on an M2 Pro); use Release builds.
+  --movetime 50` (~5 min on an M2 Pro); use Release builds and copy them out of the
+  build directory first. `--sprt ELO0,ELO1` stops when a hypothesis is accepted,
+  `--tc 5+0.05` plays on a clock (UCI binaries), `--new-option` / `--base-option` send
+  `setoption` (e.g. `EvalFile=...`), `--custom-share` sets the share of custom armies.
 - `compare_perft.py` — perft counts of the UCI engine (`go perft N`) against
   Fairy-Stockfish with Maharajah_lab's `fsf/variants.ini`, on orthodox and both-sides
   variant positions FSF can represent (no castling for a variant side, unmoved pawns
@@ -34,15 +43,15 @@
   `check.sh` prints the binaries, networks, data files and machine state; `gen.sh HOURS`
   generates `r5/chunk_NNNN.txt` with a teacher network until the time is over;
   `train.sh NAME` trains on n3d7 + r4 + r5 with mirroring; `match_nets.sh NEW BASE` plays
-  one SPRT match per opening set. Settings are environment variables, see each script.
+  one SPRT match per opening set; `env.sh` holds the shared settings. Settings are
+  environment variables, see each script.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 
-## Setup
+## Setup (port-era comparison with MaharajahC)
 
-MaharajahC in `../MaharajahC` is a copy of the engine the app ships,
-`../Maharajah/Maharajah_ffi/src`, and has to match it before comparing
-(`diff -rq ../MaharajahC/src ../Maharajah/Maharajah_ffi/src/src`, same for `include`).
+MaharajahC in `../MaharajahC` is the C engine this one was ported from. The app no longer
+ships it: the monorepo's `Maharajah_ffi/src` is now a copy of this engine.
 
 Build this project and MaharajahC, both in Release:
 

@@ -1,7 +1,8 @@
 # Maharajah
 
 C++ chess engine with UCI support and a C interface for app integrations, ported from
-MaharajahC. Besides standard chess it plays **compound (fairy) pieces** throughout move
+MaharajahC. The app, the site and the server use a copy of it, `Maharajah_ffi/src` in the
+Maharajah monorepo. Besides standard chess it plays **compound (fairy) pieces** throughout move
 generation, SEE, evaluation and draw rules:
 
 - `A` / `a` — Archbishop (bishop + knight)
@@ -17,10 +18,17 @@ pawn once from its start square, and never castles. FEN takes two optional extra
   the only source of a variant pawn's double step: with `-` or without the field none may
   double-step. A classic side's pawns are never listed and double-step from rank 2 / 7.
 
-Search: iterative deepening PVS with aspiration windows, transposition table, null-move
-pruning, late-move reductions, futility and late-move pruning, killer/history ordering and
+Search: iterative deepening PVS with aspiration windows, a lockless transposition table
+shared by Lazy SMP threads, null-move pruning (only with at least two pieces besides king
+and pawns, against zugzwang), reverse futility pruning, internal iterative reduction, check
+extension, late-move reductions, futility and late-move pruning, killer/history ordering and
 SEE-pruned quiescence. Strength is set with `difficulty 1..5` (the level shown to players)
 or the lower-level `skill 1..10`.
+
+Evaluation: an NNUE network compiled into the engine (`nets/net5.nnue`: 18 piece kinds ×
+64 squares → 768 × 2 perspectives → SCReLU → 1, the compound pieces as inputs of their
+own), trained only on the engine's own self-play. The classic hand-written evaluation
+remains as a fallback.
 
 ## Build Commands
 
@@ -38,8 +46,10 @@ cmake --build build
 ./build/sources/Maharajah --debug   # prints the board and searches the start position
 ```
 
-UCI options: `Hash` (4-128 MB), `Skill Level` (1-10) and `Threads` (1-64, default 1; more
-than one thread searches faster but is no longer deterministic). `go` accepts `depth`, `movetime`,
+UCI options: `Hash` (4-128 MB), `Skill Level` (1-10), `Threads` (1-64, default 1; more
+than one thread searches faster but is no longer deterministic), `EvalFile` (a `.nnue`
+file; `<empty>` restores the built-in network) and `UseNNUE` (`false` for the classic
+evaluation). `go` accepts `depth`, `movetime`,
 `wtime`/`btime`/`winc`/`binc`/`movestogo` and `infinite`; a running search stops on `stop`.
 
 ## C interface
@@ -54,6 +64,12 @@ than one thread searches faster but is no longer deterministic). `go` accepts `d
    `mah_best_move_depth(...)` / `mah_best_move_time(...)`
 5. `mah_shutdown()`
 
+`mah_analyze_depth(...)` / `mah_analyze_time(...)` search at full strength and also return
+the score, mate distance and depth. The network is managed with `mah_set_eval_mode`,
+`mah_load_weights` / `mah_load_weights_from_bytes` / `mah_load_default_weights` /
+`mah_unload_weights`, and reported by `mah_get_eval_status`, `mah_get_weights_version` and
+`mah_get_nnue_info` (JSON).
+
 `mah_generate_custom_position_fen(side, seed, ...)` generates a custom variant start.
 
 ## Browser build
@@ -61,7 +77,7 @@ than one thread searches faster but is no longer deterministic). `go` accepts `d
 `tools/build_wasm.sh [out_dir]` builds `maharajah_engine.js` + `.wasm` with Emscripten
 (`emcc` on `PATH`) into `build-wasm/out`. It is a drop-in replacement for the module
 MaharajahC builds for the web game: an ES6 factory `createMaharajahEngine` exporting the
-same `mah_wasm_*` functions ([headers/wasm/maharajah_wasm.h](headers/wasm/maharajah_wasm.h)),
+same `mah_wasm_*` functions plus `mah_wasm_analyze_time` ([headers/wasm/maharajah_wasm.h](headers/wasm/maharajah_wasm.h)),
 which return strings instead of filling buffers and are called through `cwrap`:
 
 ```js
@@ -103,15 +119,11 @@ Perft results are checked against <https://www.chessprogramming.org/Perft_Result
 
 ## Links
 
-### <https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs>
-
-### <https://en.wikipedia.org/wiki/Bitboard>
-
-### <https://www.chessprogramming.org/Looking_for_Magics>
-
-### <https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html>
-
-### <https://gekomad.github.io/Cinnamon/BitboardCalculator/>
+- <https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs>
+- <https://en.wikipedia.org/wiki/Bitboard>
+- <https://www.chessprogramming.org/Looking_for_Magics>
+- <https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html>
+- <https://gekomad.github.io/Cinnamon/BitboardCalculator/>
 
 ## License
 

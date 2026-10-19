@@ -1,5 +1,11 @@
 # TODO — port of MaharajahC
 
+**Current state (2026-10-19).** The port is long done; this file is now the engine's work
+log. The app ships a copy of this engine (the monorepo's `Maharajah_ffi/src`), so
+MaharajahC is only the historical reference of the sections below. Built-in network: net5.
+Goals at the finish: one honest Elo figure on the CCRL scale, the L1-L5 ladder, and no
+search blunders. Open items: "To do" below.
+
 Branch `port-maharajahc`, squashed into one commit on 2026-10-01. The commit hashes
 below (43464a7, f702335, ...) are in the unsquashed history, tag
 `port-maharajahc-history`. The engine, UCI, C interface (`mah_*`), custom-position
@@ -55,15 +61,17 @@ identical.
 
 ## To do
 
-- [ ] Engine strength for 1.0.1 (branch `engine-1.1.0`, renamed from `engine-1.0.1` 2026-10-17): see
-      [PLAN_1.0.1.md](PLAN_1.0.1.md) — SPRT, search, trainer (mirroring, output and king
-      buckets), round 4 → net5, L5 threads and the ladder.
+- [ ] Engine strength for 1.0.1 (worked on in branch `engine-1.1.0`, merged into `main` and
+      deleted 2026-10-19). The plan of 2026-10-08 (PLAN_1.0.1.md, removed 2026-10-19, see
+      e07a949) is done or carried over into the items below: SPRT, search, trainer
+      (mirroring), round 4 → net5; still open: L5 threads and the ladder.
       **Next session (agreed 2026-10-09), in this order:**
       1. Build net5a into the engine instead of net4_768 (`embed_net.py`, ctest incl.
          ASan/UBSan, bench x86 / WASM SIMD / Nokia 6.1 — same 768 width, so no speed
          change expected); then copy the engine into the monorepo's `Maharajah_ffi`.
          Done with net5 instead (2026-10-19, `nets/net5.nnue`); ctest on Linux, ASan and
-         macOS via CI. Still open: the benches and the copy into `Maharajah_ffi`.
+         macOS via CI. Still open: the benches and the copy into `Maharajah_ffi` (net5 and the
+         null-move fix cedff82; checked 2026-10-19, these are the only differences).
          Morphy's mate in two (`kbK5/pp6/1P6/8/8/8/8/R7 w`, 1. Ra6 bxa6 2. b7#), missed
          with net5 at any depth: fixed 2026-10-19. Cause: null move in zugzwang. After Ra6
          Black (one bishop) passes, the pass fails high (net5 scores Ra6 + pass about +490,
@@ -135,7 +143,7 @@ identical.
             ~160, FSF's UCI_Elo scale is compressed at the top. 4 threads vs 2700: +103 =28 -69
             (200 games — `elo_match` caps a run at 40 games, 20 openings × 2; 58.5 %, +60 ≈
             2760), i.e. +36 over 1 thread on the same anchor.
-      - [ ] `net5` (plan of 2026-10-17): train on r4 only once it reaches **~40 M positions**
+      - [x] `net5` (plan of 2026-10-17): train on r4 only once it reaches **~40 M positions**
             (net4 chunks 0000-0119 ≈ 20 M + net5a chunks 0120+ ≈ 20 M, i.e. up to about chunk
             0240; 8.13 M net5a on 2026-10-17 10:24, ~0.73 M/h at 10 threads with turbo).
             Recipe as net5a (mirror, 768, 20 epochs), then `--sprt 30,50` vs net5a. If it
@@ -161,10 +169,16 @@ identical.
             **+57 Elo [+25, +89] ≈ 2905**) — the stop rule's 2850 is reached. The FSF scale is
             compressed at the top: net5a 4 threads ≈ 2760 on the 2700 anchor, i.e. ≈ +145 via
             FSF against ≈ +30 in the direct match. Next anchor: CCRL-rated engines.
+            CCRL scale (2026-10-19, `~/nnue-data/anchors/ccrl_net5.sh`, cutechess-cli, Stash
+            versions with CCRL Blitz ratings 1271-3049, TC 60+0.6, 1 thread, book 8moves_v3):
+            L5 vs Stash 25.0 (2933) and 27.0 (3049), 400 games each, then the ladder L1-L4.
+            First run (75ea924, without the null-move fix) stopped at 250 games vs 25.0:
+            +116 =38 -96 (54 %, ≈ +28 ≈ 2960); rerun with the fix started 10:50, results to
+            be added here.
       - [ ] 1.3 SEE pruning in the main search: `see_evaluate` returns 0 for quiets;
             dropping its capture-only check gives a quiet move's SEE (the existing
             e2e4 → 0 test still holds; add one for a quiet move onto an attacked square).
-            Unlikely to reach +50 on its own, like 1.1/1.2.
+            Not in the finish scope (2026-10-19: no more strength hunting).
 
 - [x] Review the branch and merge it into `master` — done: one linear `main`, tag `v1.0.0`
       (2026-10-08).
@@ -243,8 +257,9 @@ identical.
       Five variant cases added to `PerftTests.cpp`.
 - [ ] Compare timed searches (`go movetime`, `mah_best_move_time`) — only fixed-depth
       searches are compared exactly; timed ones depend on the clock.
-- [ ] Hook the C++ `maharajah_ffi` library into the app instead of the C one and
-      check it on the target platforms (Android page size flag is set in CMake).
+- [x] Hook the C++ `maharajah_ffi` library into the app instead of the C one and
+      check it on the target platforms (Android page size flag is set in CMake). Done:
+      the monorepo's `Maharajah_ffi/src` is a copy of this engine (checked 2026-10-19).
 - [ ] Run the tests on Windows/MSVC (CI covers Ubuntu and macOS only); the stdin
       polling there uses `PeekNamedPipe` and is untested. The `maharajah_tool` shell
       smoke tests are skipped on Windows.
