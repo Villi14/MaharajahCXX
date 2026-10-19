@@ -25,7 +25,7 @@ net_path() {
   die "network $1 not found (NETS_DIR=$NETS_DIR)"
 }
 
-# The machine state every match and training run assumes (TODO.md): background generation
+# The machine state every match and training run assumes: background generation
 # stopped, fans up, turbo off. Asks for sudo once.
 prepare_machine() {
   if systemctl is-active --quiet nnue-gen 2>/dev/null; then
