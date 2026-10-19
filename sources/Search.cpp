@@ -368,14 +368,17 @@ int Search::negamax(int alpha, int beta, int depth) {
   int legal_moves{ };
 
   // Null-move pruning is unsound in zugzwang-prone positions; require the side to
-  // move to have at least one piece besides king and pawns.
+  // move to have at least two pieces besides king and pawns. With a single piece the
+  // pass may be the only move that does not lose: in kbK5/pp6/1P6/8/8/8/8/R7 w after
+  // 1. Ra6 every black move is mated (bxa6 b7#, a bishop move Rxa7#), but the pass
+  // fails high and Ra6 was never searched.
   const auto& bb = board_.state.bitboards;
   const u64 own_non_pawn_material =
       (side == white) ? (bb[N] | bb[B] | bb[R] | bb[Q] | bb[A] | bb[C] | bb[M]) : (bb[n] | bb[b] | bb[r] | bb[q] | bb[a] | bb[c] | bb[m]);
 
   // the reduction grows with depth; only tried where the static evaluation already
   // beats beta, outside PV nodes
-  if(depth >= 3 && !in_check && ply_ && !pv_node && own_non_pawn_material && static_eval >= beta) {
+  if(depth >= 3 && !in_check && ply_ && !pv_node && count_bits(own_non_pawn_material) >= 2 && static_eval >= beta) {
     const ZobristKeys& keys = ZobristKeys::get();
     board_.push_state();
     ++ply_;

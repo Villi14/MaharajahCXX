@@ -64,14 +64,15 @@ identical.
          change expected); then copy the engine into the monorepo's `Maharajah_ffi`.
          Done with net5 instead (2026-10-19, `nets/net5.nnue`); ctest on Linux, ASan and
          macOS via CI. Still open: the benches and the copy into `Maharajah_ffi`.
-         Two FFI tests disabled: with net5 the search never finds Morphy's mate in two
-         (`kbK5/pp6/1P6/8/8/8/8/R7 w`, 1. Ra6 bxa6 2. b7#), not even at depth 16; net4_768
-         found it at depth 6. Switching off any one of null-move pruning, reverse futility
-         or IIR brings it back at depth 5-6. Likely: after the quiet sacrifice Black is a
-         rook up, so a shallow null-move search (where futility/LMP drop the quiet b7#) or
-         IIR down to depth 2 followed by RFP refutes Ra6. Find the node, fix, measure by
-         SPRT, then re-enable `DISABLED_analysis_reports_morphys_mate_in_two` and
-         `DISABLED_analysis_is_full_strength_and_keeps_the_difficulty`.
+         Morphy's mate in two (`kbK5/pp6/1P6/8/8/8/8/R7 w`, 1. Ra6 bxa6 2. b7#), missed
+         with net5 at any depth: fixed 2026-10-19. Cause: null move in zugzwang. After Ra6
+         Black (one bishop) passes, the pass fails high (net5 scores Ra6 + pass about +490,
+         beta from a1a2 about +495), so the real moves, all mated, were never searched;
+         net4_768 found it only because its depth-6 null search happened to fail low. Null
+         move now needs two pieces besides king and pawns; mate 2 at depth 6 with net4 and
+         net5, both FFI tests enabled again. No separate SPRT (owner): the CCRL run was
+         restarted with this binary, the stopped one is in `anchors/out/partial-75ea924`
+         (vs Stash 25.0: 116-96-38 after 250 games, 54 %).
       2. Threads at L5 in the app (monorepo, `Maharajah_ui` / `maharajah_ffi.dart`):
          `mah_set_threads(max(1, cores / 2))`, cores from `sysconf(_SC_NPROCESSORS_CONF)`
          on Android (Nokia 6.1 → 4, iPhone 6s → 1); check UI smoothness and heat on the
@@ -85,8 +86,9 @@ identical.
          the next data round (deeper endgame labels at the same cost).
       Before any match/training: `sudo systemctl stop nnue-gen`, then
       `sudo ~/nnue-data/r4/fan.sh 90`, check `no_turbo` = 1.
-      State 2026-10-08. **Threshold (owner, 2026-10-08): a change is kept only for ≥ +50 Elo**;
-      SPRT `--sprt 30,50` decides in a few hundred games. Frozen binaries in
+      State 2026-10-08. The +50 Elo threshold of 2026-10-08 is dropped (owner, 2026-10-19):
+      at the finish the goals are one honest Elo figure, the ladder and an engine without
+      blunders; a fix is kept unless a match shows a loss. Frozen binaries in
       `~/nnue-data/m101/bin/`. Ubuntu, 50 ms/move, `--custom-share 0`, turbo off; ctest
       Debug + ASan/UBSan 298/298 on 5594a84.
       - [x] Step 0, SPRT in `match.py` (see the match runner below).
