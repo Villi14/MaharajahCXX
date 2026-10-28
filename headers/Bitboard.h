@@ -133,4 +133,32 @@ inline u64 get_piece_attacks(const Pieces piece, const Squares square, const u64
   }
 }
 
+// One side's pieces grouped by how they attack a square. Compound pieces attack like
+// their components, so an attack test computes each attack set (knight jumps,
+// diagonals, lines) once for all the pieces moving that way. The knight, diagonal and
+// line squares around a square never overlap.
+struct AttackerGroups {
+  u64 pawns{ };
+  // N, A, C, M
+  u64 knight_movers{ };
+  // B, A, Q, M
+  u64 diagonal_movers{ };
+  // R, C, Q, M
+  u64 line_movers{ };
+  u64 king{ };
+
+  AttackerGroups(const std::array<u64, PieceCount::all>& bitboards, const Colors side) {
+    const u64 archbishops = bitboards[colored(A, side)];
+    const u64 chancellors = bitboards[colored(C, side)];
+    const u64 queens = bitboards[colored(Q, side)];
+    const u64 amazons = bitboards[colored(M, side)];
+
+    pawns = bitboards[colored(P, side)];
+    knight_movers = bitboards[colored(N, side)] | archbishops | chancellors | amazons;
+    diagonal_movers = bitboards[colored(B, side)] | archbishops | queens | amazons;
+    line_movers = bitboards[colored(R, side)] | chancellors | queens | amazons;
+    king = bitboards[colored(K, side)];
+  }
+};
+
 } // namespace maharajah

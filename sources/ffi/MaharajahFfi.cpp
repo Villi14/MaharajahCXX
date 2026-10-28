@@ -179,7 +179,7 @@ FFI_PLUGIN_EXPORT int mah_game_status(void) {
     return mah_status_ongoing;
 
   // a missing king is a lost position rather than undefined behaviour
-  const u64 king = board.state.bitboards[board.state.side == white ? K : k];
+  const u64 king = board.state.bitboards[colored(K, board.state.side)];
   if(!king || board.in_check())
     return mah_status_checkmate;
   return mah_status_stalemate;

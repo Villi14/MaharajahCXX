@@ -4,6 +4,7 @@
 
 #include <memory>
 #include <ostream>
+#include <span>
 
 namespace maharajah {
 
@@ -49,10 +50,6 @@ class Search {
   int negamax(int alpha, int beta, int depth);
   int quiescence(int alpha, int beta);
 
-  // Draw by repetition, the fifty/seventy-five move rules or insufficient material.
-  [[nodiscard]] bool is_draw() const;
-  [[nodiscard]] bool is_insufficient_material() const;
-
   [[nodiscard]] u64 nodes() const {
     return nodes_;
   }
@@ -62,11 +59,49 @@ class Search {
 #endif
 
   private:
+  // late move reductions start with this move, from this depth on
   static constexpr int full_depth_moves{ 4 };
   static constexpr int reduction_limit{ 3 };
   static constexpr int aspiration_window{ 50 };
-  // history scores stay within +-history_limit, below the killer moves (8000, 9000)
+  // the clock and input are checked once per this many nodes
+  static constexpr u64 communicate_interval{ 2048 };
+
+  // Move-ordering scores; moves are searched highest score first.
+  struct MoveOrder {
+    static constexpr int hash_move{ 30000 };
+    // the previous iteration's principal variation move
+    static constexpr int pv_move{ 20000 };
+    // plus MVV-LVA and, for a capturing promotion, the promotion bonus
+    static constexpr int capture{ 10000 };
+    // plus the promotion bonus
+    static constexpr int quiet_promotion{ 9500 };
+    // plus the value of the promoted piece
+    static constexpr int promotion_bonus{ 2000 };
+    static constexpr int first_killer{ 9000 };
+    static constexpr int second_killer{ 8000 };
+  };
+  // history scores stay within +-history_limit, below the killer moves
   static constexpr int history_limit{ 7000 };
+  static_assert(history_limit < MoveOrder::second_killer);
+
+  // The root moves of the current iteration with their scores, for picking the move
+  // to play (anti-repetition, weaker skill levels).
+  struct RootMoves {
+    int count{ };
+    std::array<int, Limits::max_moves> moves{ };
+    std::array<int, Limits::max_moves> scores{ };
+
+    void add(const int move, const int score) {
+      if(count == Limits::max_moves)
+        return;
+      moves[count] = move;
+      scores[count] = score;
+      ++count;
+    }
+
+    // best score first, ties in search order
+    void sort();
+  };
 
   void reset();
   void communicate();
@@ -82,13 +117,30 @@ class Search {
   [[nodiscard]] bool should_return_draw_score() const;
   [[nodiscard]] int effective_depth(int depth) const;
 
+  // Plays `move` one ply deeper, remembering the position for repetition detection;
+  // false (and nothing changed) if the move is illegal.
+  bool make_move(int move, TypeMove type_move = TypeMove::all_moves);
+  // Passes the turn one ply deeper (null-move pruning).
+  void make_null_move();
+  // Takes back the last make_move or make_null_move.
+  void unmake_move();
+
+  // true when the side to move may be in zugzwang, where null-move pruning is unsound
+  [[nodiscard]] bool zugzwang_prone() const;
+  // score after passing the turn, from a reduced null-window search at beta
+  int null_move_score(int beta, int depth);
+  // makes `move` followed by the child's line the principal variation from this ply
+  void update_pv(int move);
+  // killer moves and history after the quiet `move` caused a beta cutoff, with a
+  // malus for the quiet moves searched before it
+  void reward_quiet_cutoff(int move, int depth, std::span<const int> failed_quiet_moves);
+
   void update_history(int move, int bonus);
   // `hash_move` (from the hash table, 0 if none) is searched first
   [[nodiscard]] int score_move(int move, int hash_move);
   void sort_moves(MoveList& moves_list, int hash_move = 0);
   void enable_pv_scoring(const MoveList& moves_list);
 
-  void sort_root_moves();
   int verify_root_candidate_score(int move);
   bool root_move_repeats_position(int move);
   int select_non_repeating_root_move(int best_move);
@@ -111,9 +163,7 @@ class Search {
   std::array<std::array<int, BoardGeometry::squares>, PieceCount::all> history_moves_{ };
   std::array<int, Limits::max_ply + 1> pv_length_{ };
   std::array<std::array<int, Limits::max_ply + 1>, Limits::max_ply + 1> pv_table_{ };
-  int root_count_{ };
-  std::array<int, Limits::max_moves> root_moves_{ };
-  std::array<int, Limits::max_moves> root_scores_{ };
+  RootMoves root_moves_{ };
   // set when the engine evaluates with a loaded network; accumulators by ply
   const Nnue* nnue_{ };
   std::unique_ptr<std::array<NnueAccumulator, Limits::max_ply + 1>> accumulators_;

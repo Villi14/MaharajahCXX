@@ -168,19 +168,19 @@ TEST_F(search_test_fixture, halfmove_clock_resets_on_pawn_move_and_capture) {
 
 TEST_F(search_test_fixture, fifty_move_rule_is_a_draw) {
   ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 99 80"));
-  EXPECT_FALSE(Search(engine()).is_draw());
+  EXPECT_FALSE(board().is_draw());
   ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 100 80"));
-  EXPECT_TRUE(Search(engine()).is_draw());
+  EXPECT_TRUE(board().is_draw());
 }
 
 TEST_F(search_test_fixture, fifty_move_rule_does_not_apply_to_variant_boards) {
   ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6A w - - 100 80"));
-  EXPECT_FALSE(Search(engine()).is_draw());
+  EXPECT_FALSE(board().is_draw());
 }
 
 TEST_F(search_test_fixture, threefold_repetition_is_a_draw) {
   ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/4K2R w - - 0 1"));
-  EXPECT_FALSE(Search(engine()).is_draw());
+  EXPECT_FALSE(board().is_draw());
   for(int cycle{ }; cycle < 2; ++cycle) {
     play("h1h2");
     play("e8d8");
@@ -188,7 +188,7 @@ TEST_F(search_test_fixture, threefold_repetition_is_a_draw) {
     play("d8e8");
     // the start position has now occurred cycle + 2 times
     EXPECT_EQ(board().repetition_count(), cycle + 2);
-    EXPECT_EQ(Search(engine()).is_draw(), cycle == 1);
+    EXPECT_EQ(board().is_draw(), cycle == 1);
   }
 }
 
@@ -207,13 +207,13 @@ TEST_F(search_test_fixture, insufficient_material_is_a_draw) {
   for(const char* fen :
       { "4k3/8/8/8/8/8/8/4K3 w - - 0 1", "4k3/8/8/8/8/8/8/2B1K3 w - - 0 1", "4k3/8/8/8/8/8/8/4KN2 w - - 0 1", "2b1k3/8/8/8/8/8/8/4KB2 w - - 0 1" }) {
     ASSERT_TRUE(game.parse_fen(fen));
-    EXPECT_TRUE(Search(engine()).is_insufficient_material()) << fen;
+    EXPECT_TRUE(board().is_insufficient_material()) << fen;
   }
 
   for(const char* fen :
       { "4k3/8/8/8/8/8/8/3NKN2 w - - 0 1", "4kn2/8/8/8/8/8/8/4KN2 w - - 0 1", "3bk3/8/8/8/8/8/8/4KB2 w - - 0 1", "4k3/8/8/8/8/8/8/4KA2 w - - 0 1" }) {
     ASSERT_TRUE(game.parse_fen(fen));
-    EXPECT_FALSE(Search(engine()).is_insufficient_material()) << fen;
+    EXPECT_FALSE(board().is_insufficient_material()) << fen;
   }
 }
 

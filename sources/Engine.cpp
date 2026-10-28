@@ -1,7 +1,18 @@
 #include "../headers/Engine.h"
 #include "../headers/Bitboard.h"
+#include "../headers/Clock.h"
 
 namespace maharajah {
+
+void TimeControl::set_movetime(const int movetime_ms) {
+  reset();
+  if(movetime_ms <= 0)
+    return;
+
+  starttime = now_ms();
+  stoptime = starttime + movetime_ms;
+  timeset = true;
+}
 
 Engine::Engine() {
   // the skill-level random stream continues where hash key generation stopped

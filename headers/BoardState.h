@@ -6,6 +6,16 @@
 
 namespace maharajah {
 
+// The piece among `first`..`last` standing on `square`, or no_pieces.
+[[nodiscard]] inline Pieces find_piece(const std::array<u64, PieceCount::all>& bitboards, const Squares square, const Pieces first = P, const Pieces last = k) {
+  const u64 mask = one << square;
+  for(Pieces piece{ first }; piece <= last; ++piece) {
+    if(bitboards[piece] & mask)
+      return piece;
+  }
+  return no_pieces;
+}
+
 struct BoardState {
   Colors side{ white };
   int en_passant{ no_square };
@@ -41,7 +51,22 @@ struct BoardState {
   }
 
   [[nodiscard]] bool has_compound_pieces(const Colors color) const {
-    return color == white ? (bitboards[A] || bitboards[C] || bitboards[M]) : (bitboards[a] || bitboards[c] || bitboards[m]);
+    return bitboards[colored(A, color)] || bitboards[colored(C, color)] || bitboards[colored(M, color)];
+  }
+
+  // the piece on `square`, or no_pieces
+  [[nodiscard]] Pieces piece_on(const Squares square) const {
+    return find_piece(bitboards, square);
+  }
+
+  // the piece of `color` on `square`, or no_pieces
+  [[nodiscard]] Pieces piece_on(const Squares square, const Colors color) const {
+    return find_piece(bitboards, square, colored(P, color), colored(K, color));
+  }
+
+  // the side's pieces other than its pawns and king
+  [[nodiscard]] u64 non_pawn_pieces(const Colors color) const {
+    return occupancies[color] & ~(bitboards[colored(P, color)] | bitboards[colored(K, color)]);
   }
 };
 

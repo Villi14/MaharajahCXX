@@ -90,6 +90,12 @@ inline Squares operator++(Squares& square, int) {
   return side == white ? black : white;
 }
 
+// The piece of kind `white_piece` (one of P..K) belonging to `side`: each black piece
+// sits PieceCount::per_side after its white counterpart, so colored(Q, black) == q.
+[[nodiscard]] inline constexpr Pieces colored(const Pieces white_piece, const Colors side) {
+  return to_piece(white_piece + side * PieceCount::per_side);
+}
+
 inline Pieces& operator++(Pieces& piece) {
   int value = static_cast<int>(piece) + 1;
 

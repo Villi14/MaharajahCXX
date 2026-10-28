@@ -156,7 +156,7 @@ TEST_F(ffi_api_test_fixture, rules_profiles_control_the_halfmove_draw_rules) {
   ASSERT_TRUE(mah_set_position_fen_with_rules("7k/8/8/8/3M4/8/8/7K w - - 150 1 ", mah_rules_standard));
   Engine& live = ffi::live_engine();
   EXPECT_FALSE(live.board.state.standard_rules);
-  EXPECT_FALSE(Search(live).is_draw());
+  EXPECT_FALSE(live.board.is_draw());
 
   ASSERT_TRUE(mah_set_position_fen_with_rules("7k/8/8/8/8/8/6N1/7K w - - 150 1 ", mah_rules_variant));
   EXPECT_FALSE(live.board.state.standard_rules);

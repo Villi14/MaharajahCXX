@@ -13,6 +13,13 @@ struct BoardGeometry {
   static constexpr int files{ 0x8 };
 };
 
+// The square one rank behind `square` as seen by `side`: square 0 is a8, so white
+// pawns advance towards lower indices. Behind a pawn's double step lies the en passant
+// square, behind the en passant square the pawn that can be taken.
+[[nodiscard]] inline Squares square_behind(const Squares square, const Colors side) {
+  return side == white ? square + BoardGeometry::ranks : square - BoardGeometry::ranks;
+}
+
 struct Limits {
   // deepest search ply; also the depth used for "search until stopped"
   static constexpr int max_ply{ 0x40 };

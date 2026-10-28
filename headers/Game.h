@@ -23,7 +23,8 @@ struct Game {
   std::expected<void, std::string_view> parse_fen(std::string_view fen);
   static std::string print_bitboard(u64 bitboard, bool print_to_console = false);
   static void print_move(int move);
-  void print_move_list();
+  // the pseudo-legal moves of the current position
+  void print_move_list() const;
   int parse_move(std::string_view move_string) const;
   void parse_go(std::string_view command);
   void search_position(int depth);
@@ -31,14 +32,6 @@ struct Game {
   void uci_loop();
 
   static void print_uci_info();
-
-  static bool starts_with(std::string_view str, std::string_view cmd) {
-    return str.starts_with(cmd);
-  }
-
-  static bool is_token(std::string_view str, std::string_view token) {
-    return str.starts_with(token) && (str.size() == token.size() || str[token.size()] == ' ' || str[token.size()] == '\n');
-  }
 
 #ifdef MAHARAJAH_TESTING
   friend struct GameTestAccess;

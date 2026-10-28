@@ -60,36 +60,25 @@ int piece_material_value(const Pieces piece) {
 }
 
 int attacker_count_on_square(const BoardState& state, const Squares square, const Colors side) {
-  const auto& bb = state.bitboards;
   const u64 occupancy = state.occupancies[both];
-  const bool is_white = side == white;
-  int attackers{ };
+  const AttackerGroups attackers(state.bitboards, side);
 
-  attackers += count_bits(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p]);
-  // knight, diagonal and line squares never overlap, so a compound piece reaching the
-  // square is counted once, in the set its move falls in
-  const u64 archbishops = bb[is_white ? A : a];
-  const u64 chancellors = bb[is_white ? C : c];
-  const u64 amazons = bb[is_white ? M : m];
-  const u64 queens = bb[is_white ? Q : q];
-  attackers += count_bits(attack_tables.knight[square] & (bb[is_white ? N : n] | archbishops | chancellors | amazons));
-  attackers += count_bits(get_bishop_attacks(square, occupancy) & (bb[is_white ? B : b] | archbishops | queens | amazons));
-  attackers += count_bits(get_rook_attacks(square, occupancy) & (bb[is_white ? R : r] | chancellors | queens | amazons));
-  attackers += count_bits(attack_tables.king[square] & bb[is_white ? K : k]);
-
-  return attackers;
+  // the groups' attack sets never overlap, so a compound piece reaching the square is
+  // counted once, in the set its move falls in
+  return count_bits(attack_tables.pawn[opponent(side)][square] & attackers.pawns) + count_bits(attack_tables.knight[square] & attackers.knight_movers) +
+         count_bits(get_bishop_attacks(square, occupancy) & attackers.diagonal_movers) +
+         count_bits(get_rook_attacks(square, occupancy) & attackers.line_movers) + count_bits(attack_tables.king[square] & attackers.king);
 }
 
 int least_attacker_value_on_square(const BoardState& state, const Squares square, const Colors side) {
   const auto& bb = state.bitboards;
   const u64 occupancy = state.occupancies[both];
-  const bool is_white = side == white;
 
-  if(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p])
+  if(attack_tables.pawn[opponent(side)][square] & bb[colored(P, side)])
     return piece_material_value(P);
   // cheapest first: N < B < A < R < C < Q < M < K
   for(const Pieces piece : { N, B, A, R, C, Q, M, K }) {
-    const Pieces own = is_white ? piece : to_piece(piece + PieceCount::per_side);
+    const Pieces own = colored(piece, side);
     if(get_piece_attacks(own, square, occupancy) & bb[own])
       return piece_material_value(own);
   }
@@ -99,6 +88,26 @@ int least_attacker_value_on_square(const BoardState& state, const Squares square
 
 // Pieces with the same material class share the penalty divisors.
 enum class SafetyClass { heavy, rook, minor, pawn };
+
+// The piece safety penalty of a class, as divisors of the piece's material value.
+struct SafetyDivisors {
+  // base penalty for an attacked piece
+  int defended;
+  int undefended;
+  // per attacker more than defenders
+  int outnumbered;
+  // the penalty is capped at value * cap_numerator / cap_denominator
+  int cap_numerator;
+  int cap_denominator;
+};
+
+// indexed by SafetyClass
+constexpr std::array<SafetyDivisors, 4> safety_divisors{ {
+    { 10, 4, 14, 2, 5 }, // heavy
+    { 12, 5, 18, 1, 3 }, // rook
+    { 14, 6, 18, 1, 4 }, // minor
+    { 18, 10, 18, 1, 5 }, // pawn
+} };
 
 SafetyClass safety_class(const Pieces piece) {
   switch(piece) {
@@ -137,64 +146,35 @@ int Evaluator::piece_safety_penalty(const BoardState& state, const Pieces piece,
   const bool defended = own_defenders > 0;
   const int material_value = piece_material_value(piece);
   const int least_attacker_value = least_attacker_value_on_square(state, square, enemy_side);
-  const SafetyClass kind = safety_class(piece);
-  int penalty{ };
+  const SafetyDivisors& divisors = safety_divisors[static_cast<std::size_t>(safety_class(piece))];
 
-  switch(kind) {
-  case SafetyClass::heavy:
-    penalty = defended ? material_value / 10 : material_value / 4;
-    break;
-  case SafetyClass::rook:
-    penalty = defended ? material_value / 12 : material_value / 5;
-    break;
-  case SafetyClass::minor:
-    penalty = defended ? material_value / 14 : material_value / 6;
-    break;
-  case SafetyClass::pawn:
-    penalty = defended ? material_value / 18 : material_value / 10;
-    break;
-  }
+  int penalty = material_value / (defended ? divisors.defended : divisors.undefended);
 
   if(enemy_attackers > own_defenders)
-    penalty += (material_value * (enemy_attackers - own_defenders)) / (kind == SafetyClass::heavy ? 14 : 18);
+    penalty += (material_value * (enemy_attackers - own_defenders)) / divisors.outnumbered;
 
   if(!defended)
     penalty += material_value / 12;
 
+  // attacked by a cheaper piece, which would win material by capturing
   if(least_attacker_value > 0 && least_attacker_value < material_value) {
-    penalty += (material_value - least_attacker_value) / 10;
+    const int exchange_gain = material_value - least_attacker_value;
+    penalty += exchange_gain / 10;
 
     if(!defended)
-      penalty += (material_value - least_attacker_value) / 12;
+      penalty += exchange_gain / 12;
     else if(enemy_attackers >= own_defenders)
-      penalty += (material_value - least_attacker_value) / 16;
+      penalty += exchange_gain / 16;
   }
 
-  int cap{ };
-  switch(kind) {
-  case SafetyClass::heavy:
-    cap = (material_value * 2) / 5;
-    break;
-  case SafetyClass::rook:
-    cap = material_value / 3;
-    break;
-  case SafetyClass::minor:
-    cap = material_value / 4;
-    break;
-  case SafetyClass::pawn:
-    cap = material_value / 5;
-    break;
-  }
-
-  return penalty > cap ? cap : penalty;
+  return std::min(penalty, material_value * divisors.cap_numerator / divisors.cap_denominator);
 }
 
 int Evaluator::game_phase_score(const BoardState& state) {
   int score{ };
 
   for(const Pieces piece : { N, B, R, Q, A, C, M }) {
-    const Pieces black_piece = to_piece(piece + PieceCount::per_side);
-    score += (count_bits(state.bitboards[piece]) + count_bits(state.bitboards[black_piece])) * Evaluation::piece_value[piece];
+    score += (count_bits(state.bitboards[piece]) + count_bits(state.bitboards[colored(piece, black)])) * Evaluation::piece_value[piece];
   }
 
   return score;
@@ -226,8 +206,8 @@ int white_score(const BoardState& state, EvalTrace* trace) {
     const Colors color = piece_color(piece);
     const int sign = color == white ? 1 : -1;
     const int kind = color == white ? piece : piece - PieceCount::per_side;
-    const Pieces own_pawn = color == white ? P : p;
-    const Pieces enemy_pawn = color == white ? p : P;
+    const Pieces own_pawn = colored(P, color);
+    const Pieces enemy_pawn = colored(P, opponent(color));
     u64 bitboard = bb[piece];
 
     while(bitboard) {

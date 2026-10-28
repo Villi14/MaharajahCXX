@@ -15,6 +15,7 @@ using namespace maharajah;
 class board_test_fixture : public testing::Test {
   public:
   Board board{ };
+  MoveList moves_list{ };
 
   // an empty board with `side` to move; every other state field at its default
   static void reset_board(Board& board, const Colors side) {
@@ -146,9 +147,9 @@ TEST_F(board_test_fixture, is_square_attacked_test) {
 
 TEST_F(board_test_fixture, generate_moves_test) {
   const auto expect_moves = [&](const vector<int>& expected) {
-    EXPECT_EQ(board.moves_list.size(), expected.size()) << dump_moves(board.moves_list);
+    EXPECT_EQ(moves_list.size(), expected.size()) << dump_moves(moves_list);
     for(const int move : expected) {
-      EXPECT_TRUE(has_move(board.moves_list, move)) << dump_moves(board.moves_list);
+      EXPECT_TRUE(has_move(moves_list, move)) << dump_moves(moves_list);
     }
   };
 
@@ -156,7 +157,7 @@ TEST_F(board_test_fixture, generate_moves_test) {
     reset_board(board, side);
     board.state.bitboards[piece] = (one << square);
     board.update_occupancies();
-    board.generate_moves();
+    board.generate_moves(moves_list);
   };
 
   const auto build_slider_attacks = [&](const Pieces piece, const Squares square) {
@@ -300,10 +301,10 @@ TEST_F(board_test_fixture, generate_moves_white_castling) {
   board.state.bitboards[R] = (one << h1);
   board.state.castle = wk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e1g1 = Move::encode_move(Move{ e1, g1, K, no_pieces, false, false, false, true });
-  EXPECT_TRUE(has_move(board.moves_list, e1g1));
+  EXPECT_TRUE(has_move(moves_list, e1g1));
 
   // Block castling by attacking g1
   reset_board(board, white);
@@ -312,9 +313,9 @@ TEST_F(board_test_fixture, generate_moves_white_castling) {
   board.state.bitboards[r] = (one << g8);
   board.state.castle = wk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_FALSE(has_move(board.moves_list, e1g1));
+  EXPECT_FALSE(has_move(moves_list, e1g1));
 
   // Queenside castling
   reset_board(board, white);
@@ -322,10 +323,10 @@ TEST_F(board_test_fixture, generate_moves_white_castling) {
   board.state.bitboards[R] = (one << a1);
   board.state.castle = wq;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e1c1 = Move::encode_move(Move{ e1, c1, K, no_pieces, false, false, false, true });
-  EXPECT_TRUE(has_move(board.moves_list, e1c1));
+  EXPECT_TRUE(has_move(moves_list, e1c1));
 
   // Block queenside castling by attacking c1
   reset_board(board, white);
@@ -334,9 +335,9 @@ TEST_F(board_test_fixture, generate_moves_white_castling) {
   board.state.bitboards[r] = (one << c8);
   board.state.castle = wq;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_FALSE(has_move(board.moves_list, e1c1));
+  EXPECT_FALSE(has_move(moves_list, e1c1));
 }
 
 TEST_F(board_test_fixture, generate_moves_black_castling) {
@@ -345,10 +346,10 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   board.state.bitboards[r] = (one << h8);
   board.state.castle = bk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e8g8 = Move::encode_move(Move{ e8, g8, k, no_pieces, false, false, false, true });
-  EXPECT_TRUE(has_move(board.moves_list, e8g8));
+  EXPECT_TRUE(has_move(moves_list, e8g8));
 
   // Block castling by attacking g8
   reset_board(board, black);
@@ -357,9 +358,9 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   board.state.bitboards[R] = (one << g1);
   board.state.castle = bk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_FALSE(has_move(board.moves_list, e8g8));
+  EXPECT_FALSE(has_move(moves_list, e8g8));
 
   // Queenside castling
   reset_board(board, black);
@@ -367,10 +368,10 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   board.state.bitboards[r] = (one << a8);
   board.state.castle = bq;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e8c8 = Move::encode_move(Move{ e8, c8, k, no_pieces, false, false, false, true });
-  EXPECT_TRUE(has_move(board.moves_list, e8c8));
+  EXPECT_TRUE(has_move(moves_list, e8c8));
 
   // Block queenside castling by attacking c8
   reset_board(board, black);
@@ -379,9 +380,9 @@ TEST_F(board_test_fixture, generate_moves_black_castling) {
   board.state.bitboards[R] = (one << c1);
   board.state.castle = bq;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_FALSE(has_move(board.moves_list, e8c8));
+  EXPECT_FALSE(has_move(moves_list, e8c8));
 }
 
 TEST_F(board_test_fixture, make_move_updates_white_castling_rights) {
@@ -512,10 +513,10 @@ TEST_F(board_test_fixture, generate_moves_white_en_passant) {
   board.state.bitboards[p] = (one << d5);
   board.state.en_passant = d6;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e5d6 = Move::encode_move(Move{ e5, d6, P, no_pieces, true, false, true, false });
-  EXPECT_TRUE(has_move(board.moves_list, e5d6));
+  EXPECT_TRUE(has_move(moves_list, e5d6));
 }
 
 TEST_F(board_test_fixture, generate_moves_black_en_passant) {
@@ -524,10 +525,10 @@ TEST_F(board_test_fixture, generate_moves_black_en_passant) {
   board.state.bitboards[P] = (one << e4);
   board.state.en_passant = e3;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int d4e3 = Move::encode_move(Move{ d4, e3, p, no_pieces, true, false, true, false });
-  EXPECT_TRUE(has_move(board.moves_list, d4e3));
+  EXPECT_TRUE(has_move(moves_list, d4e3));
 }
 
 TEST_F(board_test_fixture, generate_moves_blocked_white_pawn) {
@@ -535,17 +536,17 @@ TEST_F(board_test_fixture, generate_moves_blocked_white_pawn) {
   board.state.bitboards[P] = (one << e2);
   board.state.bitboards[p] = (one << e3);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_EQ(board.moves_list.size(), 0);
+  EXPECT_EQ(moves_list.size(), 0);
 
   reset_board(board, black);
   board.state.bitboards[p] = (one << e7);
   board.state.bitboards[P] = (one << e6);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_EQ(board.moves_list.size(), 0);
+  EXPECT_EQ(moves_list.size(), 0);
 }
 
 TEST_F(board_test_fixture, generate_moves_pawn_captures) {
@@ -553,43 +554,43 @@ TEST_F(board_test_fixture, generate_moves_pawn_captures) {
   board.state.bitboards[P] = (one << d4);
   board.state.bitboards[p] = (one << c5);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int d4c5 = Move::encode_move(Move{ d4, c5, P, no_pieces, true, false, false, false });
-  EXPECT_TRUE(has_move(board.moves_list, d4c5));
+  EXPECT_TRUE(has_move(moves_list, d4c5));
 
   reset_board(board, black);
   board.state.bitboards[p] = (one << e5);
   board.state.bitboards[P] = (one << f4);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e5f4 = Move::encode_move(Move{ e5, f4, p, no_pieces, true, false, false, false });
-  EXPECT_TRUE(has_move(board.moves_list, e5f4));
+  EXPECT_TRUE(has_move(moves_list, e5f4));
 }
 
 TEST_F(board_test_fixture, generate_moves_promotion) {
   reset_board(board, white);
   board.state.bitboards[P] = (one << a7);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_EQ(board.moves_list.size(), 4);
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ a7, a8, P, Q, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ a7, a8, P, R, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ a7, a8, P, B, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ a7, a8, P, N, false, false, false, false })));
+  EXPECT_EQ(moves_list.size(), 4);
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ a7, a8, P, Q, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ a7, a8, P, R, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ a7, a8, P, B, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ a7, a8, P, N, false, false, false, false })));
 
   reset_board(board, black);
   board.state.bitboards[p] = (one << h2);
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
-  EXPECT_EQ(board.moves_list.size(), 4);
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ h2, h1, p, q, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ h2, h1, p, r, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ h2, h1, p, b, false, false, false, false })));
-  EXPECT_TRUE(has_move(board.moves_list, Move::encode_move(Move{ h2, h1, p, n, false, false, false, false })));
+  EXPECT_EQ(moves_list.size(), 4);
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ h2, h1, p, q, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ h2, h1, p, r, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ h2, h1, p, b, false, false, false, false })));
+  EXPECT_TRUE(has_move(moves_list, Move::encode_move(Move{ h2, h1, p, n, false, false, false, false })));
 }
 
 TEST_F(board_test_fixture, generate_moves_castling_blocked_by_pieces) {
@@ -599,10 +600,10 @@ TEST_F(board_test_fixture, generate_moves_castling_blocked_by_pieces) {
   board.state.bitboards[N] = (one << f1); // block
   board.state.castle = wk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e1g1 = Move::encode_move(Move{ e1, g1, K, no_pieces, false, false, false, true });
-  EXPECT_FALSE(has_move(board.moves_list, e1g1));
+  EXPECT_FALSE(has_move(moves_list, e1g1));
 
   reset_board(board, black);
   board.state.bitboards[k] = (one << e8);
@@ -610,10 +611,10 @@ TEST_F(board_test_fixture, generate_moves_castling_blocked_by_pieces) {
   board.state.bitboards[n] = (one << f8); // block
   board.state.castle = bk;
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int e8g8 = Move::encode_move(Move{ e8, g8, k, no_pieces, false, false, false, true });
-  EXPECT_FALSE(has_move(board.moves_list, e8g8));
+  EXPECT_FALSE(has_move(moves_list, e8g8));
 }
 
 TEST_F(board_test_fixture, generate_moves_sliders_with_blockers) {
@@ -621,37 +622,37 @@ TEST_F(board_test_fixture, generate_moves_sliders_with_blockers) {
   board.state.bitboards[R] = (one << a1);
   board.state.bitboards[P] = (one << a2); // block rook
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int a1a2 = Move::encode_move(Move{ a1, a2, R, no_pieces, false, false, false, false });
-  EXPECT_FALSE(has_move(board.moves_list, a1a2));
+  EXPECT_FALSE(has_move(moves_list, a1a2));
 
   reset_board(board, white);
   board.state.bitboards[B] = (one << c1);
   board.state.bitboards[P] = (one << d2); // block bishop diagonal
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int c1d2 = Move::encode_move(Move{ c1, d2, B, no_pieces, false, false, false, false });
-  EXPECT_FALSE(has_move(board.moves_list, c1d2));
+  EXPECT_FALSE(has_move(moves_list, c1d2));
 
   reset_board(board, black);
   board.state.bitboards[r] = (one << a8);
   board.state.bitboards[p] = (one << a7); // block rook
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int a8a7 = Move::encode_move(Move{ a8, a7, r, no_pieces, false, false, false, false });
-  EXPECT_FALSE(has_move(board.moves_list, a8a7));
+  EXPECT_FALSE(has_move(moves_list, a8a7));
 
   reset_board(board, black);
   board.state.bitboards[b] = (one << c8);
   board.state.bitboards[p] = (one << d7); // block bishop diagonal
   board.update_occupancies();
-  board.generate_moves();
+  board.generate_moves(moves_list);
 
   const int c8d7 = Move::encode_move(Move{ c8, d7, b, no_pieces, false, false, false, false });
-  EXPECT_FALSE(has_move(board.moves_list, c8d7));
+  EXPECT_FALSE(has_move(moves_list, c8d7));
 }
 
 TEST_F(board_test_fixture, is_square_attacked_by_sliders) {

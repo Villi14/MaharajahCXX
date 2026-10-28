@@ -115,7 +115,7 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
         result = board.state.side == white ? 0.0 : 1.0;
       break;
     }
-    if(Search(engine).is_draw())
+    if(board.is_draw())
       break;
 
     const SearchResult searched = run_search(engine, options.depth);

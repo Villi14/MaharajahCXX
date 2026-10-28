@@ -34,7 +34,6 @@
 #endif
 
 using namespace std;
-using namespace maharajah;
 
 namespace maharajah {
 
@@ -98,6 +97,11 @@ int go_argument(const string_view command, const string_view name, const int fal
   return to_int(command.substr(position + name.size()));
 }
 
+// `input` is the command `token`, alone or followed by arguments ("go" but not "gox")
+bool is_token(const string_view input, const string_view token) {
+  return input.starts_with(token) && (input.size() == token.size() || input[token.size()] == ' ' || input[token.size()] == '\n');
+}
+
 // value of a "setoption name <name> value <value>" line for option `name`
 optional<string_view> option_value(const string_view input, const string_view name) {
   constexpr string_view prefix{ "setoption name " };
@@ -157,22 +161,15 @@ string Game::print_board(const bool print_to_console) const {
   ss << "\n";
   for(int rank{ }; rank < BoardGeometry::ranks; ++rank) {
     for(int file{ }; file < BoardGeometry::files; ++file) {
-      int square{ rank * BoardGeometry::ranks + file };
       if(!file)
         ss << " " << 8 - rank << " ";
 
-      int piece_int{ -1 };
-
-      for(Pieces piece{ P }; piece < no_pieces; ++piece) {
-        if(get_bit(engine_.board.state.bitboards[piece], to_square(square)))
-          piece_int = static_cast<int>(piece);
-      }
-
+      const Pieces piece = engine_.board.state.piece_on(to_square(rank * BoardGeometry::ranks + file));
       ss << " ";
-      if(piece_int == -1)
+      if(piece == no_pieces)
         ss << ".";
       else
-        ss << Notation::display_pieces[piece_int];
+        ss << Notation::display_pieces[piece];
     }
     ss << "\n";
   }
@@ -224,10 +221,12 @@ void Game::print_move(const int move) {
   cout << Board::move_to_string(move) << '\n';
 }
 
-void Game::print_move_list() {
+void Game::print_move_list() const {
+  MoveList moves_list;
+  engine_.board.generate_moves(moves_list);
   stringstream ss;
 
-  if(engine_.board.moves_list.size() == 0) {
+  if(moves_list.size() == 0) {
     ss << "\n     No move in the move list!\n";
     cout << ss.str();
     return;
@@ -235,9 +234,7 @@ void Game::print_move_list() {
 
   ss << "\n     move    piece     capture   double    enpass    castling\n\n";
 
-  for(size_t move_count{ }; move_count < engine_.board.moves_list.size(); ++move_count) {
-    const int move = engine_.board.moves_list[move_count];
-
+  for(const int move : moves_list) {
     ss << "      " << left << setw(5) << Board::move_to_string(move) << right
        << "   " << Notation::display_pieces[Move::get_move_piece(move)]
        << "         " << (Move::get_move_capture(move) ? 1 : 0)
@@ -246,7 +243,7 @@ void Game::print_move_list() {
        << "         " << (Move::get_move_castling(move) ? 1 : 0) << "\n";
   }
 
-  ss << "\n\n     Total number of moves: " << engine_.board.moves_list.size() << "\n\n";
+  ss << "\n\n     Total number of moves: " << moves_list.size() << "\n\n";
 
   cout << ss.str();
 }
@@ -396,17 +393,17 @@ void Game::uci_loop() {
       continue;
 
     // isready
-    if(starts_with(input, "isready")) {
+    if(input.starts_with("isready")) {
       cout << "readyok\n" << flush;
     }
 
     // position (the transposition table is kept between the moves of a game)
-    else if(starts_with(input, "position")) {
+    else if(input.starts_with("position")) {
       parse_position(input);
     }
 
     // ucinewgame
-    else if(starts_with(input, "ucinewgame")) {
+    else if(input.starts_with("ucinewgame")) {
       parse_position("position startpos");
       engine_.transposition_table.clear();
     }
@@ -417,12 +414,12 @@ void Game::uci_loop() {
     }
 
     // quit
-    else if(starts_with(input, "quit")) {
+    else if(input.starts_with("quit")) {
       break;
     }
 
     // uci
-    else if(starts_with(input, "uci")) {
+    else if(input.starts_with("uci")) {
       print_uci_info();
     }
 

@@ -41,6 +41,13 @@ const auto late_move_reductions = [] {
   return table;
 }();
 
+// Plies a late quiet move is reduced by: from the table, one less in PV nodes, at
+// least one and never into quiescence (depth is at least reduction_limit).
+int late_move_reduction(const int depth, const int moves_searched, const bool pv_node) {
+  const int reduction = late_move_reductions[std::min(depth, Limits::max_ply)][std::min(moves_searched, Limits::max_moves - 1)] - (pv_node ? 1 : 0);
+  return std::clamp(reduction, 1, depth - 2);
+}
+
 // stable insertion sort of `moves` by their `scores`, best score first
 void sort_by_score(const std::span<int> moves, const std::span<int> scores) {
   for(std::size_t i{ 1 }; i < moves.size(); ++i) {
@@ -59,16 +66,6 @@ void sort_by_score(const std::span<int> moves, const std::span<int> scores) {
 
 } // namespace
 
-void TimeControl::set_movetime(const int movetime_ms) {
-  reset();
-  if(movetime_ms <= 0)
-    return;
-
-  starttime = now_ms();
-  stoptime = starttime + movetime_ms;
-  timeset = true;
-}
-
 void Search::reset() {
   nodes_ = 0;
   reported_nodes_ = 0;
@@ -77,14 +74,12 @@ void Search::reset() {
   follow_pv_ = false;
   score_pv_ = false;
   ply_ = 0;
-  root_count_ = 0;
 
   killer_moves_ = { };
   history_moves_ = { };
   pv_table_ = { };
   pv_length_ = { };
   root_moves_ = { };
-  root_scores_ = { };
 }
 
 void Search::communicate() {
@@ -135,53 +130,8 @@ int Search::effective_depth(const int depth) const {
   return cap;
 }
 
-bool Search::is_insufficient_material() const {
-  const BoardState& state = board_.state;
-  if(!state.standard_rules)
-    return false;
-
-  const auto count = [&](const Pieces piece) { return count_bits(state.bitboards[piece]); };
-
-  for(const Pieces piece : { P, p, R, r, Q, q, A, a, C, c, M, m }) {
-    if(count(piece))
-      return false;
-  }
-
-  const int white_knights = count(N);
-  const int black_knights = count(n);
-  const int white_bishops = count(B);
-  const int black_bishops = count(b);
-  const int white_minors = white_knights + white_bishops;
-  const int black_minors = black_knights + black_bishops;
-
-  // Dead positions only: K vs K, K + single minor vs K, and KB vs KB with both
-  // bishops on the same square colour. KNN vs K, KN vs KN and KB vs KN are not dead.
-  if(white_minors == 0 && black_minors == 0)
-    return true;
-
-  if(white_minors + black_minors == 1)
-    return true;
-
-  if(white_knights == 0 && black_knights == 0 && white_bishops == 1 && black_bishops == 1) {
-    const int white_square = get_ls1b_index(state.bitboards[B]);
-    const int black_square = get_ls1b_index(state.bitboards[b]);
-    // square colour is the parity of rank + file
-    return (((white_square >> 3) ^ white_square) & 1) == (((black_square >> 3) ^ black_square) & 1);
-  }
-
-  return false;
-}
-
-bool Search::is_draw() const {
-  const BoardState& state = board_.state;
-  const int repetitions = board_.repetition_count();
-
-  // threefold and fivefold repetition, fifty and seventy-five move rules
-  return repetitions >= 3 || (state.standard_rules && state.halfmove >= 100) || is_insufficient_material();
-}
-
 bool Search::should_return_draw_score() const {
-  return ply_ != 0 && is_draw();
+  return ply_ != 0 && board_.is_draw();
 }
 
 void Search::print_info(std::ostream& out, const int score, const int depth, const int elapsed) const {
@@ -244,7 +194,7 @@ SearchResult Search::run(const int depth, std::ostream* info) {
     if(info && pv_length_[0])
       print_info(*info, score, current_depth, now_ms() - start);
 
-    if(!helper_ && root_count_ > 0)
+    if(!helper_ && root_moves_.count > 0)
       result.best_move = select_skill_move();
 
     // the next iteration would most likely not finish before the hard limit
@@ -323,16 +273,75 @@ SearchResult run_search(Engine& engine, const int depth, std::ostream* info) {
   return result;
 }
 
-// negamax alpha beta search
+bool Search::make_move(const int move, const TypeMove type_move) {
+  ++ply_;
+  board_.remember_position();
+
+  if(board_.make_move(move, type_move))
+    return true;
+
+  --ply_;
+  board_.forget_position();
+  return false;
+}
+
+void Search::make_null_move() {
+  ++ply_;
+  board_.remember_position();
+  board_.make_null_move();
+}
+
+void Search::unmake_move() {
+  --ply_;
+  board_.forget_position();
+  board_.pop_state();
+}
+
+// Requires the side to move to have at least two pieces besides king and pawns. With a
+// single piece the pass may be the only move that does not lose: in
+// kbK5/pp6/1P6/8/8/8/8/R7 w after 1. Ra6 every black move is mated (bxa6 b7#, a
+// bishop move Rxa7#), but the pass fails high and Ra6 was never searched.
+bool Search::zugzwang_prone() const {
+  return count_bits(board_.state.non_pawn_pieces(board_.state.side)) < 2;
+}
+
+int Search::null_move_score(const int beta, const int depth) {
+  // the reduction grows with depth
+  const int reduction = 2 + depth / 6;
+
+  make_null_move();
+  const int score = -negamax(-beta, -beta + 1, std::max(0, depth - 1 - reduction));
+  unmake_move();
+
+  return score;
+}
+
+void Search::update_pv(const int move) {
+  pv_table_[ply_][ply_] = move;
+  for(int next_ply{ ply_ + 1 }; next_ply < pv_length_[ply_ + 1]; ++next_ply)
+    pv_table_[ply_][next_ply] = pv_table_[ply_ + 1][next_ply];
+  pv_length_[ply_] = pv_length_[ply_ + 1];
+}
+
+void Search::reward_quiet_cutoff(const int move, const int depth, const std::span<const int> failed_quiet_moves) {
+  killer_moves_[1][ply_] = killer_moves_[0][ply_];
+  killer_moves_[0][ply_] = move;
+
+  const int bonus = std::min(engine_.search_config.history_bonus_scale * depth * depth, history_limit / 4);
+  update_history(move, bonus);
+  for(const int failed_move : failed_quiet_moves)
+    update_history(failed_move, -bonus);
+}
+
+// Fail-soft negamax alpha-beta with principal variation search: the first move gets the
+// full window, later ones a null window that only proves them no better than alpha.
 int Search::negamax(int alpha, int beta, int depth) {
   pv_length_[ply_] = ply_;
   if(ply_ == 0)
-    root_count_ = 0;
+    root_moves_.count = 0;
 
-  int score;
-  HashFlag hash_flag = HashFlag::alpha;
   const Colors side = board_.state.side;
-  const u64 own_king = board_.state.bitboards[side == white ? K : k];
+  const u64 own_king = board_.state.bitboards[colored(K, side)];
 
   if(should_return_draw_score())
     return 0;
@@ -342,13 +351,13 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(ply_ && !pv_node && hash_entry.score != TranspositionTable::no_entry)
     return hash_entry.score;
 
-  if((nodes_ & 2047) == 0)
+  if(nodes_ % communicate_interval == 0)
     communicate();
 
   if(depth == 0)
     return quiescence(alpha, beta);
 
-  if(ply_ > Limits::max_ply - 1)
+  if(ply_ >= Limits::max_ply)
     return evaluate();
 
   // the king has been captured
@@ -358,62 +367,30 @@ int Search::negamax(int alpha, int beta, int depth) {
   ++nodes_;
 
   const bool in_check = board_.is_square_attacked(get_ls1b_index(own_king), opponent(side));
-  int static_eval{ };
-  bool has_static_eval{ };
+  // not evaluated in check: nothing below that uses it applies there
+  const int static_eval = in_check ? 0 : evaluate();
 
   // check extension
-  if(in_check) {
+  if(in_check)
     ++depth;
-  } else {
-    static_eval = evaluate();
-    has_static_eval = true;
-  }
 
   const SearchConfig& config = engine_.search_config;
+  // the pruning below never applies at the root, in PV nodes or in check
+  const bool can_prune = ply_ && !pv_node && !in_check;
 
   // internal iterative reduction: without a stored move the move ordering is poor,
   // so search shallower; the next iteration finds the move in the table
   if(depth >= 4 && ply_ && !hash_entry.move)
     --depth;
 
-  // reverse futility pruning
-  if(depth <= 2 && ply_ && !in_check && !pv_node) {
-    if(static_eval - config.reverse_futility_margin_per_depth * depth >= beta)
-      return static_eval;
-  }
+  // reverse futility pruning: so far above beta that a shallow search would fail high too
+  if(depth <= 2 && can_prune && static_eval - config.reverse_futility_margin_per_depth * depth >= beta)
+    return static_eval;
 
-  int legal_moves{ };
-
-  // Null-move pruning is unsound in zugzwang-prone positions; require the side to
-  // move to have at least two pieces besides king and pawns. With a single piece the
-  // pass may be the only move that does not lose: in kbK5/pp6/1P6/8/8/8/8/R7 w after
-  // 1. Ra6 every black move is mated (bxa6 b7#, a bishop move Rxa7#), but the pass
-  // fails high and Ra6 was never searched.
-  const auto& bb = board_.state.bitboards;
-  const u64 own_non_pawn_material =
-      (side == white) ? (bb[N] | bb[B] | bb[R] | bb[Q] | bb[A] | bb[C] | bb[M]) : (bb[n] | bb[b] | bb[r] | bb[q] | bb[a] | bb[c] | bb[m]);
-
-  // the reduction grows with depth; only tried where the static evaluation already
-  // beats beta, outside PV nodes
-  if(depth >= 3 && !in_check && ply_ && !pv_node && count_bits(own_non_pawn_material) >= 2 && static_eval >= beta) {
-    const ZobristKeys& keys = ZobristKeys::get();
-    board_.push_state();
-    ++ply_;
-    board_.remember_position();
-
-    BoardState& state = board_.state;
-    if(state.en_passant != no_square)
-      state.hash_key ^= keys.en_passant[state.en_passant];
-    state.en_passant = no_square;
-    state.side = opponent(state.side);
-    state.hash_key ^= keys.side;
-
-    score = -negamax(-beta, -beta + 1, std::max(0, depth - 1 - (2 + depth / 6)));
-
-    --ply_;
-    board_.forget_position();
-    board_.pop_state();
-
+  // null-move pruning: if the position still fails high after passing the turn, a real
+  // move would too; tried only where the static evaluation already beats beta
+  if(depth >= 3 && can_prune && static_eval >= beta && !zugzwang_prone()) {
+    const int score = null_move_score(beta, depth);
     if(stopped())
       return 0;
     // an unverified mate from the null move is not returned
@@ -429,49 +406,48 @@ int Search::negamax(int alpha, int beta, int depth) {
 
   sort_moves(moves_list, hash_entry.move);
 
+  HashFlag hash_flag = HashFlag::alpha;
   int best_move{ };
   int best_score{ -infinity };
+  int legal_moves{ };
   int moves_searched{ };
-  // quiet moves searched without a cutoff, for the history malus
+  // non-captures searched without a cutoff, for the history malus
   std::array<int, Limits::max_moves> quiet_moves;
   int quiet_count{ };
+
   for(const int move : moves_list) {
     const bool capture = Move::get_move_capture(move);
     const bool is_quiet_move = !capture && !Move::is_promotion(move);
-    const bool prunable = depth <= 2 && ply_ && !in_check && !pv_node && is_quiet_move;
+    const bool prunable = depth <= 2 && can_prune && is_quiet_move;
 
-    // Futility-prune only after a legal move has been searched: pruning every move
-    // would fall through to the no-legal-moves branch and misreport mate/stalemate.
-    if(prunable && has_static_eval && legal_moves > 0 && static_eval + config.futility_margin_per_depth * depth <= alpha)
+    // Futility pruning: a quiet move cannot lift a static evaluation this far below
+    // alpha. Only after a legal move has been searched: pruning every move would fall
+    // through to the no-legal-moves branch and misreport mate/stalemate.
+    if(prunable && legal_moves > 0 && static_eval + config.futility_margin_per_depth * depth <= alpha)
       continue;
 
-    // late move pruning
+    // late move pruning: past this many moves, quiet ones are not searched at all
     if(prunable && moves_searched >= config.late_move_pruning_base + config.late_move_pruning_scale * depth)
       continue;
 
-    ++ply_;
-    board_.remember_position();
-
-    if(!board_.make_move(move, TypeMove::all_moves)) {
-      --ply_;
-      board_.forget_position();
+    if(!make_move(move))
       continue;
-    }
 
     ++legal_moves;
 
+    int score;
     if(moves_searched == 0) {
-      // full window search for the first move
       score = -negamax(-beta, -alpha, depth - 1);
     } else {
-      // late move reduction: at least one ply, less in PV nodes, never into quiescence
-      if(moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && is_quiet_move) {
-        const int reduction = late_move_reductions[std::min(depth, Limits::max_ply)][std::min(moves_searched, Limits::max_moves - 1)] - (pv_node ? 1 : 0);
-        score = -negamax(-alpha - 1, -alpha, depth - 1 - std::clamp(reduction, 1, depth - 2));
-      } else
+      // late move reduction: a late quiet move is first searched shallower; one that
+      // is not reduced goes straight to the full-depth search below
+      if(moves_searched >= full_depth_moves && depth >= reduction_limit && !in_check && is_quiet_move)
+        score = -negamax(-alpha - 1, -alpha, depth - 1 - late_move_reduction(depth, moves_searched, pv_node));
+      else
         score = alpha + 1;
 
-      // principal variation search
+      // a move that beats alpha in the null window is searched again, with the full
+      // window if it lands inside it
       if(score > alpha) {
         score = -negamax(-alpha - 1, -alpha, depth - 1);
 
@@ -480,51 +456,32 @@ int Search::negamax(int alpha, int beta, int depth) {
       }
     }
 
-    --ply_;
-    board_.forget_position();
-    board_.pop_state();
+    unmake_move();
 
     if(stopped())
       return 0;
 
-    if(ply_ == 0 && root_count_ < Limits::max_moves) {
-      root_moves_[root_count_] = move;
-      // fail-soft scores below alpha are bounds; keep them at alpha so the weak skill
-      // levels choose among the same near-best moves as before
-      root_scores_[root_count_] = std::max(score, alpha);
-      ++root_count_;
-    }
+    // fail-soft scores below alpha are bounds; keep them at alpha so the weak skill
+    // levels choose among the same near-best moves as before
+    if(ply_ == 0)
+      root_moves_.add(move, std::max(score, alpha));
 
     ++moves_searched;
-
-    if(score > best_score)
-      best_score = score;
+    best_score = std::max(best_score, score);
 
     // found a better move
     if(score > alpha) {
       hash_flag = HashFlag::exact;
       best_move = move;
       alpha = score;
-
-      // write PV move and copy the child's line
-      pv_table_[ply_][ply_] = move;
-      for(int next_ply{ ply_ + 1 }; next_ply < pv_length_[ply_ + 1]; ++next_ply)
-        pv_table_[ply_][next_ply] = pv_table_[ply_ + 1][next_ply];
-      pv_length_[ply_] = pv_length_[ply_ + 1];
+      update_pv(move);
 
       // fail-soft beta cutoff
       if(score >= beta) {
         engine_.transposition_table.write(board_.state.hash_key, score, depth, HashFlag::beta, ply_, move);
 
-        if(!capture) {
-          killer_moves_[1][ply_] = killer_moves_[0][ply_];
-          killer_moves_[0][ply_] = move;
-
-          const int bonus = std::min(config.history_bonus_scale * depth * depth, history_limit / 4);
-          update_history(move, bonus);
-          for(int index{ }; index < quiet_count; ++index)
-            update_history(quiet_moves[index], -bonus);
-        }
+        if(!capture)
+          reward_quiet_cutoff(move, depth, std::span(quiet_moves).first(static_cast<std::size_t>(quiet_count)));
 
         return score;
       }
@@ -543,17 +500,18 @@ int Search::negamax(int alpha, int beta, int depth) {
   return best_score;
 }
 
-// quiescence search
+// Captures only, until the position is quiet: the side to move may "stand pat" on the
+// static evaluation instead of capturing.
 int Search::quiescence(int alpha, int beta) {
   if(should_return_draw_score())
     return 0;
 
-  if((nodes_ & 2047) == 0)
+  if(nodes_ % communicate_interval == 0)
     communicate();
 
   ++nodes_;
 
-  if(ply_ > Limits::max_ply - 1)
+  if(ply_ >= Limits::max_ply)
     return evaluate();
 
   const int evaluation = evaluate();
@@ -578,20 +536,12 @@ int Search::quiescence(int alpha, int beta) {
     if(see < -see_margin && evaluation + see < alpha)
       continue;
 
-    ++ply_;
-    board_.remember_position();
-
-    if(!board_.make_move(move, TypeMove::only_captures)) {
-      --ply_;
-      board_.forget_position();
+    if(!make_move(move, TypeMove::only_captures))
       continue;
-    }
 
     const int score = -quiescence(-beta, -alpha);
 
-    --ply_;
-    board_.forget_position();
-    board_.pop_state();
+    unmake_move();
 
     if(stopped())
       return 0;
@@ -618,40 +568,29 @@ void Search::update_history(const int move, const int bonus) {
 int Search::score_move(const int move, const int hash_move) {
   int promotion_bonus{ };
   if(Move::is_promotion(move))
-    promotion_bonus = 2000 + Evaluation::piece_value[Move::get_move_promoted(move)];
+    promotion_bonus = MoveOrder::promotion_bonus + Evaluation::piece_value[Move::get_move_promoted(move)];
 
-  // PV move first
+  // checked before the hash move, though it scores below it; only the first match counts
   if(score_pv_ && pv_table_[0][ply_] == move) {
     score_pv_ = false;
-    return 20000;
+    return MoveOrder::pv_move;
   }
 
   if(move == hash_move)
-    return 30000;
+    return MoveOrder::hash_move;
 
   if(Move::get_move_capture(move)) {
     // en passant victims are not on the target square; they count as pawns
-    Pieces target_piece{ P };
-    const Pieces start_piece = (board_.state.side == white) ? p : P;
-    const Pieces end_piece = (board_.state.side == white) ? k : K;
-    const Squares target = Move::get_move_target(move);
-
-    for(Pieces bb_piece{ start_piece }; bb_piece <= end_piece; ++bb_piece) {
-      if(get_bit(board_.state.bitboards[bb_piece], target)) {
-        target_piece = bb_piece;
-        break;
-      }
-    }
-
-    return mvv_lva[Move::get_move_piece(move)][target_piece] + 10000 + promotion_bonus;
+    const Pieces victim = board_.state.piece_on(Move::get_move_target(move), opponent(board_.state.side));
+    return MoveOrder::capture + mvv_lva[Move::get_move_piece(move)][victim == no_pieces ? P : victim] + promotion_bonus;
   }
 
   if(promotion_bonus > 0)
-    return 9500 + promotion_bonus;
+    return MoveOrder::quiet_promotion + promotion_bonus;
   if(killer_moves_[0][ply_] == move)
-    return 9000;
+    return MoveOrder::first_killer;
   if(killer_moves_[1][ply_] == move)
-    return 8000;
+    return MoveOrder::second_killer;
   return history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
 }
 
@@ -676,32 +615,25 @@ void Search::enable_pv_scoring(const MoveList& moves_list) {
   }
 }
 
-void Search::sort_root_moves() {
-  const auto count = static_cast<std::size_t>(root_count_);
-  sort_by_score(std::span(root_moves_).first(count), std::span(root_scores_).first(count));
+void Search::RootMoves::sort() {
+  const auto size = static_cast<std::size_t>(count);
+  sort_by_score(std::span(moves).first(size), std::span(scores).first(size));
 }
 
 // Score of a root move from a fresh shallow search (it shares the hash table and
 // move-ordering tables with the main search).
 int Search::verify_root_candidate_score(const int move) {
-  const int saved_ply = ply_;
-  const int saved_repetition_index = board_.repetition_index;
   const bool saved_follow_pv = follow_pv_;
   const bool saved_score_pv = score_pv_;
   int score = -infinity;
 
-  ++ply_;
-  board_.remember_position();
-
-  if(board_.make_move(move, TypeMove::all_moves)) {
+  if(make_move(move)) {
     follow_pv_ = false;
     score_pv_ = false;
     score = -negamax(-infinity, infinity, 1);
-    board_.pop_state();
+    unmake_move();
   }
 
-  ply_ = saved_ply;
-  board_.repetition_index = saved_repetition_index;
   follow_pv_ = saved_follow_pv;
   score_pv_ = saved_score_pv;
 
@@ -709,20 +641,12 @@ int Search::verify_root_candidate_score(const int move) {
 }
 
 bool Search::root_move_repeats_position(const int move) {
-  const int saved_ply = ply_;
-  const int saved_repetition_index = board_.repetition_index;
   bool repeats{ };
 
-  ++ply_;
-  board_.remember_position();
-
-  if(board_.make_move(move, TypeMove::all_moves)) {
+  if(make_move(move)) {
     repeats = board_.repetition_count() > 1;
-    board_.pop_state();
+    unmake_move();
   }
-
-  ply_ = saved_ply;
-  board_.repetition_index = saved_repetition_index;
 
   return repeats;
 }
@@ -736,8 +660,8 @@ int Search::select_non_repeating_root_move(const int best_move) {
   int fallback_move{ };
   int fallback_verified_score = -infinity;
 
-  for(int index{ }; index < root_count_; ++index) {
-    const int candidate_move = root_moves_[index];
+  for(int index{ }; index < root_moves_.count; ++index) {
+    const int candidate_move = root_moves_.moves[index];
     if(candidate_move == best_move || root_move_repeats_position(candidate_move))
       continue;
 
@@ -757,12 +681,12 @@ int Search::select_non_repeating_root_move(const int best_move) {
 // Picks the root move to play: the best one, or for weaker skill levels early in the
 // game, a random near-best move that survives a tactical check.
 int Search::select_skill_move() {
-  if(root_count_ == 0)
+  if(root_moves_.count == 0)
     return 0;
 
-  sort_root_moves();
+  root_moves_.sort();
 
-  const int best_move = select_non_repeating_root_move(root_moves_[0]);
+  const int best_move = select_non_repeating_root_move(root_moves_.moves[0]);
   const SearchConfig& config = engine_.search_config;
 
   if(config.skill_level >= SearchConfig::max_skill)
@@ -771,10 +695,11 @@ int Search::select_skill_move() {
   if(board_.repetition_index >= config.opening_variety_plies)
     return best_move;
 
-  const int candidate_limit = std::min(config.weak_move_candidates, root_count_);
-  const int best_score = root_scores_[0];
+  // the moves scoring within the margin of the best one, among the first candidates
+  const int candidate_limit = std::min(config.weak_move_candidates, root_moves_.count);
+  const int best_score = root_moves_.scores[0];
   int eligible_count{ 1 };
-  while(eligible_count < candidate_limit && root_scores_[eligible_count] >= best_score - config.weak_move_margin_cp)
+  while(eligible_count < candidate_limit && root_moves_.scores[eligible_count] >= best_score - config.weak_move_margin_cp)
     ++eligible_count;
 
   if(eligible_count <= 1)
@@ -786,8 +711,9 @@ int Search::select_skill_move() {
 
   const int best_verified_score = verify_root_candidate_score(best_move);
 
+  // of those, the ones that hold up in a fresh search
   for(int index{ 1 }; index < eligible_count; ++index) {
-    const int candidate_move = root_moves_[index];
+    const int candidate_move = root_moves_.moves[index];
     if(verify_root_candidate_score(candidate_move) >= best_verified_score - config.tactical_margin)
       candidate_moves[candidate_count++] = candidate_move;
   }

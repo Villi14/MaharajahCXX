@@ -1,6 +1,6 @@
 // Draw-rule regressions ported from MaharajahC's draw_rules_smoke.c. MaharajahC has
 // separate threefold/fivefold/fifty/seventy-five predicates; here they are one
-// check in Search::is_draw (see SearchTests.cpp), so these tests pin its inputs
+// check in Board::is_draw (see SearchTests.cpp), so these tests pin its inputs
 // (repetition count, halfmove clock, standard_rules) where the C test did.
 
 #include "../headers/CustomSetup.h"
@@ -26,12 +26,12 @@ class draw_rules_test_fixture : public testing::Test {
   }
 
   bool is_draw() {
-    return Search(engine).is_draw();
+    return board.is_draw();
   }
 
   bool is_insufficient_material(const char* fen) {
     EXPECT_TRUE(board.parse_fen(fen));
-    return Search(engine).is_insufficient_material();
+    return board.is_insufficient_material();
   }
 };
 
