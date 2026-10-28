@@ -91,7 +91,8 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
     opening_plies = std::uniform_int_distribution(0, 3)(rng);
   }
 
-  engine.set_position(fen);
+  if(!engine.set_position(fen))
+    return false;
   engine.transposition_table.clear();
 
   for(int ply{ }; ply < opening_plies; ++ply) {

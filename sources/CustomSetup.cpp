@@ -246,7 +246,7 @@ bool generate_custom_position(Board& board, int side_to_move, const unsigned int
     side_to_move = std::rand() % 2;
 
   for(int attempt{ }; attempt < max_attempts; ++attempt) {
-    board.parse_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
+    (void)board.parse_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
     BoardState& state = board.state;
 
     if(!generate_side(state, white) || !generate_side(state, black))

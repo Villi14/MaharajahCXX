@@ -426,22 +426,22 @@ void Game::uci_loop() {
       print_uci_info();
     }
 
-    else if(const auto value = option_value(input, "Hash")) {
-      engine_.transposition_table.resize(clamp(to_int(*value), min_hash_mb, max_hash_mb));
+    else if(const auto hash_mb = option_value(input, "Hash")) {
+      engine_.transposition_table.resize(clamp(to_int(*hash_mb), min_hash_mb, max_hash_mb));
     }
 
-    else if(const auto value = option_value(input, "Skill Level")) {
-      engine_.search_config = SearchConfig::for_skill(to_int(*value));
+    else if(const auto skill = option_value(input, "Skill Level")) {
+      engine_.search_config = SearchConfig::for_skill(to_int(*skill));
     }
 
-    else if(const auto value = option_value(input, "Threads")) {
-      engine_.threads = clamp(to_int(*value), Engine::min_threads, Engine::max_threads);
+    else if(const auto threads = option_value(input, "Threads")) {
+      engine_.threads = clamp(to_int(*threads), Engine::min_threads, Engine::max_threads);
     }
 
     // a network file replaces the built-in network, "<empty>" restores it; a file that
     // cannot be loaded leaves the classic evaluation
-    else if(const auto value = option_value(input, "EvalFile")) {
-      const string path{ *value };
+    else if(const auto eval_file = option_value(input, "EvalFile")) {
+      const string path{ *eval_file };
       if(path.empty() || path == "<empty>") {
         engine_.nnue.load_default_weights();
       } else if(!engine_.nnue.load_weights(path.c_str())) {
@@ -450,8 +450,8 @@ void Game::uci_loop() {
     }
 
     // "false" switches to the classic evaluation
-    else if(const auto value = option_value(input, "UseNNUE")) {
-      engine_.eval_config.eval_mode = *value == "false" ? EvalMode::classic : EvalMode::nnue;
+    else if(const auto use_nnue = option_value(input, "UseNNUE")) {
+      engine_.eval_config.eval_mode = *use_nnue == "false" ? EvalMode::classic : EvalMode::nnue;
     }
 
     // "quit" arrived during a search
@@ -465,7 +465,7 @@ void Game::play(const bool debug) {
   verbose_ = debug;
 
   if(debug) {
-    parse_fen(Fen::start_position);
+    (void)parse_fen(Fen::start_position);
     print_board();
     search_position(6);
   } else

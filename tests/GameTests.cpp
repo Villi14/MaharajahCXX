@@ -214,13 +214,13 @@ void game_test_fixture::SetUp() { }
 
 TEST_F(game_test_fixture, fen_parsing_test) {
   for(const auto& [fen, board_str] : test_fens) {
-    game.parse_fen(fen);
+    ASSERT_TRUE(game.parse_fen(fen));
     EXPECT_STREQ(board_str.c_str(), game.print_board(false).c_str());
   }
 }
 
 TEST_F(game_test_fixture, fen_parsing_sets_occupancies) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
 
   const Board& board = GameTestAccess::board(game);
   u64 expected_white{ };
@@ -247,7 +247,7 @@ TEST_F(game_test_fixture, parse_fen_reports_invalid_input) {
 }
 
 TEST_F(game_test_fixture, parse_fen_rejects_malformed_fens_and_keeps_the_board) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   const auto before = GameTestAccess::board(game).state;
 
   const pair<const char*, string_view> bad_fens[]{
@@ -274,7 +274,7 @@ TEST_F(game_test_fixture, parse_fen_rejects_malformed_fens_and_keeps_the_board) 
 }
 
 TEST_F(game_test_fixture, parse_fen_reads_all_state_fields) {
-  game.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR b Kq e6 12 30");
+  ASSERT_TRUE(game.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR b Kq e6 12 30"));
   const auto& state = GameTestAccess::board(game).state;
   EXPECT_EQ(state.side, black);
   EXPECT_EQ(state.castle, wk | bq);

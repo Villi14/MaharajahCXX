@@ -114,24 +114,24 @@ TEST_F(search_test_fixture, uci_rejects_malformed_fen) {
 }
 
 TEST_F(search_test_fixture, finds_mate_in_one) {
-  game.parse_fen("6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1"));
   const SearchResult result = run(3);
   EXPECT_EQ(result.best_move, game.parse_move("a1a8"));
   EXPECT_GT(result.score, Search::mate_score);
 }
 
 TEST_F(search_test_fixture, checkmated_side_gets_mate_score) {
-  game.parse_fen("R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1");
+  ASSERT_TRUE(game.parse_fen("R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1"));
   EXPECT_EQ(Search(engine()).negamax(-Search::infinity, Search::infinity, 1), -Search::mate_value);
 }
 
 TEST_F(search_test_fixture, stalemate_scores_zero) {
-  game.parse_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
+  ASSERT_TRUE(game.parse_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"));
   EXPECT_EQ(Search(engine()).negamax(-Search::infinity, Search::infinity, 1), 0);
 }
 
 TEST_F(search_test_fixture, start_position_evaluates_to_the_tempo_bonus) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   EXPECT_EQ(Evaluator::evaluate(board().state), Evaluation::tempo_bonus);
 }
 
@@ -140,22 +140,22 @@ TEST_F(search_test_fixture, evaluation_is_symmetric_for_mirrored_positions) {
                            "r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1",
                            "8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1",
                            "rnacmbnr/pppppppp/8/8/8/8/PPPPPPPP/RNACMBNR w - - 0 1" }) {
-    game.parse_fen(fen);
+    ASSERT_TRUE(game.parse_fen(fen));
     const int original = Evaluator::evaluate(board().state);
-    game.parse_fen(mirror_fen(fen));
+    ASSERT_TRUE(game.parse_fen(mirror_fen(fen)));
     EXPECT_EQ(Evaluator::evaluate(board().state), original) << fen;
   }
 }
 
 TEST_F(search_test_fixture, halfmove_clock_is_parsed_from_fen) {
-  game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 37 60");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 37 60"));
   EXPECT_EQ(board().state.halfmove, 37);
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   EXPECT_EQ(board().state.halfmove, 0);
 }
 
 TEST_F(search_test_fixture, halfmove_clock_resets_on_pawn_move_and_capture) {
-  game.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
+  ASSERT_TRUE(game.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"));
   play("g1f3");
   EXPECT_EQ(board().state.halfmove, 1);
   play("g8f6");
@@ -167,19 +167,19 @@ TEST_F(search_test_fixture, halfmove_clock_resets_on_pawn_move_and_capture) {
 }
 
 TEST_F(search_test_fixture, fifty_move_rule_is_a_draw) {
-  game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 99 80");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 99 80"));
   EXPECT_FALSE(Search(engine()).is_draw());
-  game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 100 80");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6R w - - 100 80"));
   EXPECT_TRUE(Search(engine()).is_draw());
 }
 
 TEST_F(search_test_fixture, fifty_move_rule_does_not_apply_to_variant_boards) {
-  game.parse_fen("4k3/8/8/8/8/8/8/K6A w - - 100 80");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/K6A w - - 100 80"));
   EXPECT_FALSE(Search(engine()).is_draw());
 }
 
 TEST_F(search_test_fixture, threefold_repetition_is_a_draw) {
-  game.parse_fen("4k3/8/8/8/8/8/8/4K2R w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/8/4K2R w - - 0 1"));
   EXPECT_FALSE(Search(engine()).is_draw());
   for(int cycle{ }; cycle < 2; ++cycle) {
     play("h1h2");
@@ -193,7 +193,7 @@ TEST_F(search_test_fixture, threefold_repetition_is_a_draw) {
 }
 
 TEST_F(search_test_fixture, repetition_ignores_positions_before_irreversible_move) {
-  game.parse_fen("4k3/8/8/8/8/8/P7/4K2R w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/8/8/8/P7/4K2R w - - 0 1"));
   play("h1h2");
   play("e8d8");
   play("a2a3"); // pawn move, cannot be undone
@@ -206,19 +206,19 @@ TEST_F(search_test_fixture, repetition_ignores_positions_before_irreversible_mov
 TEST_F(search_test_fixture, insufficient_material_is_a_draw) {
   for(const char* fen :
       { "4k3/8/8/8/8/8/8/4K3 w - - 0 1", "4k3/8/8/8/8/8/8/2B1K3 w - - 0 1", "4k3/8/8/8/8/8/8/4KN2 w - - 0 1", "2b1k3/8/8/8/8/8/8/4KB2 w - - 0 1" }) {
-    game.parse_fen(fen);
+    ASSERT_TRUE(game.parse_fen(fen));
     EXPECT_TRUE(Search(engine()).is_insufficient_material()) << fen;
   }
 
   for(const char* fen :
       { "4k3/8/8/8/8/8/8/3NKN2 w - - 0 1", "4kn2/8/8/8/8/8/8/4KN2 w - - 0 1", "3bk3/8/8/8/8/8/8/4KB2 w - - 0 1", "4k3/8/8/8/8/8/8/4KA2 w - - 0 1" }) {
-    game.parse_fen(fen);
+    ASSERT_TRUE(game.parse_fen(fen));
     EXPECT_FALSE(Search(engine()).is_insufficient_material()) << fen;
   }
 }
 
 TEST_F(search_test_fixture, run_reports_depth_and_nodes) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   const SearchResult result = run(3);
   EXPECT_EQ(result.depth, 3);
   EXPECT_GT(result.nodes, 0);
@@ -226,14 +226,14 @@ TEST_F(search_test_fixture, run_reports_depth_and_nodes) {
 }
 
 TEST_F(search_test_fixture, run_has_no_best_move_when_mated_or_stalemated) {
-  game.parse_fen("R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1");
+  ASSERT_TRUE(game.parse_fen("R5k1/5ppp/8/8/8/8/8/4K3 b - - 0 1"));
   EXPECT_EQ(run(2).best_move, 0);
-  game.parse_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1");
+  ASSERT_TRUE(game.parse_fen("7k/5Q2/6K1/8/8/8/8/8 b - - 0 1"));
   EXPECT_EQ(run(2).best_move, 0);
 }
 
 TEST_F(search_test_fixture, run_leaves_the_board_unchanged) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   const auto before = board().state;
   (void)run(4);
   EXPECT_EQ(board().ply, 0);
@@ -244,7 +244,7 @@ TEST_F(search_test_fixture, run_leaves_the_board_unchanged) {
 }
 
 TEST_F(search_test_fixture, repeated_runs_with_a_cleared_hash_table_are_deterministic) {
-  game.parse_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2");
+  ASSERT_TRUE(game.parse_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"));
   const SearchResult first = run(5);
   engine().transposition_table.clear();
   const SearchResult second = run(5);
@@ -253,7 +253,7 @@ TEST_F(search_test_fixture, repeated_runs_with_a_cleared_hash_table_are_determin
 }
 
 TEST_F(search_test_fixture, low_skill_caps_the_search_depth) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   engine().search_config = SearchConfig::for_difficulty(1);
   EXPECT_EQ(run(8).depth, 1);
   engine().search_config = SearchConfig::for_skill(7);
@@ -263,39 +263,39 @@ TEST_F(search_test_fixture, low_skill_caps_the_search_depth) {
 TEST_F(search_test_fixture, low_skill_still_takes_a_free_queen) {
   engine().search_config = SearchConfig::for_difficulty(1);
   for(unsigned int attempt{ }; attempt < 20; ++attempt) {
-    game.parse_fen("4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1");
+    ASSERT_TRUE(game.parse_fen("4k3/8/8/3q4/8/8/8/3RK3 w - - 0 1"));
     EXPECT_EQ(Board::move_to_string(run(4).best_move), "d1d5");
   }
 }
 
 TEST_F(search_test_fixture, compound_promotions_follow_the_side_rules) {
-  game.parse_fen("k7/2P5/1K6/8/8/8/8/8 w - - 0 1 V");
+  ASSERT_TRUE(game.parse_fen("k7/2P5/1K6/8/8/8/8/8 w - - 0 1 V"));
   EXPECT_NE(game.parse_move("c7c8m"), 0);
   EXPECT_NE(game.parse_move("c7c8a"), 0);
-  game.parse_fen("k7/2P5/1K6/8/8/8/8/8 w - - 0 1 v");
+  ASSERT_TRUE(game.parse_fen("k7/2P5/1K6/8/8/8/8/8 w - - 0 1 v"));
   EXPECT_EQ(game.parse_move("c7c8m"), 0);
   EXPECT_NE(game.parse_move("c7c8q"), 0);
 }
 
 TEST_F(search_test_fixture, finds_an_amazon_mate) {
   // smothered mate with the amazon's knight move; a queen on c4 has no mate
-  game.parse_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1"));
   const SearchResult result = run(2);
   EXPECT_EQ(Board::move_to_string(result.best_move), "c4f7");
   EXPECT_GT(result.score, Search::mate_score);
-  game.parse_fen("6rk/6pp/8/8/2Q5/8/8/K7 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("6rk/6pp/8/8/2Q5/8/8/K7 w - - 0 1"));
   EXPECT_LT(run(2).score, Search::mate_score);
 }
 
 TEST_F(search_test_fixture, see_values_exchanges) {
   // pawn takes a defended knight: wins a knight for a pawn
-  game.parse_fen("4k3/8/2p5/3n4/4P3/8/8/4K3 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("4k3/8/2p5/3n4/4P3/8/8/4K3 w - - 0 1"));
   EXPECT_EQ(see_evaluate(board(), game.parse_move("e4d5")), 337 - 82);
   // queen takes a pawn defended by a pawn: loses the queen for a pawn
-  game.parse_fen("4k3/8/2p5/3p4/8/8/3Q4/4K3 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("4k3/8/2p5/3p4/8/8/3Q4/4K3 w - - 0 1"));
   EXPECT_EQ(see_evaluate(board(), game.parse_move("d2d5")), 82 - 1025);
   // quiet move
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   EXPECT_EQ(see_evaluate(board(), game.parse_move("e2e4")), 0);
 }
 
@@ -345,7 +345,7 @@ TEST_F(search_test_fixture, uci_position_fen_with_moves_keeps_the_fen_fields) {
 
 TEST_F(search_test_fixture, uci_keeps_the_hash_table_between_moves_until_ucinewgame) {
   Board start;
-  start.parse_fen(Fen::start_position);
+  ASSERT_TRUE(start.parse_fen(Fen::start_position));
   const auto stored_move = [&] {
     return engine().transposition_table.probe(start.state.hash_key, -Search::infinity, Search::infinity, 0, 0).move;
   };
@@ -385,7 +385,7 @@ TEST_F(search_test_fixture, uci_go_movetime_returns_a_move) {
 // Lazy SMP (run_search with more than one thread)
 
 TEST_F(search_test_fixture, one_thread_run_search_is_the_plain_search) {
-  game.parse_fen("r1bq1rk1/pp2bppp/2n1pn2/3p4/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8");
+  ASSERT_TRUE(game.parse_fen("r1bq1rk1/pp2bppp/2n1pn2/3p4/2PP4/2N1PN2/PP3PPP/R2QKB1R w KQ - 0 8"));
   const SearchResult plain = run(6);
   engine().transposition_table.clear();
   const SearchResult threaded = run_search(engine(), 6);
@@ -396,7 +396,7 @@ TEST_F(search_test_fixture, one_thread_run_search_is_the_plain_search) {
 
 TEST_F(search_test_fixture, helper_threads_leave_the_position_and_find_the_mate) {
   engine().threads = 4;
-  game.parse_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1");
+  ASSERT_TRUE(game.parse_fen("6rk/6pp/8/8/2M5/8/8/K7 w - - 0 1"));
   const BoardState before = board().state;
 
   const SearchResult result = run_search(engine(), 6);
@@ -409,7 +409,7 @@ TEST_F(search_test_fixture, helper_threads_leave_the_position_and_find_the_mate)
 
 TEST_F(search_test_fixture, helper_threads_stop_with_the_main_search_on_time) {
   engine().threads = 4;
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   engine().time_control.set_movetime(200);
   const SearchResult result = run_search(engine(), Limits::max_ply);
   EXPECT_NE(result.best_move, 0);

@@ -129,7 +129,7 @@ FFI_PLUGIN_EXPORT int mah_init(void) {
   engine->eval_config.eval_mode = EvalMode::nnue;
   if(!engine->nnue.has_loaded_weights())
     engine->nnue.load_default_weights();
-  engine->board.parse_fen(Fen::start_position);
+  (void)engine->board.parse_fen(Fen::start_position);
   engine->transposition_table.clear();
   return 1;
 }
@@ -145,7 +145,7 @@ FFI_PLUGIN_EXPORT int mah_set_position_fen_with_rules(const char* fen, const int
   Engine& live = live_engine();
   const bool valid = live.set_position(fen).has_value();
   if(!valid)
-    live.board.parse_fen(Fen::start_position);
+    (void)live.board.parse_fen(Fen::start_position);
 
   if(valid)
     apply_rules_profile(live, rules_profile);
@@ -156,7 +156,7 @@ FFI_PLUGIN_EXPORT int mah_set_position_fen_with_rules(const char* fen, const int
 
 FFI_PLUGIN_EXPORT int mah_set_position_startpos(void) {
   Engine& live = live_engine();
-  live.board.parse_fen(Fen::start_position);
+  (void)live.board.parse_fen(Fen::start_position);
   live.transposition_table.clear();
   return 1;
 }

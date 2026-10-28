@@ -29,7 +29,8 @@ enable_testing()
 add_compile_definitions(MAHARAJAH_VERSION="${PROJECT_VERSION}")
 
 if (MSVC)
-  add_compile_options(/W4)
+  # C4324: the NNUE accumulator is padded to its alignas on purpose
+  add_compile_options(/W4 /wd4324)
   # standard fopen/setbuf etc. are portable; MSVC's "unsafe" nag isn't useful here
   add_compile_definitions(_CRT_SECURE_NO_WARNINGS)
 else()

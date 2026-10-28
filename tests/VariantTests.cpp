@@ -29,24 +29,24 @@ class variant_test_fixture : public testing::Test {
 };
 
 TEST_F(variant_test_fixture, compound_pieces_combine_their_components) {
-  board.parse_fen("4k3/8/8/8/3A4/8/8/4K3 w - - 0 1");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/3A4/8/8/4K3 w - - 0 1"));
   EXPECT_TRUE(has_move(board, "d4a7")); // diagonal
   EXPECT_TRUE(has_move(board, "d4e6")); // knight hop
   EXPECT_FALSE(has_move(board, "d4d7")); // no file move
 
-  board.parse_fen("4k3/8/8/8/3C4/8/8/4K3 w - - 0 1");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/3C4/8/8/4K3 w - - 0 1"));
   EXPECT_TRUE(has_move(board, "d4d8"));
   EXPECT_TRUE(has_move(board, "d4c6"));
   EXPECT_FALSE(has_move(board, "d4e5"));
 
-  board.parse_fen("4k3/8/8/8/3M4/8/8/4K3 w - - 0 1");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/3M4/8/8/4K3 w - - 0 1"));
   EXPECT_TRUE(has_move(board, "d4h8"));
   EXPECT_TRUE(has_move(board, "d4d1"));
   EXPECT_TRUE(has_move(board, "d4f5"));
 }
 
 TEST_F(variant_test_fixture, compound_pieces_give_check) {
-  board.parse_fen("4k3/8/3a4/8/8/8/8/4K3 w - - 0 1");
+  ASSERT_TRUE(board.parse_fen("4k3/8/3a4/8/8/8/8/4K3 w - - 0 1"));
   // the archbishop's knight move covers e4... and its diagonal covers f4
   EXPECT_TRUE(board.is_square_attacked(e4, black));
   EXPECT_TRUE(board.is_square_attacked(f4, black));
@@ -55,21 +55,21 @@ TEST_F(variant_test_fixture, compound_pieces_give_check) {
 
 // without field 7 a side is classic unless it holds a compound piece
 TEST_F(variant_test_fixture, fen_derives_variant_rules_per_side_from_compound_material) {
-  board.parse_fen("r3k2r/8/8/8/8/8/8/R2AK2R w KQkq - 0 1");
+  ASSERT_TRUE(board.parse_fen("r3k2r/8/8/8/8/8/8/R2AK2R w KQkq - 0 1"));
   EXPECT_FALSE(board.state.standard_rules);
   EXPECT_TRUE(board.state.side_variant[white]);
   EXPECT_FALSE(board.state.side_variant[black]);
   // a variant side never castles, the classic one keeps its rights
   EXPECT_EQ(board.state.castle, bk | bq);
 
-  board.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1");
+  ASSERT_TRUE(board.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"));
   EXPECT_FALSE(board.state.side_variant[white]);
   EXPECT_FALSE(board.state.side_variant[black]);
   EXPECT_EQ(board.state.castle, wk | wq | bk | bq);
 }
 
 TEST_F(variant_test_fixture, fen_field_seven_sets_rules_per_side) {
-  board.parse_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 v");
+  ASSERT_TRUE(board.parse_fen("r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQkq - 0 1 v"));
   EXPECT_FALSE(board.state.side_variant[white]);
   EXPECT_TRUE(board.state.side_variant[black]);
   EXPECT_EQ(board.state.castle, wk | wq);
@@ -77,14 +77,14 @@ TEST_F(variant_test_fixture, fen_field_seven_sets_rules_per_side) {
 }
 
 TEST_F(variant_test_fixture, variant_pawns_double_step_from_any_rank) {
-  board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 V d3");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 V d3"));
   EXPECT_TRUE(has_move(board, "d3d5"));
-  board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 -");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/8/3P4/8/4K3 w - - 0 1 -"));
   EXPECT_FALSE(has_move(board, "d3d5"));
 }
 
 TEST_F(variant_test_fixture, fen_field_eight_tracks_unmoved_pawns) {
-  board.parse_fen("4k3/8/8/8/8/2P1P3/8/4K3 w - - 0 1 V c3");
+  ASSERT_TRUE(board.parse_fen("4k3/8/8/8/8/2P1P3/8/4K3 w - - 0 1 V c3"));
   EXPECT_TRUE(has_move(board, "c3c5"));
   EXPECT_FALSE(has_move(board, "e3e5"));
 
@@ -96,7 +96,7 @@ TEST_F(variant_test_fixture, fen_round_trips_all_fields) {
   for(const string fen : { "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1 -",
                            "4k3/2m5/8/8/8/2P1P3/8/1A2K3 w - - 7 31 Vv c3",
                            "r3k2r/pppppppp/8/8/8/8/PPPPPPPP/R3K2R w KQ - 0 12 v -" }) {
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     istringstream fields(fen);
     string skipped;
     int fullmove{ };
@@ -105,25 +105,25 @@ TEST_F(variant_test_fixture, fen_round_trips_all_fields) {
   }
 
   // a legacy six-field FEN gains the variant field
-  board.parse_fen(Fen::start_position);
+  ASSERT_TRUE(board.parse_fen(Fen::start_position));
   EXPECT_EQ(board.to_fen(1), string(Fen::start_position) + " -");
 
   // field 8 lists only the variant side's pawns: a classic side's are dropped, and a
   // variant side without field 8 writes "-"
-  board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v a7b7c7d7e7a2b2");
+  ASSERT_TRUE(board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v a7b7c7d7e7a2b2"));
   EXPECT_EQ(board.to_fen(1), "rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v a7b7c7d7e7");
-  board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v");
+  ASSERT_TRUE(board.parse_fen("rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v"));
   EXPECT_EQ(board.to_fen(1), "rnbqkanr/ppppp3/8/8/8/8/PPPPPPPP/RNBQKBNR w KQ - 0 1 v -");
 }
 
 TEST_F(variant_test_fixture, incremental_hash_matches_a_fresh_hash) {
-  board.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+  ASSERT_TRUE(board.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"));
   for(const char* move : { "e1g1", "b4c3", "d2c3", "e8c8", "a2a4", "c7c5", "d5c6" }) {
     ASSERT_TRUE(engine.apply_move(move)) << move;
     EXPECT_EQ(board.state.hash_key, generate_hash_key(board.state)) << move;
   }
 
-  board.parse_fen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1 V");
+  ASSERT_TRUE(board.parse_fen("4k3/1P6/8/8/8/8/8/4K3 w - - 0 1 V"));
   ASSERT_TRUE(engine.apply_move("b7b8m"));
   EXPECT_EQ(board.state.hash_key, generate_hash_key(board.state));
 }

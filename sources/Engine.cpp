@@ -6,7 +6,7 @@ namespace maharajah {
 Engine::Engine() {
   // the skill-level random stream continues where hash key generation stopped
   random.state = ZobristKeys::get().random_state;
-  board.parse_fen(Fen::start_position);
+  (void)board.parse_fen(Fen::start_position);
   nnue.load_default_weights();
 }
 
@@ -16,7 +16,7 @@ std::expected<void, std::string_view> Engine::set_position(const std::string_vie
 
   // every search path locates the kings, so exactly one per side is required
   if(count_bits(board.state.bitboards[K]) != 1 || count_bits(board.state.bitboards[k]) != 1) {
-    board.parse_fen(Fen::start_position);
+    (void)board.parse_fen(Fen::start_position);
     return std::unexpected("invalid position: each side needs exactly one king");
   }
 

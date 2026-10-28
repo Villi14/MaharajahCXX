@@ -71,11 +71,11 @@ class transposition_test_fixture : public testing::Test {
   // stores an exact score, then reads it back both directly and after rebuilding the
   // position from the FEN (the hash must not depend on how the position was reached)
   void expect_exact_roundtrip(const char* fen, const int score, const int depth) {
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     table.write(board.state.hash_key, score, depth, HashFlag::exact, 0);
     EXPECT_EQ(table.read(board.state.hash_key, -Scores::infinity, Scores::infinity, depth, 0), score) << fen;
 
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     EXPECT_EQ(table.read(board.state.hash_key, -Scores::infinity, Scores::infinity, depth, 0), score) << fen;
   }
 };
@@ -89,7 +89,7 @@ TEST_F(transposition_test_fixture, compound_piece_positions_round_trip) {
 TEST_F(transposition_test_fixture, clear_removes_entries) {
   expect_exact_roundtrip("k7/8/8/8/3M4/8/8/7K w - - 0 1 ", 314, 6);
   table.clear();
-  board.parse_fen("k7/8/8/8/3M4/8/8/7K w - - 0 1 ");
+  ASSERT_TRUE(board.parse_fen("k7/8/8/8/3M4/8/8/7K w - - 0 1 "));
   EXPECT_EQ(table.read(board.state.hash_key, -Scores::infinity, Scores::infinity, 6, 0), TranspositionTable::no_entry);
 }
 

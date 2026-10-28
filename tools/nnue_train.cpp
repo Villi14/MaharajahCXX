@@ -276,7 +276,7 @@ void check_quantization(Network& network, const Dataset& validation, const std::
   double abs_error{ }, max_error{ }, abs_eval{ };
   Board board;
   for(std::size_t i{ }; i < n; ++i) {
-    board.parse_fen(validation.fens[i]);
+    (void)board.parse_fen(validation.fens[i]);
     const double error = std::abs(nnue.evaluate(board.state) - accessor[static_cast<std::int64_t>(i)][0]);
     abs_error += error;
     max_error = std::max(max_error, error);

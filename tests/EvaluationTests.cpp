@@ -16,12 +16,12 @@ class evaluation_test_fixture : public testing::Test {
   Board& board = engine.board;
 
   int evaluate(const char* fen) {
-    board.parse_fen(fen);
+    EXPECT_TRUE(board.parse_fen(fen));
     return Evaluator::evaluate(board.state);
   }
 
   int see(const char* fen, const char* move) {
-    board.parse_fen(fen);
+    EXPECT_TRUE(board.parse_fen(fen));
     const int parsed = board.parse_move(move);
     EXPECT_NE(parsed, 0) << move;
     return see_evaluate(board, parsed);
@@ -62,7 +62,7 @@ TEST_F(evaluation_test_fixture, mirrored_pawn_positions_evaluate_the_same) {
 TEST_F(evaluation_test_fixture, see_knight_takes_undefended_bishop_wins) {
   // see_smoke.c has "3N3" on rank 5, which MaharajahC's lenient parser pads; the
   // strict parser here rejects it
-  board.parse_fen("8/1k6/1b6/3N4/8/8/8/4K3 w - - 0 1 ");
+  ASSERT_TRUE(board.parse_fen("8/1k6/1b6/3N4/8/8/8/4K3 w - - 0 1 "));
   const int move = board.parse_move("d5b6");
   ASSERT_NE(move, 0);
   EXPECT_TRUE(Move::get_move_capture(move));

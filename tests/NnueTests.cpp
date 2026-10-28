@@ -79,7 +79,7 @@ TEST(nnue_test, mirrored_position_evaluates_the_same_for_the_side_to_move) {
 
   for(const string_view fen : { TestFen::tricky_position, TestFen::cmk_position, string_view{ "r1a1k1cr/pppp1ppp/8/4m3/4M3/8/PPPP1PPP/R1A1K1CR w - - 0 1 Vv" } }) {
     Board board;
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     EXPECT_EQ(nnue.evaluate(board.state), nnue.evaluate(mirrored(board.state))) << fen;
   }
 }
@@ -107,7 +107,7 @@ TEST_P(nnue_size_test, incremental_updates_match_a_full_refresh) {
   int updates{ };
   for(const string& fen : fens) {
     Board board;
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     NnueAccumulator parent, updated, refreshed;
     nnue.refresh(board.state, parent);
 
@@ -139,7 +139,7 @@ TEST(nnue_test, search_evaluates_with_the_network_when_requested) {
   Engine engine;
   engine.transposition_table.resize(4);
   ASSERT_TRUE(engine.nnue.load_weights_from_bytes(network().data(), network().size(), "random-1"));
-  engine.set_position(TestFen::tricky_position);
+  ASSERT_TRUE(engine.set_position(TestFen::tricky_position));
 
   engine.eval_config.eval_mode = EvalMode::classic;
   const SearchResult classic = Search(engine).run(5);

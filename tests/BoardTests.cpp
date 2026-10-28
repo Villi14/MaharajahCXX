@@ -48,7 +48,7 @@ class board_test_fixture : public testing::Test {
 };
 
 TEST_F(board_test_fixture, pop_state_restores_the_pushed_state) {
-  board.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1");
+  ASSERT_TRUE(board.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R b KQkq - 0 1"));
   const BoardState before = board.state;
 
   board.push_state();
@@ -71,7 +71,7 @@ TEST_F(board_test_fixture, pop_state_restores_the_pushed_state) {
 }
 
 TEST_F(board_test_fixture, make_move_and_pop_state_restore_the_position) {
-  board.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1");
+  ASSERT_TRUE(board.parse_fen("rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1"));
   const BoardState before = board.state;
 
   MoveList moves;
@@ -776,7 +776,7 @@ TEST_F(board_test_fixture, generate_captures_only_matches_the_captures_of_all_mo
                           "rnbqkb1r/pp1p1pPp/8/2p1pP2/1P1P4/3P3P/P1P1P3/RNBQKBNR w KQkq e6 0 1",
                           "r2q1rk1/ppp2ppp/2n1bn2/2b1p3/3pP3/3P1NPP/PPP1NPB1/R1BQ1RK1 b - - 0 9",
                           "1r2k3/P1P5/8/3pP3/2a1C3/1m6/8/4K2M w - d6 0 1 Vv" }) {
-    board.parse_fen(fen);
+    ASSERT_TRUE(board.parse_fen(fen));
     MoveList all_moves;
     MoveList captures;
     board.generate_moves(all_moves);

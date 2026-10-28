@@ -75,7 +75,7 @@ class perft_test_fixture : public testing::TestWithParam<PerftCase> {
 
 TEST_P(perft_test_fixture, matches_reference_nodes) {
   const auto& c = GetParam();
-  game.parse_fen(c.fen);
+  ASSERT_TRUE(game.parse_fen(c.fen));
   Perft perft(GameTestAccess::board(game));
 
   EXPECT_EQ(perft.perft(c.depth), c.nodes);
@@ -83,7 +83,7 @@ TEST_P(perft_test_fixture, matches_reference_nodes) {
 
 TEST_P(perft_test_fixture, leaves_board_unchanged) {
   const auto& c = GetParam();
-  game.parse_fen(c.fen);
+  ASSERT_TRUE(game.parse_fen(c.fen));
   auto& board = GameTestAccess::board(game);
   const auto before = board.state;
 
@@ -110,13 +110,13 @@ class perft_edge_fixture : public testing::Test {
 };
 
 TEST_F(perft_edge_fixture, depth_zero_is_one_node) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   Perft perft(GameTestAccess::board(game));
   EXPECT_EQ(perft.perft(0), 1U);
 }
 
 TEST_F(perft_edge_fixture, divide_and_test_with_zero_depth_do_not_recurse) {
-  game.parse_fen(Fen::start_position);
+  ASSERT_TRUE(game.parse_fen(Fen::start_position));
   auto& board = GameTestAccess::board(game);
   Perft perft(board);
 
@@ -129,7 +129,7 @@ TEST_F(perft_edge_fixture, divide_and_test_with_zero_depth_do_not_recurse) {
 }
 
 TEST_F(perft_edge_fixture, divide_sums_to_perft) {
-  game.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1");
+  ASSERT_TRUE(game.parse_fen("r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1"));
   Perft perft(GameTestAccess::board(game));
 
   testing::internal::CaptureStdout();

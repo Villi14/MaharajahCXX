@@ -30,13 +30,13 @@ class draw_rules_test_fixture : public testing::Test {
   }
 
   bool is_insufficient_material(const char* fen) {
-    board.parse_fen(fen);
+    EXPECT_TRUE(board.parse_fen(fen));
     return Search(engine).is_insufficient_material();
   }
 };
 
 TEST_F(draw_rules_test_fixture, knight_shuffle_counts_repetitions) {
-  board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 0 1 ");
+  ASSERT_TRUE(board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 0 1 "));
   EXPECT_EQ(board.repetition_count(), 1);
 
   play_all({ "g2f4", "h8g8", "f4g2", "g8h8", "g2f4", "h8g8" });
@@ -59,24 +59,24 @@ TEST_F(draw_rules_test_fixture, knight_shuffle_counts_repetitions) {
 }
 
 TEST_F(draw_rules_test_fixture, halfmove_clock_reaches_the_fifty_and_seventy_five_move_marks) {
-  board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 99 1 ");
+  ASSERT_TRUE(board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 99 1 "));
   EXPECT_TRUE(board.state.standard_rules);
   play("g2f4");
   EXPECT_EQ(board.state.halfmove, 100);
 
-  board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 149 1 ");
+  ASSERT_TRUE(board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 149 1 "));
   play("g2f4");
   EXPECT_EQ(board.state.halfmove, 150);
 }
 
 TEST_F(draw_rules_test_fixture, pawn_move_resets_the_halfmove_clock) {
-  board.parse_fen("7k/8/8/8/8/8/4P3/7K w - - 99 1 ");
+  ASSERT_TRUE(board.parse_fen("7k/8/8/8/8/8/4P3/7K w - - 99 1 "));
   play("e2e3");
   EXPECT_EQ(board.state.halfmove, 0);
 }
 
 TEST_F(draw_rules_test_fixture, halfmove_rules_are_off_with_compound_pieces) {
-  board.parse_fen("7k/8/8/8/3M4/8/8/7K w - - 150 1 ");
+  ASSERT_TRUE(board.parse_fen("7k/8/8/8/3M4/8/8/7K w - - 150 1 "));
   EXPECT_FALSE(board.state.standard_rules);
   EXPECT_FALSE(is_draw());
 }
