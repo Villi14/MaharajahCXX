@@ -6,7 +6,6 @@
 
 #include <charconv>
 #include <sstream>
-#include <stdexcept>
 
 using namespace std;
 
@@ -353,13 +352,11 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
   add_piece_moves(is_white ? K : k);
 }
 
-void Board::parse_fen(const string_view fen) {
-  const auto invalid = [] { return runtime_error("Invalid FEN"); };
-
+expected<void, string_view> Board::parse_fen(const string_view fen) {
   string placement, side_field, castle_field, en_passant_field, halfmove_field, fullmove_field, variant_field, pawn_field;
   istringstream fields{ string(fen) };
   if(!(fields >> placement >> side_field >> castle_field >> en_passant_field))
-    throw invalid();
+    return unexpected("invalid fen: missing fields");
   // optional: halfmove clock, fullmove number, variant rights, unmoved pawns
   fields >> halfmove_field >> fullmove_field >> variant_field >> pawn_field;
 
@@ -370,29 +367,29 @@ void Board::parse_fen(const string_view fen) {
   for(const char ch : placement) {
     if(ch == '/') {
       if(file != BoardGeometry::files || ++rank >= BoardGeometry::ranks)
-        throw invalid();
+        return unexpected("invalid fen: piece placement");
       file = 0;
     } else if(ch >= '1' && ch <= '8') {
       file += ch - '0';
       if(file > BoardGeometry::files)
-        throw invalid();
+        return unexpected("invalid fen: piece placement");
     } else {
       const auto piece = Fen::piece_chars.find(ch);
       if(piece == string_view::npos || file >= BoardGeometry::files)
-        throw invalid();
+        return unexpected("invalid fen: piece placement");
       set_bit(parsed.bitboards[piece], to_square(rank * BoardGeometry::ranks + file));
       ++file;
     }
   }
   if(rank != BoardGeometry::ranks - 1 || file != BoardGeometry::files)
-    throw invalid();
+    return unexpected("invalid fen: piece placement");
 
   if(side_field == "w")
     parsed.side = white;
   else if(side_field == "b")
     parsed.side = black;
   else
-    throw invalid();
+    return unexpected("invalid fen: side to move");
 
   if(castle_field != "-") {
     for(const char ch : castle_field) {
@@ -410,7 +407,7 @@ void Board::parse_fen(const string_view fen) {
         parsed.castle |= bq;
         break;
       default:
-        throw invalid();
+        return unexpected("invalid fen: castling rights");
       }
     }
   }
@@ -418,7 +415,7 @@ void Board::parse_fen(const string_view fen) {
   if(en_passant_field != "-") {
     parsed.en_passant = parse_square(en_passant_field);
     if(parsed.en_passant == no_square)
-      throw invalid();
+      return unexpected("invalid fen: en passant square");
   }
 
   if(!halfmove_field.empty())
@@ -426,11 +423,11 @@ void Board::parse_fen(const string_view fen) {
 
   if(!pawn_field.empty() && pawn_field != "-") {
     if(pawn_field.size() % 2 != 0)
-      throw invalid();
+      return unexpected("invalid fen: unmoved pawns");
     for(size_t i{ }; i < pawn_field.size(); i += 2) {
       const Squares square = parse_square(string_view(pawn_field).substr(i, 2));
       if(square == no_square)
-        throw invalid();
+        return unexpected("invalid fen: unmoved pawns");
       set_bit(parsed.pawn_unmoved, square);
     }
   }
@@ -444,7 +441,7 @@ void Board::parse_fen(const string_view fen) {
       else if(ch == 'v')
         parsed.side_variant[black] = true;
       else if(ch != '-')
-        throw invalid();
+        return unexpected("invalid fen: variant rules");
     }
   } else {
     // no per-side field: classic by default, variant for a side holding a compound piece
@@ -467,6 +464,7 @@ void Board::parse_fen(const string_view fen) {
   ply = 0;
   repetition_index = 0;
   repetition_table.assign(1, zero);
+  return { };
 }
 
 string Board::to_fen(int fullmove_number) const {

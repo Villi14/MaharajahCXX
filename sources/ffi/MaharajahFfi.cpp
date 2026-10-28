@@ -8,7 +8,6 @@
 #include <cstdio>
 #include <cstring>
 #include <memory>
-#include <stdexcept>
 #include <string>
 
 using namespace maharajah;
@@ -144,13 +143,9 @@ FFI_PLUGIN_EXPORT int mah_set_position_fen_with_rules(const char* fen, const int
     return 0;
 
   Engine& live = live_engine();
-  bool valid;
-  try {
-    valid = live.set_position(fen);
-  } catch(const std::runtime_error&) {
+  const bool valid = live.set_position(fen).has_value();
+  if(!valid)
     live.board.parse_fen(Fen::start_position);
-    valid = false;
-  }
 
   if(valid)
     apply_rules_profile(live, rules_profile);

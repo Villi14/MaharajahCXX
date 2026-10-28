@@ -5,8 +5,8 @@ file(GLOB_RECURSE ENGINE_SOURCES CONFIGURE_DEPENDS LIST_DIRECTORIES false *.cpp)
 list(FILTER ENGINE_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 
 # Browser module (mah_wasm_*) for the web game, built by tools/build_wasm.sh.
-# The FEN parser throws, so exceptions are compiled in (native wasm exceptions).
-# No -flto: with LTO (emcc 6.0.10) a thrown exception is never caught.
+# The engine reports errors without exceptions (parse_fen returns std::expected), so
+# the module is built without exception support and with LTO.
 # The search keeps a move list per ply on the stack (MaharajahC uses globals), which
 # overflows Emscripten's default 64 KB stack; 1 MB covers max_ply plies with room.
 # -msimd128 -msse2: Emscripten maps the SSE2 NNUE code onto wasm SIMD (551 kN/s vs 130
@@ -19,9 +19,9 @@ if(EMSCRIPTEN)
   list(JOIN MAHARAJAH_WASM_EXPORTS "," MAHARAJAH_WASM_EXPORTS)
 
   add_executable(maharajah_engine ${ENGINE_SOURCES})
-  target_compile_options(maharajah_engine PRIVATE -fwasm-exceptions -msimd128 -msse2)
+  target_compile_options(maharajah_engine PRIVATE -flto -msimd128 -msse2)
   target_link_options(maharajah_engine PRIVATE
-    -fwasm-exceptions
+    -flto
     -sALLOW_MEMORY_GROWTH=1
     -sINITIAL_MEMORY=67108864
     -sSTACK_SIZE=1048576

@@ -122,9 +122,7 @@ void load(const std::string& paths, const int threads, Dataset& training, Datase
             ++rejected;
             continue;
           }
-          try {
-            board.parse_fen(std::string_view(line).substr(0, first));
-          } catch(const std::exception&) {
+          if(!board.parse_fen(std::string_view(line).substr(0, first))) {
             ++rejected;
             continue;
           }

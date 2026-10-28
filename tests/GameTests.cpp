@@ -239,27 +239,34 @@ TEST_F(game_test_fixture, fen_parsing_sets_occupancies) {
   EXPECT_NE(board.state.occupancies[white], board.state.occupancies[black]);
 }
 
-TEST_F(game_test_fixture, parse_fen_throws_on_invalid_input) {
+TEST_F(game_test_fixture, parse_fen_reports_invalid_input) {
   // Obviously incorrect FEN (too short, missing fields)
-  EXPECT_THROW(game.parse_fen("invalid"), runtime_error);
+  const auto parsed = game.parse_fen("invalid");
+  ASSERT_FALSE(parsed);
+  EXPECT_EQ(parsed.error(), "invalid fen: missing fields");
 }
 
 TEST_F(game_test_fixture, parse_fen_rejects_malformed_fens_and_keeps_the_board) {
   game.parse_fen(Fen::start_position);
   const auto before = GameTestAccess::board(game).state;
 
-  for(const char* bad : {
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1", // 7 ranks
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w - - 0 1", // 9 ranks
-          "rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // 9 files
-          "rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // bad digit
-          "rnbqkbnx/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", // bad piece
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x - - 0 1", // bad side
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQxq - 0 1", // bad castling
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - e9 0 1", // bad en passant
-          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w", // missing fields
-      }) {
-    EXPECT_THROW(game.parse_fen(bad), runtime_error) << bad;
+  const pair<const char*, string_view> bad_fens[]{
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP w KQkq - 0 1", "invalid fen: piece placement" }, // 7 ranks
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR/8 w - - 0 1", "invalid fen: piece placement" }, // 9 ranks
+    { "rnbqkbnr/ppppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", "invalid fen: piece placement" }, // 9 files
+    { "rnbqkbnr/pppppppp/9/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", "invalid fen: piece placement" }, // bad digit
+    { "rnbqkbnx/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1", "invalid fen: piece placement" }, // bad piece
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR x - - 0 1", "invalid fen: side to move" },
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQxq - 0 1", "invalid fen: castling rights" },
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - e9 0 1", "invalid fen: en passant square" },
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w", "invalid fen: missing fields" },
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1 x", "invalid fen: variant rules" },
+    { "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w - - 0 1 V e2e", "invalid fen: unmoved pawns" },
+  };
+  for(const auto& [bad, error] : bad_fens) {
+    const auto parsed = game.parse_fen(bad);
+    ASSERT_FALSE(parsed) << bad;
+    EXPECT_EQ(parsed.error(), error) << bad;
   }
 
   EXPECT_EQ(GameTestAccess::board(game).state.bitboards, before.bitboards);

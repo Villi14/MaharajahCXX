@@ -10,16 +10,17 @@ Engine::Engine() {
   nnue.load_default_weights();
 }
 
-bool Engine::set_position(const std::string_view fen) {
-  board.parse_fen(fen);
+std::expected<void, std::string_view> Engine::set_position(const std::string_view fen) {
+  if(const auto parsed = board.parse_fen(fen); !parsed)
+    return parsed;
 
   // every search path locates the kings, so exactly one per side is required
   if(count_bits(board.state.bitboards[K]) != 1 || count_bits(board.state.bitboards[k]) != 1) {
     board.parse_fen(Fen::start_position);
-    return false;
+    return std::unexpected("invalid position: each side needs exactly one king");
   }
 
-  return true;
+  return { };
 }
 
 bool Engine::apply_move(const std::string_view move) {

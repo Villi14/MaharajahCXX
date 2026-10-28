@@ -13,7 +13,6 @@
 #include <iostream>
 #include <optional>
 #include <sstream>
-#include <stdexcept>
 #include <string>
 #include <string_view>
 
@@ -200,8 +199,8 @@ string Game::print_board(const bool print_to_console) const {
   return str;
 }
 
-void Game::parse_fen(const string_view fen) {
-  engine_.board.parse_fen(fen);
+expected<void, string_view> Game::parse_fen(const string_view fen) {
+  return engine_.board.parse_fen(fen);
 }
 
 void Game::print_attacked_squares(Colors side) const {
@@ -350,20 +349,10 @@ void Game::parse_position(string_view command) {
   const auto moves_position = command.find("moves");
   const string_view setup = command.substr(0, moves_position);
 
-  try {
-    bool valid = true;
-
-    if(const auto fen_position = setup.find("fen"); fen_position != string_view::npos && setup.substr(0, fen_position).find("startpos") == string_view::npos)
-      valid = engine_.set_position(setup.substr(fen_position + 3));
-    else
-      engine_.set_position(Fen::start_position);
-
-    if(!valid) {
-      cout << "info string invalid position: each side needs exactly one king\n" << flush;
-      return;
-    }
-  } catch(const runtime_error&) {
-    cout << "info string invalid fen\n" << flush;
+  const auto fen_position = setup.find("fen");
+  const bool from_fen = fen_position != string_view::npos && setup.substr(0, fen_position).find("startpos") == string_view::npos;
+  if(const auto loaded = engine_.set_position(from_fen ? setup.substr(fen_position + 3) : Fen::start_position); !loaded) {
+    cout << "info string " << loaded.error() << "\n" << flush;
     return;
   }
 

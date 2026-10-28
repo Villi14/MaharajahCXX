@@ -4,6 +4,7 @@
 #include "MoveList.h"
 
 #include <cassert>
+#include <expected>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -62,8 +63,9 @@ struct Board {
 
   // Loads a FEN with the optional 7th (per-side variant rights: 'V' white, 'v' black,
   // '-' none) and 8th (unmoved pawn squares, e.g. "e2d7" or '-') fields.
-  // Throws std::runtime_error on a malformed FEN and leaves the board untouched.
-  void parse_fen(std::string_view fen);
+  // A malformed FEN leaves the board untouched; the error says what is wrong with it
+  // ("invalid fen: castling rights").
+  std::expected<void, std::string_view> parse_fen(std::string_view fen);
   // Serializes the position; field 7 is always written, field 8 only when the
   // position carries per-pawn state.
   [[nodiscard]] std::string to_fen(int fullmove_number = 1) const;

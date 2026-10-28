@@ -60,9 +60,10 @@ struct Engine {
   // search threads; more than one is nondeterministic (see run_search)
   int threads{ min_threads };
 
-  // Loads a FEN; a position without exactly one king per side is rejected
-  // (returns false) and the start position is loaded instead. Throws on a malformed FEN.
-  bool set_position(std::string_view fen);
+  // Loads a FEN. A malformed FEN is rejected and leaves the position unchanged; a
+  // position without exactly one king per side is rejected and the start position is
+  // loaded instead. The error is a message for the user.
+  std::expected<void, std::string_view> set_position(std::string_view fen);
   // Plays a move given in coordinate notation, remembering the previous position for
   // repetition detection. Returns false (and changes nothing) if it is not legal.
   bool apply_move(std::string_view move);

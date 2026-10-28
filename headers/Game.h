@@ -20,7 +20,7 @@ struct Game {
   [[nodiscard]] GameState state() const;
   std::string print_board(bool print_to_console = true) const;
   void print_attacked_squares(Colors side) const;
-  void parse_fen(std::string_view fen);
+  std::expected<void, std::string_view> parse_fen(std::string_view fen);
   static std::string print_bitboard(u64 bitboard, bool print_to_console = false);
   static void print_move(int move);
   void print_move_list();
