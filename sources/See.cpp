@@ -33,7 +33,7 @@ int find_lva(const Colors us, const Bitboards& bb, const u64 occupancy, const Sq
   for(Pieces piece{ first }; piece <= last; ++piece) {
     u64 bitboard = bb[piece];
     while(bitboard) {
-      const Squares from = get_ls1b_index(bitboard);
+      const Squares from = pop_ls1b(bitboard);
       if(from != target && piece_reaches(piece, from, target, occupancy)) {
         const int value = material_cp(piece);
         if(value < best_value) {
@@ -42,7 +42,6 @@ int find_lva(const Colors us, const Bitboards& bb, const u64 occupancy, const Sq
           best_from = from;
         }
       }
-      pop_bit(bitboard, from);
     }
   }
 

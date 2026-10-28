@@ -3,6 +3,7 @@
 #include "Types.h"
 
 #include <array>
+#include <bit>
 
 namespace maharajah {
 
@@ -257,5 +258,10 @@ struct Evaluation {
     return 7 - square / 8;
   }
 };
+
+// The weights of one phase as a flat array, in member order (EvalWeights holds only ints).
+[[nodiscard]] constexpr std::array<int, eval_weight_count> flat_weights(const Phase phase) {
+  return std::bit_cast<std::array<int, eval_weight_count>>(Evaluation::weights[phase]);
+}
 
 } // namespace maharajah

@@ -64,29 +64,20 @@ bool Board::is_square_attacked(const Squares square, const Colors side) const {
   if(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p])
     return true;
 
-  // attacked by knights
-  if(attack_tables.knight[square] & bb[is_white ? N : n])
+  // Compound pieces attack like their components, so each ray set is computed once:
+  // knight moves for N, A, C, M; diagonals for B, A, Q, M; lines for R, C, Q, M.
+  const u64 archbishops = bb[is_white ? A : a];
+  const u64 chancellors = bb[is_white ? C : c];
+  const u64 amazons = bb[is_white ? M : m];
+  const u64 queens = bb[is_white ? Q : q];
+
+  if(attack_tables.knight[square] & (bb[is_white ? N : n] | archbishops | chancellors | amazons))
     return true;
 
-  // attacked by bishops and archbishops
-  if(get_bishop_attacks(square, occupancy) & bb[is_white ? B : b])
+  if(get_bishop_attacks(square, occupancy) & (bb[is_white ? B : b] | archbishops | queens | amazons))
     return true;
 
-  if(get_archbishop_attacks(square, occupancy) & bb[is_white ? A : a])
-    return true;
-
-  // attacked by rooks and chancellors
-  if(get_rook_attacks(square, occupancy) & bb[is_white ? R : r])
-    return true;
-
-  if(get_chancellor_attacks(square, occupancy) & bb[is_white ? C : c])
-    return true;
-
-  // attacked by queens and amazons
-  if(get_queen_attacks(square, occupancy) & bb[is_white ? Q : q])
-    return true;
-
-  if(get_amazon_attacks(square, occupancy) & bb[is_white ? M : m])
+  if(get_rook_attacks(square, occupancy) & (bb[is_white ? R : r] | chancellors | queens | amazons))
     return true;
 
   // attacked by kings
@@ -247,8 +238,8 @@ bool Board::has_legal_move() {
   MoveList list;
   generate_moves(list);
 
-  for(size_t i{ }; i < list.size(); ++i) {
-    if(make_move(list[i], TypeMove::all_moves)) {
+  for(const int move : list) {
+    if(make_move(move, TypeMove::all_moves)) {
       pop_state();
       return true;
     }
@@ -278,7 +269,7 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
     u64 bitboard = state.bitboards[pawn];
 
     while(bitboard) {
-      const Squares source_square = get_ls1b_index(bitboard);
+      const Squares source_square = pop_ls1b(bitboard);
       const Squares target_square = source_square + forward;
       const bool promotes = is_white ? (source_square >= a7 && source_square <= h7) : (source_square >= a2 && source_square <= h2);
 
@@ -303,14 +294,12 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
       u64 attacks = attack_tables.pawn[side][source_square] & enemy;
 
       while(attacks) {
-        const Squares capture_square = get_ls1b_index(attacks);
+        const Squares capture_square = pop_ls1b(attacks);
 
         if(promotes)
           add_promotions(out_moves, state, source_square, capture_square, pawn, true);
         else
           out_moves.add(Move::encode_move(Move(source_square, capture_square, pawn, no_pieces, true, false, false, false)));
-
-        pop_bit(attacks, capture_square);
       }
 
       if(state.en_passant != no_square) {
@@ -319,8 +308,6 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
           out_moves.add(Move::encode_move(Move(source_square, en_passant_target, pawn, no_pieces, true, false, true, false)));
         }
       }
-
-      pop_bit(bitboard, source_square);
     }
   }
 
@@ -328,17 +315,14 @@ void Board::generate_moves(MoveList& out_moves, const TypeMove type_move) const 
     u64 bitboard = state.bitboards[piece];
 
     while(bitboard) {
-      const Squares source_square = get_ls1b_index(bitboard);
+      const Squares source_square = pop_ls1b(bitboard);
       u64 attacks = get_piece_attacks(piece, source_square, occupancy) & (captures_only ? enemy : ~own);
 
       while(attacks) {
-        const Squares target_square = get_ls1b_index(attacks);
+        const Squares target_square = pop_ls1b(attacks);
         const bool capture = get_bit(enemy, target_square);
         out_moves.add(Move::encode_move(Move(source_square, target_square, piece, no_pieces, capture, false, false, false)));
-        pop_bit(attacks, target_square);
       }
-
-      pop_bit(bitboard, source_square);
     }
   };
 
@@ -553,11 +537,8 @@ string Board::to_fen(int fullmove_number) const {
     fen += ' ';
     if(!unmoved_pawns)
       fen += '-';
-    while(unmoved_pawns) {
-      const Squares square = get_ls1b_index(unmoved_pawns);
-      fen += Notation::square_to_coordinates[square];
-      pop_bit(unmoved_pawns, square);
-    }
+    while(unmoved_pawns)
+      fen += Notation::square_to_coordinates[pop_ls1b(unmoved_pawns)];
   }
 
   return fen;
@@ -576,9 +557,7 @@ int Board::parse_move(string_view move_string) const {
   MoveList move_list;
   generate_moves(move_list);
 
-  for(size_t i{ }; i < move_list.size(); ++i) {
-    const int move = move_list[i];
-
+  for(const int move : move_list) {
     if(source_square != Move::get_move_source(move) || target_square != Move::get_move_target(move))
       continue;
 

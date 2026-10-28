@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
+#include <span>
 #include <thread>
 #include <vector>
 
@@ -39,6 +40,22 @@ const auto late_move_reductions = [] {
   }
   return table;
 }();
+
+// stable insertion sort of `moves` by their `scores`, best score first
+void sort_by_score(const std::span<int> moves, const std::span<int> scores) {
+  for(std::size_t i{ 1 }; i < moves.size(); ++i) {
+    const int score = scores[i];
+    const int move = moves[i];
+    std::size_t j = i;
+    while(j > 0 && scores[j - 1] < score) {
+      scores[j] = scores[j - 1];
+      moves[j] = moves[j - 1];
+      --j;
+    }
+    scores[j] = score;
+    moves[j] = move;
+  }
+}
 
 } // namespace
 
@@ -418,8 +435,7 @@ int Search::negamax(int alpha, int beta, int depth) {
   // quiet moves searched without a cutoff, for the history malus
   std::array<int, Limits::max_moves> quiet_moves;
   int quiet_count{ };
-  for(size_t i{ }; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
+  for(const int move : moves_list) {
     const bool capture = Move::get_move_capture(move);
     const bool is_quiet_move = !capture && !Move::is_promotion(move);
     const bool prunable = depth <= 2 && ply_ && !in_check && !pv_node && is_quiet_move;
@@ -556,9 +572,7 @@ int Search::quiescence(int alpha, int beta) {
 
   const int see_margin = engine_.search_config.quiescence_see_prune_margin;
 
-  for(size_t i{ }; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
-
+  for(const int move : moves_list) {
     // skip clearly losing exchanges
     const int see = see_evaluate(board_, move);
     if(see < -see_margin && evaluation + see < alpha)
@@ -643,31 +657,19 @@ int Search::score_move(const int move, const int hash_move) {
 
 void Search::sort_moves(MoveList& moves_list, const int hash_move) {
   std::array<int, Limits::max_moves> move_scores;
-  const int count = moves_list.count;
+  const std::size_t count = moves_list.size();
 
-  for(int i{ }; i < count; ++i)
+  for(std::size_t i{ }; i < count; ++i)
     move_scores[i] = score_move(moves_list[i], hash_move);
 
-  // stable insertion sort, best score first
-  for(int i{ 1 }; i < count; ++i) {
-    const int score = move_scores[i];
-    const int move = moves_list[i];
-    int j = i;
-    while(j > 0 && move_scores[j - 1] < score) {
-      move_scores[j] = move_scores[j - 1];
-      moves_list[j] = moves_list[j - 1];
-      --j;
-    }
-    move_scores[j] = score;
-    moves_list[j] = move;
-  }
+  sort_by_score(std::span(moves_list.moves).first(count), std::span(move_scores).first(count));
 }
 
 void Search::enable_pv_scoring(const MoveList& moves_list) {
   follow_pv_ = false;
 
-  for(size_t i{ }; i < moves_list.size(); ++i) {
-    if(pv_table_[0][ply_] == moves_list[i]) {
+  for(const int move : moves_list) {
+    if(pv_table_[0][ply_] == move) {
       score_pv_ = true;
       follow_pv_ = true;
     }
@@ -675,18 +677,8 @@ void Search::enable_pv_scoring(const MoveList& moves_list) {
 }
 
 void Search::sort_root_moves() {
-  for(int i{ 1 }; i < root_count_; ++i) {
-    const int score = root_scores_[i];
-    const int move = root_moves_[i];
-    int j = i;
-    while(j > 0 && root_scores_[j - 1] < score) {
-      root_scores_[j] = root_scores_[j - 1];
-      root_moves_[j] = root_moves_[j - 1];
-      --j;
-    }
-    root_scores_[j] = score;
-    root_moves_[j] = move;
-  }
+  const auto count = static_cast<std::size_t>(root_count_);
+  sort_by_score(std::span(root_moves_).first(count), std::span(root_scores_).first(count));
 }
 
 // Score of a root move from a fresh shallow search (it shares the hash table and

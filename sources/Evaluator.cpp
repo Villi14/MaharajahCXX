@@ -66,13 +66,15 @@ int attacker_count_on_square(const BoardState& state, const Squares square, cons
   int attackers{ };
 
   attackers += count_bits(attack_tables.pawn[opponent(side)][square] & bb[is_white ? P : p]);
-  attackers += count_bits(attack_tables.knight[square] & bb[is_white ? N : n]);
-  attackers += count_bits(get_bishop_attacks(square, occupancy) & bb[is_white ? B : b]);
-  attackers += count_bits(get_archbishop_attacks(square, occupancy) & bb[is_white ? A : a]);
-  attackers += count_bits(get_rook_attacks(square, occupancy) & bb[is_white ? R : r]);
-  attackers += count_bits(get_chancellor_attacks(square, occupancy) & bb[is_white ? C : c]);
-  attackers += count_bits(get_queen_attacks(square, occupancy) & bb[is_white ? Q : q]);
-  attackers += count_bits(get_amazon_attacks(square, occupancy) & bb[is_white ? M : m]);
+  // knight, diagonal and line squares never overlap, so a compound piece reaching the
+  // square is counted once, in the set its move falls in
+  const u64 archbishops = bb[is_white ? A : a];
+  const u64 chancellors = bb[is_white ? C : c];
+  const u64 amazons = bb[is_white ? M : m];
+  const u64 queens = bb[is_white ? Q : q];
+  attackers += count_bits(attack_tables.knight[square] & (bb[is_white ? N : n] | archbishops | chancellors | amazons));
+  attackers += count_bits(get_bishop_attacks(square, occupancy) & (bb[is_white ? B : b] | archbishops | queens | amazons));
+  attackers += count_bits(get_rook_attacks(square, occupancy) & (bb[is_white ? R : r] | chancellors | queens | amazons));
   attackers += count_bits(attack_tables.king[square] & bb[is_white ? K : k]);
 
   return attackers;
@@ -200,6 +202,15 @@ int Evaluator::game_phase_score(const BoardState& state) {
 
 namespace {
 
+constexpr auto opening_flat = flat_weights(opening);
+constexpr auto endgame_flat = flat_weights(endgame);
+
+// position of `weight`, a member of the opening weights, in the flat array
+std::size_t weight_index(const int& weight) {
+  const auto offset = reinterpret_cast<const std::byte*>(&weight) - reinterpret_cast<const std::byte*>(&Evaluation::weights[opening]);
+  return static_cast<std::size_t>(offset) / sizeof(int);
+}
+
 // The classic evaluation from white's point of view, before the tempo bonus. With
 // `traced`, also counts how often each weight enters the score (see EvalTrace).
 template <bool traced>
@@ -208,8 +219,6 @@ int white_score(const BoardState& state, EvalTrace* trace) {
   const u64 occupancy = state.occupancies[both];
   const u64 all_pawns = bb[P] | bb[p];
   const EvalWeights& opening_weights = Evaluation::weights[opening];
-  const int* const opening_base = reinterpret_cast<const int*>(&opening_weights);
-  const int* const endgame_base = reinterpret_cast<const int*>(&Evaluation::weights[endgame]);
   int score_opening{ }, score_endgame{ };
   std::array<int, 2> bishops{ };
 
@@ -222,18 +231,18 @@ int white_score(const BoardState& state, EvalTrace* trace) {
     u64 bitboard = bb[piece];
 
     while(bitboard) {
-      const Squares square = get_ls1b_index(bitboard);
+      const Squares square = pop_ls1b(bitboard);
       const int index = color == white ? square : Evaluation::mirror_score[square];
       // everything below is from the piece owner's point of view
       int opening_term{ }, endgame_term{ };
 
       // `weight` is a member of the opening weights; its endgame twin sits at the same offset
       const auto add = [&](const int& weight, const int count) {
-        const std::ptrdiff_t offset = &weight - opening_base;
-        opening_term += count * weight;
-        endgame_term += count * endgame_base[offset];
+        const std::size_t offset = weight_index(weight);
+        opening_term += count * opening_flat[offset];
+        endgame_term += count * endgame_flat[offset];
         if constexpr(traced)
-          trace->coefficients[static_cast<std::size_t>(offset)] += sign * count;
+          trace->coefficients[offset] += sign * count;
       };
 
       const auto add_positional = [&](const PieceKind positional_kind) { add(opening_weights.positional[positional_kind][index], 1); };
@@ -347,8 +356,6 @@ int white_score(const BoardState& state, EvalTrace* trace) {
 
       score_opening += sign * opening_term;
       score_endgame += sign * endgame_term;
-
-      pop_bit(bitboard, square);
     }
   }
 
@@ -359,7 +366,7 @@ int white_score(const BoardState& state, EvalTrace* trace) {
     score_opening += sign * opening_weights.bishop_pair;
     score_endgame += sign * Evaluation::weights[endgame].bishop_pair;
     if constexpr(traced)
-      trace->coefficients[static_cast<std::size_t>(&opening_weights.bishop_pair - opening_base)] += sign;
+      trace->coefficients[weight_index(opening_weights.bishop_pair)] += sign;
   }
 
   // tapered between the opening and endgame scores by the material on the board

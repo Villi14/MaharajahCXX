@@ -69,10 +69,10 @@ std::vector<int> legal_moves(const Board& board) {
   MoveList moves;
   board.generate_moves(moves);
   std::vector<int> legal;
-  for(std::size_t i{ }; i < moves.size(); ++i) {
+  for(const int move : moves) {
     Board copy = board;
-    if(copy.make_move(moves[i], TypeMove::all_moves))
-      legal.push_back(moves[i]);
+    if(copy.make_move(move, TypeMove::all_moves))
+      legal.push_back(move);
   }
   return legal;
 }
@@ -343,9 +343,9 @@ Dataset load(const std::string& path, const int threads) {
         // the traced evaluation must reproduce the engine's (up to integer rounding)
         static const Weights defaults = [] {
           Weights w;
-          for(const int phase : { opening, endgame }) {
-            const int* base = reinterpret_cast<const int*>(&Evaluation::weights[static_cast<std::size_t>(phase)]);
-            w[phase].assign(base, base + weight_count);
+          for(const Phase phase : { opening, endgame }) {
+            const auto flat = flat_weights(phase);
+            w[phase].assign(flat.begin(), flat.end());
           }
           return w;
         }();
@@ -454,9 +454,9 @@ int run_tune(const std::string& path, const int epochs, const int threads, const
     return 1;
 
   Weights weights;
-  for(const int phase : { opening, endgame }) {
-    const int* base = reinterpret_cast<const int*>(&Evaluation::weights[static_cast<std::size_t>(phase)]);
-    weights[phase].assign(base, base + weight_count);
+  for(const Phase phase : { opening, endgame }) {
+    const auto flat = flat_weights(phase);
+    weights[phase].assign(flat.begin(), flat.end());
   }
 
   const double scale = fit_k(data, weights, threads);

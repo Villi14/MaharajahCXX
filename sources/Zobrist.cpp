@@ -33,11 +33,8 @@ u64 generate_hash_key(const BoardState& state) {
 
   for(Pieces piece{ P }; piece <= k; ++piece) {
     u64 bitboard = state.bitboards[piece];
-    while(bitboard) {
-      const Squares square = get_ls1b_index(bitboard);
-      final_key ^= keys.piece[piece][square];
-      pop_bit(bitboard, square);
-    }
+    while(bitboard)
+      final_key ^= keys.piece[piece][pop_ls1b(bitboard)];
   }
 
   if(state.en_passant != no_square)

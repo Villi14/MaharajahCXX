@@ -12,7 +12,7 @@ struct MoveList {
 
   void clear() {
     count = 0;
-  };
+  }
 
   void add(int move) {
     assert(count < Limits::max_moves);
@@ -23,20 +23,21 @@ struct MoveList {
     return count;
   }
 
-  int operator[](const int index) const {
-    return moves[index];
-  }
-
-  int& operator[](const int index) {
-    return moves[index];
-  }
-
   int operator[](const std::size_t index) const {
     return moves[index];
   }
 
   int& operator[](const std::size_t index) {
     return moves[index];
+  }
+
+  // the generated moves, for range-for
+  [[nodiscard]] const int* begin() const {
+    return moves.data();
+  }
+
+  [[nodiscard]] const int* end() const {
+    return moves.data() + count;
   }
 };
 

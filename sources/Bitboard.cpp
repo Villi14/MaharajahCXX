@@ -182,8 +182,7 @@ u64 set_occupancy(const int index, const int bits_in_mask, u64 attack_mask) {
   u64 occupancy{ };
 
   for(int count{ }; count < bits_in_mask; count++) {
-    int square = get_ls1b_index(attack_mask);
-    pop_bit(attack_mask, to_square(square));
+    const int square = pop_ls1b(attack_mask);
 
     if(index & (one << count))
       occupancy |= (one << square);

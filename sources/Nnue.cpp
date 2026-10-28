@@ -120,8 +120,8 @@ void Nnue::refresh(const BoardState& state, NnueAccumulator& accumulator) const 
     int16_t* values = accumulator.values[perspective].data();
     nnue_simd::vec_copy(params_->feature_bias.get(), values, hidden);
     for(int piece{ }; piece < PieceCount::all; ++piece) {
-      for(u64 bitboard = state.bitboards[piece]; bitboard; pop_bit(bitboard, get_ls1b_index(bitboard)))
-        nnue_simd::vec_add(params_->feature_row(NnueArch::feature(perspective, piece, get_ls1b_index(bitboard)), hidden_), values, hidden);
+      for(u64 bitboard = state.bitboards[piece]; bitboard;)
+        nnue_simd::vec_add(params_->feature_row(NnueArch::feature(perspective, piece, pop_ls1b(bitboard)), hidden_), values, hidden);
     }
   }
   accumulator.key = state.hash_key;
@@ -137,10 +137,10 @@ void Nnue::update(const BoardState& parent, const BoardState& state, const NnueA
       const u64 before = parent.bitboards[piece], after = state.bitboards[piece];
       if(before == after)
         continue;
-      for(u64 removed = before & ~after; removed; pop_bit(removed, get_ls1b_index(removed)))
-        nnue_simd::vec_sub(params_->feature_row(NnueArch::feature(perspective, piece, get_ls1b_index(removed)), hidden_), values, hidden);
-      for(u64 added = after & ~before; added; pop_bit(added, get_ls1b_index(added)))
-        nnue_simd::vec_add(params_->feature_row(NnueArch::feature(perspective, piece, get_ls1b_index(added)), hidden_), values, hidden);
+      for(u64 removed = before & ~after; removed;)
+        nnue_simd::vec_sub(params_->feature_row(NnueArch::feature(perspective, piece, pop_ls1b(removed)), hidden_), values, hidden);
+      for(u64 added = after & ~before; added;)
+        nnue_simd::vec_add(params_->feature_row(NnueArch::feature(perspective, piece, pop_ls1b(added)), hidden_), values, hidden);
     }
   }
   to.key = state.hash_key;

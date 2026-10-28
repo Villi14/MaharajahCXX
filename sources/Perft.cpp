@@ -25,9 +25,7 @@ u64 Perft::perft_rec(int depth) {
   board_.generate_moves(moves);
 
   u64 nodes = 0;
-  for(size_t i{ }; i < moves.size(); ++i) {
-    const int move = moves[i];
-
+  for(const int move : moves) {
     // make_move pushes state; if move is illegal it will pop internally and return false.
     if(!board_.make_move(move, TypeMove::all_moves))
       continue;
@@ -49,9 +47,7 @@ u64 Perft::perft_divide(int depth) {
   board_.generate_moves(moves_list);
 
   u64 total_nodes = 0;
-  for(size_t i{ }; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
-
+  for(const int move : moves_list) {
     if(!board_.make_move(move, TypeMove::all_moves)) {
       continue;
     }
@@ -79,9 +75,7 @@ void Perft::perft_test(int depth) {
   long start = get_time_ms();
 
   u64 total_nodes = 0;
-  for(size_t i{ }; i < moves_list.size(); ++i) {
-    const int move = moves_list[i];
-
+  for(const int move : moves_list) {
     if(!board_.make_move(move, TypeMove::all_moves)) {
       continue;
     }

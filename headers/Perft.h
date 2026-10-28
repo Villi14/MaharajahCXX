@@ -1,6 +1,6 @@
 #pragma once
 
-#include "../headers/Board.h"
+#include "Board.h"
 
 namespace maharajah {
 

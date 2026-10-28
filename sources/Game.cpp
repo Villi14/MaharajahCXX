@@ -7,10 +7,11 @@
 #include "../headers/Search.h"
 
 #include <algorithm>
+#include <charconv>
 #include <cstdio>
-#include <cstdlib>
 #include <iomanip>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <stdexcept>
 #include <string>
@@ -82,12 +83,29 @@ void poll_input(TimeControl& time) {
     time.quit = true;
 }
 
+// integer at the start of `text` after any spaces; 0 when there is none, as atoi
+int to_int(string_view text) {
+  text.remove_prefix(min(text.find_first_not_of(' '), text.size()));
+  int value{ };
+  from_chars(text.data(), text.data() + text.size(), value);
+  return value;
+}
+
 // integer following `name` in a "go" command, or `fallback` when absent
 int go_argument(const string_view command, const string_view name, const int fallback) {
   const auto position = command.find(name);
   if(position == string_view::npos)
     return fallback;
-  return atoi(string(command.substr(position + name.size())).c_str());
+  return to_int(command.substr(position + name.size()));
+}
+
+// value of a "setoption name <name> value <value>" line for option `name`
+optional<string_view> option_value(const string_view input, const string_view name) {
+  constexpr string_view prefix{ "setoption name " };
+  constexpr string_view separator{ " value " };
+  if(!input.starts_with(prefix) || !input.substr(prefix.size()).starts_with(name) || !input.substr(prefix.size() + name.size()).starts_with(separator))
+    return nullopt;
+  return input.substr(prefix.size() + name.size() + separator.size());
 }
 
 } // namespace
@@ -419,23 +437,22 @@ void Game::uci_loop() {
       print_uci_info();
     }
 
-    else if(starts_with(input, "setoption name Hash value ")) {
-      const int mb = clamp(atoi(input.c_str() + 26), min_hash_mb, max_hash_mb);
-      engine_.transposition_table.resize(mb);
+    else if(const auto value = option_value(input, "Hash")) {
+      engine_.transposition_table.resize(clamp(to_int(*value), min_hash_mb, max_hash_mb));
     }
 
-    else if(starts_with(input, "setoption name Skill Level value ")) {
-      engine_.search_config = SearchConfig::for_skill(atoi(input.c_str() + 33));
+    else if(const auto value = option_value(input, "Skill Level")) {
+      engine_.search_config = SearchConfig::for_skill(to_int(*value));
     }
 
-    else if(starts_with(input, "setoption name Threads value ")) {
-      engine_.threads = clamp(atoi(input.c_str() + 29), Engine::min_threads, Engine::max_threads);
+    else if(const auto value = option_value(input, "Threads")) {
+      engine_.threads = clamp(to_int(*value), Engine::min_threads, Engine::max_threads);
     }
 
     // a network file replaces the built-in network, "<empty>" restores it; a file that
     // cannot be loaded leaves the classic evaluation
-    else if(starts_with(input, "setoption name EvalFile value ")) {
-      const string path = input.substr(30);
+    else if(const auto value = option_value(input, "EvalFile")) {
+      const string path{ *value };
       if(path.empty() || path == "<empty>") {
         engine_.nnue.load_default_weights();
       } else if(!engine_.nnue.load_weights(path.c_str())) {
@@ -444,8 +461,8 @@ void Game::uci_loop() {
     }
 
     // "false" switches to the classic evaluation
-    else if(starts_with(input, "setoption name UseNNUE value ")) {
-      engine_.eval_config.eval_mode = input.substr(29) == "false" ? EvalMode::classic : EvalMode::nnue;
+    else if(const auto value = option_value(input, "UseNNUE")) {
+      engine_.eval_config.eval_mode = *value == "false" ? EvalMode::classic : EvalMode::nnue;
     }
 
     // "quit" arrived during a search

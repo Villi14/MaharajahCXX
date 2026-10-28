@@ -4,11 +4,8 @@
 #include "tables/MagicNumbersTable.h"
 
 #include <array>
+#include <bit>
 #include <cassert>
-
-#if defined(_MSC_VER)
-#  include <intrin.h> // __popcnt64, _BitScanForward64
-#endif
 
 namespace maharajah {
 
@@ -53,24 +50,20 @@ inline u64 pop_bit(u64& bitboard, const Squares square) {
   return get_bit(bitboard, square) ? bitboard ^= (one << square) : zero;
 }
 
-inline int count_bits(u64 bitboard) {
-#if defined(_MSC_VER)
-  return static_cast<int>(__popcnt64(bitboard));
-#else
-  return __builtin_popcountll(bitboard);
-#endif
+inline int count_bits(const u64 bitboard) {
+  return std::popcount(bitboard);
 }
 
-inline Squares get_ls1b_index(u64 bitboard) {
+inline Squares get_ls1b_index(const u64 bitboard) {
   assert(bitboard);
+  return to_square(std::countr_zero(bitboard));
+}
 
-#if defined(_MSC_VER)
-  unsigned long index;
-  _BitScanForward64(&index, bitboard);
-  return to_square(static_cast<int>(index));
-#else
-  return to_square(__builtin_ctzll(bitboard));
-#endif
+// square of the least significant bit, which is cleared
+inline Squares pop_ls1b(u64& bitboard) {
+  const Squares square = get_ls1b_index(bitboard);
+  bitboard &= bitboard - 1;
+  return square;
 }
 
 inline u64 get_bishop_attacks(const Squares square, u64 occupancy) {

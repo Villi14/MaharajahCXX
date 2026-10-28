@@ -38,11 +38,11 @@ void print_legal_moves() {
   MoveList list;
   board.generate_moves(list);
 
-  for(std::size_t i{ }; i < list.size(); ++i) {
-    if(!board.make_move(list[i], TypeMove::all_moves))
+  for(const int move : list) {
+    if(!board.make_move(move, TypeMove::all_moves))
       continue;
     board.pop_state();
-    std::printf("%s\n", Board::move_to_string(list[i]).c_str());
+    std::printf("%s\n", Board::move_to_string(move).c_str());
   }
 }
 
