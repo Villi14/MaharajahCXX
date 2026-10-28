@@ -443,7 +443,7 @@ void write_weights(std::ostream& out, const Weights& weights) {
       { "bishop_pair", e.bishop_pair },
     };
     for(const auto& [name, value] : scalars)
-      out << "    ." << name << "{ " << value << " },\n";
+      out << "    ." << name << " = " << value << ",\n";
     out << "    .passed_pawn{ " << list(e.passed_pawn) << " },\n";
     out << "  },\n";
   }
