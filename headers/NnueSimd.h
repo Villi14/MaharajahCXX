@@ -93,18 +93,18 @@ inline void vec_copy(const int16_t* in, int16_t* out, const std::size_t size) {
 // int16 (qa 255, |weight| <= 127); the products are summed in int32.
 inline int32_t screlu_dot(const int16_t* acc, const int16_t* weights, const std::size_t size, const int16_t qa) {
 #if defined(MAHARAJAH_NNUE_AVX512)
-  const __m512i zero = _mm512_setzero_si512(), max = _mm512_set1_epi16(qa);
+  const __m512i floor = _mm512_setzero_si512(), max = _mm512_set1_epi16(qa);
   __m512i sum = _mm512_setzero_si512();
   for(std::size_t i{ }; i < size; i += 32) {
-    const __m512i v = _mm512_min_epi16(_mm512_max_epi16(_mm512_load_si512(acc + i), zero), max);
+    const __m512i v = _mm512_min_epi16(_mm512_max_epi16(_mm512_load_si512(acc + i), floor), max);
     sum = _mm512_add_epi32(sum, _mm512_madd_epi16(_mm512_mullo_epi16(v, _mm512_load_si512(weights + i)), v));
   }
   return _mm512_reduce_add_epi32(sum);
 #elif defined(MAHARAJAH_NNUE_AVX2)
-  const __m256i zero = _mm256_setzero_si256(), max = _mm256_set1_epi16(qa);
+  const __m256i floor = _mm256_setzero_si256(), max = _mm256_set1_epi16(qa);
   __m256i sum = _mm256_setzero_si256();
   for(std::size_t i{ }; i < size; i += 16) {
-    const __m256i v = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256(reinterpret_cast<const __m256i*>(acc + i)), zero), max);
+    const __m256i v = _mm256_min_epi16(_mm256_max_epi16(_mm256_load_si256(reinterpret_cast<const __m256i*>(acc + i)), floor), max);
     const __m256i w = _mm256_load_si256(reinterpret_cast<const __m256i*>(weights + i));
     sum = _mm256_add_epi32(sum, _mm256_madd_epi16(_mm256_mullo_epi16(v, w), v));
   }
@@ -113,10 +113,10 @@ inline int32_t screlu_dot(const int16_t* acc, const int16_t* weights, const std:
   sum128 = _mm_add_epi32(sum128, _mm_shuffle_epi32(sum128, 0xB1));
   return _mm_cvtsi128_si32(sum128);
 #elif defined(MAHARAJAH_NNUE_SSE2)
-  const __m128i zero = _mm_setzero_si128(), max = _mm_set1_epi16(qa);
+  const __m128i floor = _mm_setzero_si128(), max = _mm_set1_epi16(qa);
   __m128i sum = _mm_setzero_si128();
   for(std::size_t i{ }; i < size; i += 8) {
-    const __m128i v = _mm_min_epi16(_mm_max_epi16(_mm_load_si128(reinterpret_cast<const __m128i*>(acc + i)), zero), max);
+    const __m128i v = _mm_min_epi16(_mm_max_epi16(_mm_load_si128(reinterpret_cast<const __m128i*>(acc + i)), floor), max);
     const __m128i w = _mm_load_si128(reinterpret_cast<const __m128i*>(weights + i));
     sum = _mm_add_epi32(sum, _mm_madd_epi16(_mm_mullo_epi16(v, w), v));
   }
