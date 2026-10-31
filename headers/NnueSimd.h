@@ -28,7 +28,7 @@
 #elif defined(__SSE2__) || defined(_M_X64)
 #define MAHARAJAH_NNUE_SSE2
 #include <emmintrin.h>
-#elif defined(__ARM_NEON)
+#elif defined(__ARM_NEON) || defined(_M_ARM64)
 #define MAHARAJAH_NNUE_NEON
 #include <arm_neon.h>
 #endif
@@ -124,15 +124,15 @@ inline int32_t screlu_dot(const int16_t* acc, const int16_t* weights, const std:
   sum = _mm_add_epi32(sum, _mm_shuffle_epi32(sum, 0xB1));
   return _mm_cvtsi128_si32(sum);
 #elif defined(MAHARAJAH_NNUE_NEON)
-  const int16x8_t zero = vdupq_n_s16(0), max = vdupq_n_s16(qa);
+  const int16x8_t floor = vdupq_n_s16(0), max = vdupq_n_s16(qa);
   int32x4_t sum = vdupq_n_s32(0);
   for(std::size_t i{ }; i < size; i += 8) {
-    const int16x8_t v = vminq_s16(vmaxq_s16(vld1q_s16(acc + i), zero), max);
+    const int16x8_t v = vminq_s16(vmaxq_s16(vld1q_s16(acc + i), floor), max);
     const int16x8_t product = vmulq_s16(v, vld1q_s16(weights + i));
     sum = vmlal_s16(sum, vget_low_s16(product), vget_low_s16(v));
     sum = vmlal_s16(sum, vget_high_s16(product), vget_high_s16(v));
   }
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(_M_ARM64)
   return vaddvq_s32(sum);
 #else
   return vgetq_lane_s32(sum, 0) + vgetq_lane_s32(sum, 1) + vgetq_lane_s32(sum, 2) + vgetq_lane_s32(sum, 3);
