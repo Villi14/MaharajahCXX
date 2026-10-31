@@ -97,6 +97,23 @@ The binaries land in `build-arm64/sources/Release` (`Maharajah.exe`, `maharajah_
 `_M_ARM64`). An x64 machine cannot run them, so `MaharajahTESTS.exe` is run on the ARM64
 device.
 
+### Release binaries
+
+The binaries attached to a GitHub release are built by two scripts, one archive per
+target in `dist/`:
+
+```sh
+tools/build_release_linux.sh linux-arm64 linux-x64 linux-x64-avx2
+tools\build_release_windows.ps1 windows-x64 windows-x64-avx2 windows-arm64   # Developer PowerShell
+```
+
+Linux binaries are linked statically, so they run on any distribution; Windows ones use
+the static C++ runtime, so they need no Visual C++ Redistributable. `x64` is the SSE2
+baseline for any 64-bit x86 CPU, `x64-avx2` needs Haswell / Ryzen or newer
+(`-march=x86-64-v3`, `/arch:AVX2`). A target of the host's architecture is tested; another
+one is cross-compiled. Each script also runs `go depth 18` from the start position: the
+node count must be the same in every build.
+
 ## Run
 
 ```sh
