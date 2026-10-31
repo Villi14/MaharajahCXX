@@ -43,8 +43,11 @@ for node counts and speed of this engine alone.
   `check.sh` prints the binaries, networks, data files and machine state; `gen.sh HOURS`
   generates `r5/chunk_NNNN.txt` with a teacher network until the time is over;
   `train.sh NAME` trains on n3d7 + r4 + r5 with mirroring; `match_nets.sh NEW BASE` plays
-  one SPRT match per opening set; `env.sh` holds the shared settings. Settings are
-  environment variables, see each script.
+  one SPRT match per opening set; `ccrl_match.sh l5|ladder|all` plays the UCI engine
+  against Stash versions with CCRL Blitz ratings in cutechess-cli (the measurement in
+  [STRENGTH.md](../STRENGTH.md); `ccrl_match.sh one 10 stash-27.0 400` plays a single
+  match); `env.sh` holds the shared settings. Settings are environment variables, see
+  each script.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
 

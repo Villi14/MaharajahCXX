@@ -47,6 +47,8 @@ more, turn the switch off.
   Levels 1–4: 100 games each against several Stash versions.
 - Engine: commit cedff82 with the net5 network; anchor ratings from the CCRL Blitz list of
   2026-10-17.
+- The matches were played with [tools/nnue/ccrl_match.sh](tools/nnue/ccrl_match.sh), which
+  lists the full cutechess-cli command (`ccrl_match.sh all`).
 - **[Download all games (PGN)](#)** <!-- link to the site's PGN archive -->
 
 ## Detailed results
