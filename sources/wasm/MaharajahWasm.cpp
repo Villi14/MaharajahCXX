@@ -44,6 +44,10 @@ FFI_PLUGIN_EXPORT const char* mah_wasm_best_move_time(const int movetime_ms) {
   return move_buffer;
 }
 
+FFI_PLUGIN_EXPORT int mah_wasm_set_difficulty_level(const int difficulty_level) {
+  return mah_set_difficulty_level(difficulty_level);
+}
+
 FFI_PLUGIN_EXPORT const char* mah_wasm_analyze_time(const int movetime_ms, const int max_depth) {
   int score_cp{ }, mate_in{ }, depth{ };
   if(!mah_analyze_time(movetime_ms, max_depth, move_buffer, static_cast<int>(sizeof(move_buffer)), &score_cp, &mate_in, &depth))

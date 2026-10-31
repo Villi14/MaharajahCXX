@@ -6,6 +6,7 @@
 #include "gtest/gtest.h"
 
 #include <array>
+#include <chrono>
 #include <cstdio>
 #include <string>
 
@@ -82,6 +83,26 @@ TEST_F(WasmApi, AnalyzeTimeReportsMoveScoreMateAndDepth) {
   const string capped{ mah_wasm_analyze_time(60000, 3) };
   ASSERT_EQ(std::sscanf(capped.c_str(), "%7s %d %d %d", move, &score, &mate, &depth), 4) << capped;
   EXPECT_EQ(depth, 3);
+}
+
+TEST_F(WasmApi, DifficultyLevelLimitsTheMoveSearchButNotTheAnalysis) {
+  // level 1 stops at its depth cap long before a minute is up; level 5 would
+  // think the whole minute
+  ASSERT_EQ(mah_wasm_set_difficulty_level(1), 1);
+  ASSERT_EQ(mah_wasm_set_position_fen(start_fen), 1);
+  const auto started = chrono::steady_clock::now();
+  const string move{ mah_wasm_best_move_time(60000) };
+  EXPECT_LT(chrono::steady_clock::now() - started, chrono::seconds{ 10 });
+  ASSERT_GE(move.size(), 4u);
+  EXPECT_EQ(mah_wasm_apply_move(move.c_str()), 1);
+
+  // the analysis stays at full strength: it reaches the depth asked for
+  ASSERT_EQ(mah_wasm_set_position_fen(start_fen), 1);
+  const string capped{ mah_wasm_analyze_time(60000, 4) };
+  char best[8]{ };
+  int score{ }, mate{ }, depth{ };
+  ASSERT_EQ(std::sscanf(capped.c_str(), "%7s %d %d %d", best, &score, &mate, &depth), 4) << capped;
+  EXPECT_EQ(depth, 4);
 }
 
 TEST_F(WasmApi, GameStatusAndNoMove) {

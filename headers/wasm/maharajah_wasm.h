@@ -20,6 +20,10 @@ FFI_PLUGIN_EXPORT const char* mah_wasm_get_fen(int fullmove_number);
 FFI_PLUGIN_EXPORT const char* mah_wasm_best_move_depth(int depth);
 FFI_PLUGIN_EXPORT const char* mah_wasm_best_move_time(int movetime_ms);
 
+// mah_set_difficulty_level: the level 1..5 the two best-move searches play at
+// (5, full strength, after mah_wasm_init). mah_wasm_analyze_time ignores it.
+FFI_PLUGIN_EXPORT int mah_wasm_set_difficulty_level(int difficulty_level);
+
 // mah_analyze_time as one string, "<move> <score_cp> <mate_in> <depth>" (for
 // example "b1b8 48000 1 4"), all from the side to move's point of view; "" when
 // there is no legal move.
