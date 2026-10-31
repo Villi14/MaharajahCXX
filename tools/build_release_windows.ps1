@@ -8,7 +8,8 @@
 # forced onto the DLL runtime) and build-rel-<target> with the engine alone on the static
 # runtime. The tests and the search check run only on a host of the target's architecture.
 param(
-  [Parameter(Mandatory, ValueFromRemainingArguments)][string[]]$Targets,
+  # an explicit Position leaves -Generator named only, so every bare argument is a target
+  [Parameter(Mandatory, Position = 0, ValueFromRemainingArguments)][string[]]$Targets,
   [string]$Generator = "Visual Studio 18 2026"
 )
 $ErrorActionPreference = "Stop"
