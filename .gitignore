@@ -16,6 +16,7 @@ build-ninja/
 build-arm64/
 build-clang/
 build-linux-arm64/
+build-linux-x64/
 build-x64/
 out/
 sources/maharajah.dSYM

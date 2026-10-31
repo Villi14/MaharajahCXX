@@ -52,6 +52,22 @@ cmake --build build-linux-arm64 -j
 The NNUE uses NEON there. The tests are aarch64 binaries too, so they run on an ARM64
 machine (or under `qemu-aarch64`).
 
+### Linux x64 (cross-compiled)
+
+With the `x86_64-linux-gnu` toolchain (`g++-x86-64-linux-gnu` on Debian/Ubuntu), e.g. on
+an ARM64 host:
+
+```sh
+cmake -S . -B build-linux-x64 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=x86_64 \
+      -DCMAKE_CXX_COMPILER=x86_64-linux-gnu-g++ \
+      -DCMAKE_GTEST_DISCOVER_TESTS_DISCOVERY_MODE=PRE_TEST
+cmake --build build-linux-x64 -j
+```
+
+`PRE_TEST` lists the tests when `ctest` runs instead of right after the build, which
+would run the x64 test binary on the build host. The NNUE uses SSE2 by default; add
+`-DCMAKE_CXX_FLAGS=-mavx2` for the AVX2 path (the binaries then need an AVX2 CPU).
+
 ### Windows x64
 
 With Visual Studio 2026 (the "Desktop development with C++" workload):
