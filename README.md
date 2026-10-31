@@ -39,6 +39,19 @@ cmake -S . -B build -DMAHARAJAH_SANITIZE=ON  # ASan + UBSan
 cmake --build build
 ```
 
+### Linux ARM64 (cross-compiled)
+
+With the `aarch64-linux-gnu` toolchain (`g++-aarch64-linux-gnu` on Debian/Ubuntu):
+
+```sh
+cmake -S . -B build-linux-arm64 -DCMAKE_SYSTEM_NAME=Linux -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+      -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++
+cmake --build build-linux-arm64 -j
+```
+
+The NNUE uses NEON there. The tests are aarch64 binaries too, so they run on an ARM64
+machine (or under `qemu-aarch64`).
+
 ## Run
 
 ```sh
