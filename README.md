@@ -52,6 +52,35 @@ cmake --build build-linux-arm64 -j
 The NNUE uses NEON there. The tests are aarch64 binaries too, so they run on an ARM64
 machine (or under `qemu-aarch64`).
 
+### Windows x64
+
+With Visual Studio 2026 (the "Desktop development with C++" workload):
+
+```sh
+cmake -S . -B build-x64 -G "Visual Studio 18 2026" -A x64
+cmake --build build-x64 --config Release --parallel
+./build-x64/tests/Release/MaharajahTESTS.exe
+```
+
+The binaries land in `build-x64/sources/Release` (`Maharajah.exe`, `maharajah_ffi.dll`),
+`build-x64/tools/Release` and `build-x64/tests/Release`. The NNUE uses SSE2 (MSVC's
+`_M_X64`); `-DMAHARAJAH_NATIVE=ON` has no effect with MSVC.
+
+### Windows ARM64
+
+Cross-compiled on an x64 Windows host with Visual Studio 2026 (the "MSVC ARM64 build
+tools" component of the Visual Studio Installer):
+
+```sh
+cmake -S . -B build-arm64 -G "Visual Studio 18 2026" -A ARM64
+cmake --build build-arm64 --config Release --parallel
+```
+
+The binaries land in `build-arm64/sources/Release` (`Maharajah.exe`, `maharajah_ffi.dll`),
+`build-arm64/tools/Release` and `build-arm64/tests/Release`. The NNUE uses NEON (MSVC's
+`_M_ARM64`). An x64 machine cannot run them, so `MaharajahTESTS.exe` is run on the ARM64
+device.
+
 ## Run
 
 ```sh
