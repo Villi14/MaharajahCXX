@@ -13,6 +13,7 @@ build-asan/
 build-anchor/
 cmake-build-debug/
 build-ninja/
+build-arm64/
 out/
 sources/maharajah.dSYM
 sources/maharajah
