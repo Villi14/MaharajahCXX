@@ -30,6 +30,22 @@ Evaluation: an NNUE network compiled into the engine (`nets/net5.nnue`: 18 piece
 own), trained only on the engine's own self-play. The classic hand-written evaluation
 remains as a fallback.
 
+## Credits
+
+The engine is based on **BBC (Bitboard Chess Engine)** by Maksim Korzh, specifically the
+reference version [`bbc_1.2.c`](https://github.com/maksimKorzh/bbc/blob/master/src/old_versions/bbc_1.2.c),
+and on his video series
+[Bitboard CHESS ENGINE in C](https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs).
+
+The path: BBC 1.2 → [MaharajahC](https://github.com/Villi14/MaharajahC) → this C++ port → NNUE.
+The bit-packed move encoding, magic bitboards, MVV-LVA / killer / history ordering, PVS,
+null-move pruning, LMR and the aspiration window all originate in BBC. Added on top: the
+compound pieces, the per-side variant rules, the self-trained NNUE, Lazy SMP and C++23.
+
+The SIMD row add, subtract and copy of the NNUE accumulator
+([headers/NnueSimd.h](headers/NnueSimd.h)) are adapted from `simd.h` of the
+[nnue library](https://github.com/jdart1/nnue) by Jon Dart, author of the Arasan chess engine.
+
 ## Build Commands
 
 ```sh
@@ -194,7 +210,7 @@ Perft results are checked against <https://www.chessprogramming.org/Perft_Result
 
 ## Links
 
-- <https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs>
+- [Bitboard CHESS ENGINE in C](https://www.youtube.com/playlist?list=PLmN0neTso3Jxh8ZIylk74JpwfiWNI76Cs), Maksim Korzh's video series on the Chess Programming channel
 - <https://en.wikipedia.org/wiki/Bitboard>
 - <https://www.chessprogramming.org/Looking_for_Magics>
 - <https://rhysre.net/fast-chess-move-generation-with-magic-bitboards.html>
@@ -202,4 +218,6 @@ Perft results are checked against <https://www.chessprogramming.org/Perft_Result
 
 ## License
 
-Released under the [MIT License](LICENSE).
+Released under the [MIT License](LICENSE). The engine derives from the WTFPL-licensed BBC `bbc_1.2.c`
+(see [Credits](#credits)); the WTFPL places no restrictions on redistribution, so the derived
+work is distributed here under the MIT License.
