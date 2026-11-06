@@ -7,6 +7,8 @@
 # Usage: tools/nnue/gen.sh HOURS
 #   ROUND=r5 NET=net5a DEPTH=7 CUSTOM_SHARE=0.65 THREADS=24 GAMES_PER_CHUNK=2000
 #   SEED_BASE=50000 PREPARE=1 (stop nnue-gen, fans, turbo off)
+#   WIN_SCORE=1000: a side at >= this for 6 plies is adjudicated the winner; 0 plays
+#   every game out (won endgames converted in the data, fewer positions per hour)
 # Run it in tmux: it asks for sudo once at the start.
 set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/env.sh"
@@ -19,6 +21,7 @@ DEPTH="${DEPTH:-7}"
 CUSTOM_SHARE="${CUSTOM_SHARE:-0.65}"
 GAMES_PER_CHUNK="${GAMES_PER_CHUNK:-2000}"
 SEED_BASE="${SEED_BASE:-50000}"
+WIN_SCORE="${WIN_SCORE:-1000}"
 
 need_file "$TEXEL"
 check_release
@@ -28,7 +31,7 @@ mkdir -p "$OUT_DIR/log"
 
 deadline=$(( $(date +%s) + $(awk -v h="$HOURS" 'BEGIN { printf "%d", h * 3600 }') ))
 start=$(date +%s)
-echo "round $ROUND: teacher $NET, depth $DEPTH, custom share $CUSTOM_SHARE, $THREADS threads,"
+echo "round $ROUND: teacher $NET, depth $DEPTH, custom share $CUSTOM_SHARE, win score $WIN_SCORE, $THREADS threads,"
 echo "  $GAMES_PER_CHUNK games per chunk, until $(date -d "@$deadline" '+%F %T')"
 
 # the next free chunk number
@@ -44,7 +47,7 @@ while :; do
   chunk_start=$(date +%s)
   set +e
   timeout --signal=TERM "$remaining" "$TEXEL" gen "$part" "$GAMES_PER_CHUNK" "$DEPTH" "$THREADS" \
-    "$((SEED_BASE + chunk))" "$CUSTOM_SHARE" "$NET" 2>"$OUT_DIR/log/$name.log"
+    "$((SEED_BASE + chunk))" "$CUSTOM_SHARE" "$NET" "$WIN_SCORE" 2>"$OUT_DIR/log/$name.log"
   rc=$?
   set -e
   if (( rc != 0 && rc != 124 )); then

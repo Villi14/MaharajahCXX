@@ -1,12 +1,16 @@
 // Texel tuning of the classic evaluation weights (Evaluation::weights).
 //
-//   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share] [network]
+//   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share] [network] [win_score]
 //     Self-play at a fixed depth from random openings (the start position plus random
 //     plies, or a generated custom army plus random plies). Writes "FEN;score;result"
 //     per position after the opening where the side to move is not in check and the
 //     best move is quiet: the search score and the result 1 / 0.5 / 0, both from
 //     white's point of view. Also the training data of tools/nnue_train.cpp. With a
 //     network file the games are played (and scored) with the NNUE evaluation.
+//     win_score (default 1000): a side scoring at least this for 6 plies is adjudicated
+//     the winner; 0 plays every game out (to mate, a draw rule or 400 plies), so the
+//     data has won endgames being converted. Positions against a bare king with mating
+//     pieces are never written: Endgame.h scores them, not the network.
 //   maharajah_texel tune DATA [epochs] [threads] [out]
 //     Keeps the quiet positions (quiescence search = static evaluation, not in check),
 //     fits the sigmoid scale K, then fits both phases' weights to the results by Adam
@@ -15,6 +19,7 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Constants.h"
 #include "../headers/CustomSetup.h"
+#include "../headers/Endgame.h"
 #include "../headers/Engine.h"
 #include "../headers/Evaluation.h"
 #include "../headers/Evaluator.h"
@@ -51,11 +56,12 @@ struct GenOptions {
   unsigned seed{ 1 };
   double custom_share{ 0.3 };
   std::string network;
+  // 0 = no win adjudication
+  int win_score{ 1000 };
 };
 
 constexpr int max_plies{ 400 };
-// a side is adjudicated the winner after this many plies at >= win_score for it
-constexpr int win_score{ 1000 };
+// a side is adjudicated the winner after this many plies at >= GenOptions::win_score
 constexpr int win_plies{ 6 };
 // a draw after this many plies within +-draw_score, from draw_from_ply on
 constexpr int draw_score{ 15 };
@@ -123,11 +129,13 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
       break;
 
     const int score = board.state.side == white ? searched.score : -searched.score;
-    white_wins = score >= win_score ? white_wins + 1 : 0;
-    black_wins = score <= -win_score ? black_wins + 1 : 0;
+    const bool adjudicate = options.win_score > 0;
+    white_wins = adjudicate && score >= options.win_score ? white_wins + 1 : 0;
+    black_wins = adjudicate && score <= -options.win_score ? black_wins + 1 : 0;
     quiet = ply + opening_plies >= draw_from_ply && std::abs(score) <= draw_score ? quiet + 1 : 0;
 
-    if(!board.in_check() && !Move::get_move_capture(searched.best_move) && !Move::is_promotion(searched.best_move) && std::abs(score) < Scores::mate_score)
+    if(!board.in_check() && !Move::get_move_capture(searched.best_move) && !Move::is_promotion(searched.best_move) && std::abs(score) < Scores::mate_score &&
+       !Endgame::is_bare_king_win(board.state))
       fens.push_back(board.to_fen() + ';' + std::to_string(score));
 
     if(white_wins >= win_plies) {
@@ -516,13 +524,14 @@ int main(const int argc, char** argv) {
     options.custom_share = arg(7, options.custom_share);
     if(argc > 8)
       options.network = argv[8];
+    options.win_score = arg(9, options.win_score);
     return run_gen(options);
   }
 
   if(command == "tune" && argc > 2)
     return run_tune(argv[2], arg(3, 1000), arg(4, 1), argc > 5 ? argv[5] : "texel_weights.txt");
 
-  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share] [network]\n"
+  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share] [network] [win_score]\n"
             << "       " << argv[0] << " tune DATA [epochs] [threads] [out]\n";
   return 2;
 }

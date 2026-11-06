@@ -50,6 +50,12 @@ for node counts and speed of this engine alone.
   each script.
 - `ask_engine.py` — asks the UCI engine for its move in a position at an app difficulty
   level.
+- `endgame_suite.py` — plays ~24 classic endgames (KBNK, Lucena, Philidor, dead draws) out
+  with the UCI engine and compares the result with the tablebase one.
+- `bare_king_combos.py` — every set of 1–2 pieces (orthodox and compound) against a bare
+  king, random positions, several levels, old vs new build; Lichess tablebase as reference.
+- `nnue/NET6_ENDGAME.md` — the plan for an endgame-aware net6 (gen without win
+  adjudication: `WIN_SCORE=0`) with the commands for the training machine.
 
 ## Setup (port-era comparison with MaharajahC)
 
