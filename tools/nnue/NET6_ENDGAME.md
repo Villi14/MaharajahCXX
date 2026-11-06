@@ -2,6 +2,11 @@
 
 Plan of 2026-11-06, after engine 1.3.0. Run on the training machine (Ubuntu, `~/nnue-data`).
 
+**Optional.** Engine 1.3.0 already fixes what players saw: mates against a bare king on every
+level (the level 3 game that shuffled past move 249) and the simplest dead draws. net6 is
+the next step for the rest of the endgame, when the training machine is free. Nothing
+waits on it.
+
 ## Why
 
 net5's data comes from `maharajah_texel gen`, which stops a game once a side has scored
@@ -34,7 +39,7 @@ endgames played out.
 ## Steps
 
 ```sh
-cd ~/MaharajahCXX && git pull            # main ≥ 24b4ac3 + the gen change
+cd ~/MaharajahCXX && git pull            # main with 1.3.0, the gen WIN_SCORE option and this file
 cmake --build build-release -j           # Release; check.sh shows the build type
 pip install --user chess                 # for the endgame checks
 tools/nnue/check.sh                      # binaries, nets, data, memory, disk, turbo
@@ -73,14 +78,19 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    ```
    What to look for: the KPK draw, Philidor, Vancura and the outside-passer test drawn; the
    first score in dead draws near 0 *without* Endgame.h's help (the suite prints it).
-6. **Ship.** `python3 tools/embed_net.py nets/net6.nnue`, bump the version, copy the sources
-   into `Maharajah/Maharajah_ffi/src`, rebuild the site's wasm (`Maharajah_ffi/tools/build_wasm.sh`),
-   and redo STRENGTH.md (`tools/nnue/ccrl_match.sh all`).
+6. **Ship.** `python3 tools/embed_net.py nets/net6.nnue`, bump the version (CMakeLists here,
+   and in the monorepo `Maharajah_ffi/src/CMakeLists.txt`, `Maharajah_ffi/pubspec.yaml`,
+   `Maharajah_ffi/CHANGELOG.md`). Copy the sources into `Maharajah/Maharajah_ffi/src`.
+   For the site: `bash Maharajah_ffi/tool/build_wasm.sh`, then one new site-wide `?v=` in
+   `Maharajah_net/Maharajah.Api/wwwroot`, then `tool/play_e2e.sh`, `tool/play_phone_e2e.sh`
+   and `tool/assist_e2e.sh`. Redo STRENGTH.md with `tools/nnue/ccrl_match.sh all`.
 
 ## Open / not done
 
 - Engine 1.3.0 level 5 vs 1.2.0: SPRT stopped at 650 games, −14 Elo [−37, +8], inconclusive.
-  Finish it on this machine before trusting 1.3.0's level 5:
+  That build evaluated 4–5 % slower (Endgame::adjust counted material on every evaluation).
+  The fast exit for positions with pawns brought it to ~1 %, with identical node counts.
+  Re-run on this machine with the current build:
   `python3 tools/match.py new/Maharajah old/Maharajah --tc 5+0.05 --arbiter TOOL --sprt=-10,0 --pairs 1200 --jobs 24`.
 - Syzygy tablebases (3–5 pieces) for gen labels would be the next step up. They are not in the
   engine, and the app should not need them.

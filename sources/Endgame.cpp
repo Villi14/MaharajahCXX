@@ -157,15 +157,25 @@ int adjust(const BoardState& state, const int score) {
     }
   }
 
+  // only the side the score favours is pulled towards a draw
+  if(score == 0)
+    return score;
+  const Colors strong = (score > 0) == (state.side == white) ? white : black;
+
+  // Fast exit, taken in nearly every middlegame position (this runs on every
+  // evaluation): with pawns, the only rule left is the wrong bishop, which needs
+  // exactly one bishop and no other piece besides the pawns.
+  if(const u64 strong_pawns = state.bitboards[colored(P, strong)]) {
+    const u64 pieces = state.occupancies[strong] ^ strong_pawns ^ state.bitboards[colored(K, strong)];
+    if(pieces != state.bitboards[colored(B, strong)] || count_bits(pieces) != 1)
+      return score;
+  }
+
   // the draw rules below are orthodox chess knowledge
   for(const Pieces piece : { A, C, M }) {
     if(state.bitboards[piece] || state.bitboards[colored(piece, black)])
       return score;
   }
-  // only the side the score favours is pulled towards a draw
-  if(score == 0)
-    return score;
-  const Colors strong = (score > 0) == (state.side == white) ? white : black;
   const int scale = draw_scale(state, strong);
   return scale == 64 ? score : score * scale / 64;
 }
