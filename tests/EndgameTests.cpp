@@ -76,6 +76,22 @@ TEST_F(endgame_search_test_fixture, the_level_comes_back_after_a_bare_king_searc
   EXPECT_EQ(ffi::last_search_result().depth, 1);
 }
 
+// A pawn or more up with at most 10 men besides the kings, the side to move plays at
+// full strength; the side that is behind keeps its level.
+TEST(endgame_full_strength_test, only_the_side_ahead_in_a_small_endgame) {
+  Engine engine{ };
+  const auto full = [&](const char* fen) {
+    EXPECT_TRUE(engine.board.parse_fen(fen)) << fen;
+    return Endgame::plays_full_strength(engine.board.state);
+  };
+  EXPECT_TRUE(full("4k3/8/4K3/4P3/8/8/8/8 w - - 0 1"));           // KPK
+  EXPECT_FALSE(full("4k3/8/4K3/4P3/8/8/8/8 b - - 0 1"));          // the defender
+  EXPECT_TRUE(full("1K1k4/1P6/8/8/8/8/r7/2R5 w - - 0 1"));        // Lucena
+  EXPECT_FALSE(full("4k3/R7/8/4PK2/8/8/8/7r b - - 0 1"));         // Philidor, defender
+  EXPECT_FALSE(full("8/p4kpp/8/8/8/8/P4KPP/8 w - - 0 1"));        // equal material
+  EXPECT_FALSE(full("r3k3/pppp4/8/8/8/8/PPPPP3/R3K3 w - - 0 1")); // too many men
+}
+
 class endgame_eval_test_fixture : public testing::Test {
   public:
   Engine engine{ };

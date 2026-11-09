@@ -139,6 +139,19 @@ bool is_bare_king_win(const BoardState& state) {
   return white_bare != black_bare && has_mating_pieces(state, white_bare ? black : white);
 }
 
+bool plays_full_strength(const BoardState& state) {
+  if(is_bare_king_win(state))
+    return true;
+  const u64 kings = state.bitboards[K] | state.bitboards[k];
+  if(count_bits(state.occupancies[both] & ~kings) > small_endgame_men)
+    return false;
+  const Colors us = state.side;
+  const Colors them = opponent(us);
+  const int ours = piece_material(state, us) + count(state, P, us) * Evaluation::piece_value[P];
+  const int theirs = piece_material(state, them) + count(state, P, them) * Evaluation::piece_value[P];
+  return ours - theirs >= small_endgame_lead;
+}
+
 int adjust(const BoardState& state, const int score) {
   const u64 white_king = state.bitboards[K];
   const u64 black_king = state.bitboards[k];

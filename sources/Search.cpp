@@ -255,15 +255,16 @@ class HelperThreads {
 } // namespace
 
 SearchResult run_search(Engine& engine, const int depth, std::ostream* info) {
-  // Against a bare king every level plays at full strength: the weak levels' depth cap
-  // and pruning left level 1 unable to mate with king + queen (Endgame.h). Swapped for
-  // this search only, before any helper thread reads it.
+  // Against a bare king, and a pawn or more up in a small endgame, every level plays at
+  // full strength: the weak levels' depth cap and pruning left level 1 unable to mate
+  // with king + queen or to promote in KPK (Endgame.h). Swapped for this search only,
+  // before any helper thread reads it.
   struct ConfigRestore {
     Engine& engine;
     SearchConfig saved;
     ~ConfigRestore() { engine.search_config = saved; }
   } restore{ engine, engine.search_config };
-  if(engine.search_config.skill_level < SearchConfig::max_skill && Endgame::is_bare_king_win(engine.board.state)) {
+  if(engine.search_config.skill_level < SearchConfig::max_skill && Endgame::plays_full_strength(engine.board.state)) {
     const int ui_difficulty = engine.search_config.ui_difficulty;
     engine.search_config = SearchConfig::for_skill(SearchConfig::max_skill);
     engine.search_config.ui_difficulty = ui_difficulty;
