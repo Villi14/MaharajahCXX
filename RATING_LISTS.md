@@ -32,7 +32,7 @@ a release on a forum and asks for testing:
 
 | Item | Status |
 |---|---|
-| Windows builds on GitHub | 1.3.1 done; 1.3.2 to build (`tools/build_release_windows.ps1`) |
+| Windows builds on GitHub | Done (release 1.3.2) |
 | UCI options `Hash`, `Threads`, `Skill Level` (default 10, full strength) | Done |
 | `Hash` maximum | 1024 MB since 1.3.2 (was 128, inherited from BBC; testers' larger values were cut to 128) |
 | One UCI block, on `uci` only | Since 1.3.2; before, the engine also printed its id, options and `uciok` unasked at start |
