@@ -3,7 +3,15 @@
 C++ chess engine with UCI support and a C interface for app integrations, ported from
 MaharajahC. The app, the site and the server use a copy of it, `Maharajah_ffi/src` in the
 Maharajah monorepo. Besides standard chess it plays **compound (fairy) pieces** throughout move
-generation, SEE, evaluation and draw rules:
+generation, SEE, evaluation and draw rules.
+
+It is the engine of the game **Maharajah**: chess on the ordinary board in which each
+player builds an army from 39 points, with three compound pieces besides the orthodox ones.
+Play it at [maharajah.one](https://maharajah.one), see the
+[rules](https://maharajah.one/rules.html) and
+[why the game has exactly these pieces](https://maharajah.one/piece-geometry.html).
+
+The compound pieces:
 
 - `A` / `a` — Archbishop (bishop + knight)
 - `C` / `c` — Chancellor (rook + knight)
@@ -137,7 +145,7 @@ node count must be the same in every build.
 ./build/sources/Maharajah --debug   # prints the board and searches the start position
 ```
 
-UCI options: `Hash` (4-128 MB), `Skill Level` (1-10), `Threads` (1-64, default 1; more
+UCI options: `Hash` (4-1024 MB), `Skill Level` (1-10), `Threads` (1-64, default 1; more
 than one thread searches faster but is no longer deterministic), `EvalFile` (a `.nnue`
 file; `<empty>` restores the built-in network) and `UseNNUE` (`false` for the classic
 evaluation). `go` accepts `depth`, `movetime`,
