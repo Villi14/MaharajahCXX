@@ -38,8 +38,9 @@ for target in "$@"; do
 
   build=build-rel-$target
   rm -rf "$build"
+  # no Torch: the trainer is not released, and libtorch has no static libraries to link
   cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="$flags" \
-        -DCMAKE_EXE_LINKER_FLAGS=-static "${cross[@]}"
+        -DCMAKE_EXE_LINKER_FLAGS=-static -DCMAKE_DISABLE_FIND_PACKAGE_Torch=ON "${cross[@]}"
   cmake --build "$build" -j
 
   engine=$build/sources/Maharajah
