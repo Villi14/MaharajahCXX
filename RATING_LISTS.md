@@ -1,6 +1,6 @@
 # Getting Maharajah onto public rating lists
 
-Notes of 2026-11-11, written after release 1.3.1. Our own estimate of the engine's strength is
+Notes of 2026-11-11, written after release 1.3.1 and updated for 1.3.2. Our own estimate of the engine's strength is
 in [STRENGTH.md](STRENGTH.md). This file is about getting it tested by independent rating
 lists such as CCRL and CEGT.
 
@@ -32,14 +32,13 @@ a release on a forum and asks for testing:
 
 | Item | Status |
 |---|---|
-| Windows builds on GitHub | Done (release 1.3.1) |
+| Windows builds on GitHub | 1.3.1 done; 1.3.2 to build (`tools/build_release_windows.ps1`) |
 | UCI options `Hash`, `Threads`, `Skill Level` (default 10, full strength) | Done |
-| `Hash` above the maximum | Checked on 1.3.1: `setoption name Hash value 256` does not crash; the engine plays with 128 MB |
-| Raise the `Hash` maximum (128 MB now, in `sources/Game.cpp`) to at least 1024 MB | Open, for the next version (e.g. 1.3.2); testers set their standard hash, which may be larger |
-| Time management at 40/15 (repeating control, `movestogo`) | Open: play a few dozen cutechess games at that control and check for time losses. `tools/nnue/ccrl_match.sh` has only been run at 60 + 0.6 |
+| `Hash` maximum | 1024 MB since 1.3.2 (was 128, inherited from BBC; testers' larger values were cut to 128) |
+| One UCI block, on `uci` only | Since 1.3.2; before, the engine also printed its id, options and `uciok` unasked at start |
+| Time management at 40/15 (repeating control, `movestogo`) | Fixed in 1.3.2. 1.3.1 against Stash 25.0, 112 games each, cutechess `timemargin=0`: 22 losses on time at 40/20 and 29 at 40/5, every one on move 40, 80 or 120 (`movestogo 1`, the whole clock planned). 1.3.2 keeps 50 ms + 5 % of the clock: 0 losses on time at both, +53 ± 59 and −9 ± 59 Elo |
 
-Release 1.3.1 can be submitted as is. The two open items are improvements, not bugs, and do
-not need a release of their own.
+Submit 1.3.2, not 1.3.1: at 40/15 1.3.1 would lose about one game in five on time.
 
 ## A faster public rating
 

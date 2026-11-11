@@ -369,6 +369,18 @@ TEST_F(search_test_fixture, uci_clock_sets_soft_and_hard_limits) {
   EXPECT_EQ(time.soft_stoptime - time.starttime, 139);
   EXPECT_EQ(time.stoptime - time.starttime, 400);
 
+  // the last move of a 40/x period: the share is the whole clock, the reserve keeps
+  // 50 ms + 5 % of it (40/15 lost 22 of 112 games on time at move 40, 80 or 120)
+  (void)run_uci(game, "position startpos\ngo wtime 1000 btime 1000 movestogo 1");
+  EXPECT_EQ(time.stoptime - time.starttime, 900);
+  EXPECT_LE(time.soft_stoptime, time.stoptime);
+  (void)run_uci(game, "position startpos\ngo wtime 20000 btime 20000 movestogo 1");
+  EXPECT_EQ(time.stoptime - time.starttime, 18950);
+
+  // an increment arrives after the move: 100 ms on the clock is all there is
+  (void)run_uci(game, "position startpos\ngo wtime 100 btime 100 winc 1000 binc 1000");
+  EXPECT_EQ(time.stoptime - time.starttime, 50);
+
   // a fixed move time has no soft limit
   (void)run_uci(game, "position startpos\ngo movetime 30");
   EXPECT_EQ(time.soft_stoptime, 0);
@@ -417,7 +429,7 @@ TEST_F(search_test_fixture, helper_threads_stop_with_the_main_search_on_time) {
 }
 
 TEST_F(search_test_fixture, uci_threads_option_is_clamped_and_searches) {
-  const string out = run_uci(game, "setoption name Threads value 3\nposition startpos\ngo depth 5\nquit\n");
+  const string out = run_uci(game, "uci\nsetoption name Threads value 3\nposition startpos\ngo depth 5\nquit\n");
   EXPECT_EQ(engine().threads, 3);
   EXPECT_NE(out.find("option name Threads type spin default 1 min 1 max 64"), string::npos);
   EXPECT_NE(out.find("bestmove "), string::npos);

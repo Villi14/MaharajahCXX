@@ -12,7 +12,7 @@ enum GameState { start_game, play_game, end_game };
 struct Game {
   static constexpr int default_hash_mb{ 64 };
   static constexpr int min_hash_mb{ 4 };
-  static constexpr int max_hash_mb{ 128 };
+  static constexpr int max_hash_mb{ 1024 };
 
   Game();
   void play(bool debug = false);

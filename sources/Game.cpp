@@ -312,6 +312,13 @@ void Game::parse_go(const string_view command) {
       const int target = time.stoptime - time.starttime;
       time.soft_stoptime = time.starttime + target * 3 / 5;
       time.stoptime = time.starttime + max(target, min(target * 5 / 2, clock_time * 2 / 5));
+
+      // Never past the clock itself. With "movestogo 1" (the last move of a 40/15 period)
+      // the share above is the whole clock, and the increment is added only after the
+      // move: keep a reserve for the GUI's lag and the move's own overhead.
+      const int latest = time.starttime + max(clock_time - 50 - clock_time / 20, clock_time / 2);
+      time.stoptime = min(time.stoptime, latest);
+      time.soft_stoptime = min(time.soft_stoptime, time.stoptime);
     }
   }
 
@@ -383,7 +390,8 @@ void Game::print_uci_info() {
 void Game::uci_loop() {
   string input;
 
-  print_uci_info();
+  // a banner only: the id and options answer "uci", a second unasked uciok confuses GUIs
+  cout << "Maharajah " << MAHARAJAH_VERSION << " by Villi\n" << flush;
 
   while(getline(cin, input)) {
     if(!input.empty() && input.back() == '\r')
