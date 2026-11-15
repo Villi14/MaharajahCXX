@@ -13,7 +13,7 @@ Play it at [maharajah.one](https://maharajah.one), see the
 
 Binaries for Linux, Windows and macOS are on the
 [releases page](https://github.com/Villi14/MaharajahCXX/releases). At full strength the
-engine plays at about 2975 on the CCRL Blitz scale (version 1.3.1, one thread); the levels
+engine plays at about 3075 on the CCRL Blitz scale (version 1.4.0, one thread); the levels
 and how they were measured are in [STRENGTH.md](STRENGTH.md).
 
 The compound pieces:

@@ -21,8 +21,8 @@ a release on a forum and asks for testing:
 - Name, author (`id author Villi`), country, protocol (UCI).
 - A link to the GitHub release with the Windows builds (`windows-x64`, `windows-x64-avx2`).
 - The lists we ask for: CCRL Blitz (2' + 1"), CCRL 40/15, and maybe 4 CPU.
-- Our estimate as a guide: about 2975 on the CCRL Blitz scale at full strength
-  (STRENGTH.md, measured on 1.3.1).
+- Our estimate as a guide: about 3075 on the CCRL Blitz scale at full strength
+  (STRENGTH.md, measured on 1.4.0; 1.3.1 was about 2975).
 - The origin, stated openly: the engine derives from BBC 1.2 by Maksim Korzh (through
   MaharajahC and the C++ port). The NNUE network is our own, trained on our own data.
   Forums are sensitive about clones, and an open origin (as in the README Credits) avoids
