@@ -1,6 +1,6 @@
 # Getting Maharajah onto public rating lists
 
-Notes of 2026-11-11, written after release 1.3.1 and updated for 1.3.2. Our own estimate of the engine's strength is
+Notes of 2026-11-11, written after release 1.3.1 and updated for 1.3.2 and 1.4.0. Our own estimate of the engine's strength is
 in [STRENGTH.md](STRENGTH.md). This file is about getting it tested by independent rating
 lists such as CCRL and CEGT.
 
@@ -32,13 +32,14 @@ a release on a forum and asks for testing:
 
 | Item | Status |
 |---|---|
-| Windows builds on GitHub | Done (release 1.3.2) |
+| Windows builds on GitHub | Done (release 1.4.0, built by .github/workflows/release.yml) |
 | UCI options `Hash`, `Threads`, `Skill Level` (default 10, full strength) | Done |
 | `Hash` maximum | 1024 MB since 1.3.2 (was 128, inherited from BBC; testers' larger values were cut to 128) |
 | One UCI block, on `uci` only | Since 1.3.2; before, the engine also printed its id, options and `uciok` unasked at start |
 | Time management at 40/15 (repeating control, `movestogo`) | Fixed in 1.3.2. 1.3.1 against Stash 25.0, 112 games each, cutechess `timemargin=0`: 22 losses on time at 40/20 and 29 at 40/5, every one on move 40, 80 or 120 (`movestogo 1`, the whole clock planned). 1.3.2 keeps 50 ms + 5 % of the clock: 0 losses on time at both, +53 ± 59 and −9 ± 59 Elo |
+| Time management in 1.4.0 (new UCI handling during a search) | Checked 2026-11-15, same test: 0 losses on time at 40/20 and 40/5, +112 ± 63 and +130 ± 65 Elo against Stash 25.0 |
 
-Submit 1.3.2, not 1.3.1: at 40/15 1.3.1 would lose about one game in five on time.
+Submit 1.4.0, never 1.3.1: at 40/15 1.3.1 would lose about one game in five on time.
 
 ## A faster public rating
 
