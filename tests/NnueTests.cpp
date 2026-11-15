@@ -139,7 +139,10 @@ TEST(nnue_test, search_evaluates_with_the_network_when_requested) {
   Engine engine;
   engine.transposition_table.resize(4);
   ASSERT_TRUE(engine.nnue.load_weights_from_bytes(network().data(), network().size(), "random-1"));
-  ASSERT_TRUE(engine.set_position(TestFen::tricky_position));
+  // A rook endgame: with random weights quiescence finds no stand-pat cutoffs and walks
+  // every capture sequence, which in a middlegame took seconds (minutes under the
+  // sanitizers on ARM64) with the weights std::uniform_int_distribution gives on Linux.
+  ASSERT_TRUE(engine.set_position("8/2p5/3p4/KP5r/1R3p1k/8/4P1P1/8 w - - 0 1"));
 
   engine.eval_config.eval_mode = EvalMode::classic;
   const SearchResult classic = Search(engine).run(5);
