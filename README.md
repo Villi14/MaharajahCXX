@@ -11,6 +11,11 @@ Play it at [maharajah.one](https://maharajah.one), see the
 [rules](https://maharajah.one/rules.html) and
 [why the game has exactly these pieces](https://maharajah.one/piece-geometry.html).
 
+Binaries for Linux, Windows and macOS are on the
+[releases page](https://github.com/Villi14/MaharajahCXX/releases). At full strength the
+engine plays at about 2975 on the CCRL Blitz scale (version 1.3.1, one thread); the levels
+and how they were measured are in [STRENGTH.md](STRENGTH.md).
+
 The compound pieces:
 
 - `A` / `a` — Archbishop (bishop + knight)
@@ -29,8 +34,9 @@ pawn once from its start square, and never castles. FEN takes two optional extra
 Search: iterative deepening PVS with aspiration windows, a lockless transposition table
 shared by Lazy SMP threads, null-move pruning (only with at least two pieces besides king
 and pawns, against zugzwang), reverse futility pruning, internal iterative reduction, check
-extension, late-move reductions, futility and late-move pruning, killer/history ordering and
-SEE-pruned quiescence. Strength is set with `difficulty 1..5` (the level shown to players)
+extension, late-move reductions, futility, late-move and losing-capture pruning (moves that
+give check are kept), killer/history ordering with losing captures last, and SEE-pruned
+quiescence. Strength is set with `difficulty 1..5` (the level shown to players)
 or the lower-level `skill 1..10`.
 
 Evaluation: an NNUE network compiled into the engine (`nets/net5.nnue`: 18 piece kinds ×
@@ -149,7 +155,9 @@ UCI options: `Hash` (4-1024 MB), `Skill Level` (1-10), `Threads` (1-64, default 
 than one thread searches faster but is no longer deterministic), `EvalFile` (a `.nnue`
 file; `<empty>` restores the built-in network) and `UseNNUE` (`false` for the classic
 evaluation). `go` accepts `depth`, `movetime`,
-`wtime`/`btime`/`winc`/`binc`/`movestogo` and `infinite`; a running search stops on `stop`.
+`wtime`/`btime`/`winc`/`binc`/`movestogo` and `infinite`; a running search stops on `stop`,
+answers `isready` without stopping, and keeps any other command until it is over. After
+`go infinite` the move is held back until `stop`. The `info` lines carry `nps` and `hashfull`.
 
 ## C interface
 

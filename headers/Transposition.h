@@ -10,8 +10,7 @@ namespace maharajah {
 enum class HashFlag : int { exact, alpha, beta };
 
 // Always-replace transposition table, shared by all search threads without locks.
-// Entries keep MaharajahC's 24-byte size so a table of the same size in MB holds the
-// same number of entries in both engines.
+// An entry is 16 bytes: 65536 entries per MB.
 class TranspositionTable {
   public:
 
@@ -39,6 +38,9 @@ class TranspositionTable {
     return table_.size();
   }
 
+  // Entries in use per thousand (UCI "hashfull"), from the first thousand entries.
+  [[nodiscard]] int hashfull() const;
+
   // The score stored for `hash_key` if it is deep enough and usable within the window
   // (otherwise no_entry), and the best move stored for it at any depth. Mate scores
   // are stored relative to the node (ply).
@@ -56,9 +58,8 @@ class TranspositionTable {
   struct Entry {
     std::atomic<u64> checked_key{ };
     std::atomic<u64> data{ };
-    u64 padding{ };
   };
-  static_assert(sizeof(Entry) == 24);
+  static_assert(sizeof(Entry) == 16);
 
   // data word: score in bits 0-23, depth in 24-31, flag in 32-33, move in 34-59
   static u64 pack(int score, int depth, HashFlag flag, int move);

@@ -46,6 +46,18 @@ TEST(engine_config_test, skill_is_clamped_and_clears_the_difficulty) {
   EXPECT_EQ(config.max_depth_cap, Limits::max_ply);
 }
 
+TEST(engine_config_test, only_full_strength_prunes_deeper) {
+  // levels 1-4 (skills up to 8) keep the pruning their ratings were measured with
+  for(int skill{ SearchConfig::min_skill }; skill < SearchConfig::max_skill; ++skill)
+    EXPECT_EQ(SearchConfig::for_skill(skill).pruning_depth, 2) << skill;
+  EXPECT_EQ(SearchConfig::for_skill(SearchConfig::max_skill).pruning_depth, 5);
+}
+
+TEST(engine_config_test, hash_table_holds_65536_entries_per_mb) {
+  EXPECT_EQ(TranspositionTable{ 1 }.entries(), 65536u);
+  EXPECT_EQ(TranspositionTable{ 4 }.entries(), 4u * 65536u);
+}
+
 TEST(engine_config_test, nnue_weights_load_from_memory) {
   const vector<unsigned char> weights = random_network_bytes(3);
   Nnue nnue;

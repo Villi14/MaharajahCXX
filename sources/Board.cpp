@@ -83,6 +83,19 @@ int Board::repetition_count() const {
   return count;
 }
 
+bool Board::is_search_repetition(const int search_start) const {
+  // the position j plies ago is entry repetition_index - j + 1
+  const int first = max(1, repetition_index - state.halfmove + 1);
+  int earlier{ };
+
+  for(int index{ repetition_index - 1 }; index >= first; index -= 2) {
+    if(repetition_table[index] == state.hash_key && (index > search_start || ++earlier == 2))
+      return true;
+  }
+
+  return false;
+}
+
 bool Board::is_draw() const {
   // threefold and fivefold repetition, fifty and seventy-five move rules
   return repetition_count() >= 3 || (state.standard_rules && state.halfmove >= 100) || is_insufficient_material();

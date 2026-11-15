@@ -63,6 +63,11 @@ class Search {
   static constexpr int full_depth_moves{ 4 };
   static constexpr int reduction_limit{ 3 };
   static constexpr int aspiration_window{ 50 };
+  // the pruning depth of the weaker levels; deeper, reverse futility pruning checks for
+  // zugzwang and moves that give check are not pruned
+  static constexpr int shallow_pruning_depth{ 2 };
+  // a capture losing more than this per ply of depth by SEE is not searched
+  static constexpr int losing_capture_margin_per_depth{ 100 };
   // the clock and input are checked once per this many nodes
   static constexpr u64 communicate_interval{ 2048 };
 
@@ -79,6 +84,8 @@ class Search {
     static constexpr int promotion_bonus{ 2000 };
     static constexpr int first_killer{ 9000 };
     static constexpr int second_killer{ 8000 };
+    // a capture that loses material by SEE, plus MVV-LVA: after every quiet move
+    static constexpr int losing_capture{ -40000 };
   };
   // history scores stay within +-history_limit, below the killer moves
   static constexpr int history_limit{ 7000 };
@@ -137,8 +144,9 @@ class Search {
 
   void update_history(int move, int bonus);
   // `hash_move` (from the hash table, 0 if none) is searched first
-  [[nodiscard]] int score_move(int move, int hash_move);
-  void sort_moves(MoveList& moves_list, int hash_move = 0);
+  [[nodiscard]] int score_move(int move, int hash_move, bool see_order);
+  // with `see_order`, captures that lose material by SEE go after the quiet moves
+  void sort_moves(MoveList& moves_list, int hash_move = 0, bool see_order = false);
   void enable_pv_scoring(const MoveList& moves_list);
 
   int verify_root_candidate_score(int move);
@@ -157,6 +165,8 @@ class Search {
 
   u64 nodes_{ };
   int ply_{ };
+  // the board's repetition_index at the root: later entries are the searched line
+  int root_repetition_index_{ };
   bool follow_pv_{ };
   bool score_pv_{ };
   std::array<std::array<int, Limits::max_ply + 1>, 2> killer_moves_{ };

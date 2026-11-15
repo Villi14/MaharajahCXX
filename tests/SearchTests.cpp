@@ -7,6 +7,7 @@
 #include "TestAccess.h"
 #include "gtest/gtest.h"
 
+#include <chrono>
 #include <iostream>
 #include <sstream>
 
@@ -302,7 +303,7 @@ TEST_F(search_test_fixture, see_values_exchanges) {
 TEST_F(search_test_fixture, uci_setoption_changes_skill_and_hash) {
   (void)run_uci(game, "setoption name Skill Level value 3\nsetoption name Hash value 16\nquit\n");
   EXPECT_EQ(engine().search_config.skill_level, 3);
-  EXPECT_EQ(engine().transposition_table.entries(), 16u * 0x100000 / 24);
+  EXPECT_EQ(engine().transposition_table.entries(), 16u * 0x100000 / 16);
 }
 
 TEST_F(search_test_fixture, uci_reports_none_without_legal_moves) {
@@ -392,6 +393,148 @@ TEST_F(search_test_fixture, uci_go_movetime_returns_a_move) {
   const string out = run_uci(game, "position startpos\ngo movetime 50");
   EXPECT_NE(out.find("bestmove "), string::npos);
   EXPECT_EQ(out.find("bestmove (none)"), string::npos);
+}
+
+TEST_F(search_test_fixture, check_on_the_last_ply_is_searched_not_evaluated) {
+  // Ra8 mates. One ply deep the reply is at depth 0: the search goes on there because
+  // of the check, instead of standing pat in quiescence.
+  const string out = run_uci(game, "position fen 6k1/5ppp/8/8/8/8/8/R3K3 w - - 0 1\ngo depth 1\nquit\n");
+  EXPECT_NE(out.find("info score mate 1 depth 1 "), string::npos) << out;
+  EXPECT_NE(out.find("bestmove a1a8"), string::npos) << out;
+}
+
+TEST_F(search_test_fixture, losing_captures_are_searched_after_the_quiet_moves) {
+  // Qxe5 loses the queen to dxe5
+  ASSERT_TRUE(game.parse_fen("4k3/8/3p4/4p3/8/8/4Q3/4K3 w - - 0 1"));
+  const int capture = game.parse_move("e2e5");
+  ASSERT_NE(capture, 0);
+  Search search(engine());
+
+  // by MVV-LVA alone the only capture comes first
+  EXPECT_EQ(SearchTestAccess::sorted_moves(search, false)[0], capture);
+
+  const MoveList moves = SearchTestAccess::sorted_moves(search, true);
+  EXPECT_EQ(moves[moves.size() - 1], capture);
+}
+
+TEST_F(search_test_fixture, winning_captures_stay_first) {
+  // Qxe5 wins a pawn that nothing defends
+  ASSERT_TRUE(game.parse_fen("4k3/8/8/4p3/8/8/4Q3/4K3 w - - 0 1"));
+  Search search(engine());
+  EXPECT_EQ(SearchTestAccess::sorted_moves(search, true)[0], game.parse_move("e2e5"));
+}
+
+TEST_F(search_test_fixture, a_quiet_mating_move_is_not_pruned_at_full_strength) {
+  // Morphy's mate: 1. Ra6 bxa6 2. b7#. White is far behind in material, so every
+  // quiet move looks futile; b7 gives check and is searched all the same.
+  const string out = run_uci(game, "position fen kbK5/pp6/1P6/8/8/8/8/R7 w - - 0 1\ngo depth 6\nquit\n");
+  EXPECT_NE(out.find("info score mate 2 depth 6 "), string::npos) << out;
+  EXPECT_NE(out.find("bestmove a1a6"), string::npos) << out;
+}
+
+TEST_F(search_test_fixture, search_scores_a_forced_repetition_as_a_draw) {
+  // White is a queen down but checks for ever: Qe8+ Kh7 Qh5+ Kg8 Qe8+
+  const string out = run_uci(game, "position fen 6k1/5pp1/8/7Q/8/8/5q2/7K w - - 0 1\ngo depth 8\nquit\n");
+  const auto last = out.rfind("info score ");
+  ASSERT_NE(last, string::npos);
+  EXPECT_EQ(out.compare(last, 17, "info score cp 0 d"), 0) << out.substr(last);
+}
+
+TEST_F(search_test_fixture, uci_info_lines_report_speed_and_hash_use) {
+  const string out = run_uci(game, "position startpos\ngo depth 6\nquit\n");
+  const auto last = out.rfind("info score ");
+  ASSERT_NE(last, string::npos);
+  istringstream info(out.substr(last));
+  string token;
+  bool nps{ }, hashfull{ };
+  while(info >> token && token != "pv") {
+    int value{ };
+    if(token == "nps")
+      nps = static_cast<bool>(info >> value) && value > 0;
+    else if(token == "hashfull")
+      hashfull = static_cast<bool>(info >> value) && value >= 0 && value <= 1000;
+  }
+  EXPECT_TRUE(nps);
+  EXPECT_TRUE(hashfull);
+}
+
+TEST(transposition_table, hashfull_counts_the_entries_in_use) {
+  TranspositionTable table{ 1 };
+  EXPECT_EQ(table.hashfull(), 0);
+
+  // keys 0..499 land in the first 500 entries
+  for(u64 key{ }; key < 500; ++key)
+    table.write(key, 10, 3, HashFlag::exact, 0, 1);
+  EXPECT_EQ(table.hashfull(), 500);
+
+  table.clear();
+  EXPECT_EQ(table.hashfull(), 0);
+}
+
+// Input that arrives during a search
+
+TEST_F(search_test_fixture, uci_isready_during_a_search_is_answered_without_stopping_it) {
+  const auto start = chrono::steady_clock::now();
+  const string out = run_uci(game, "position startpos\ngo movetime 200\nisready\n");
+  const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+
+  const auto ready = out.find("readyok");
+  const auto best = out.find("bestmove ");
+  ASSERT_NE(ready, string::npos);
+  ASSERT_NE(best, string::npos);
+  EXPECT_LT(ready, best);
+  // the search used its time instead of stopping at "isready"
+  EXPECT_GE(elapsed, 150);
+}
+
+TEST_F(search_test_fixture, uci_stop_ends_a_search_early) {
+  const auto start = chrono::steady_clock::now();
+  const string out = run_uci(game, "position startpos\ngo movetime 5000\nstop\n");
+  const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+
+  EXPECT_NE(out.find("bestmove "), string::npos);
+  EXPECT_EQ(out.find("bestmove (none)"), string::npos);
+  EXPECT_LT(elapsed, 2500);
+}
+
+TEST_F(search_test_fixture, uci_quit_during_a_search_ends_the_loop) {
+  // the "go depth 1" after "quit" is never run
+  const string out = run_uci(game, "position startpos\ngo movetime 5000\nquit\ngo depth 1\n");
+  const auto best = out.find("bestmove ");
+  ASSERT_NE(best, string::npos);
+  EXPECT_EQ(out.find("bestmove ", best + 1), string::npos);
+}
+
+TEST_F(search_test_fixture, uci_commands_arriving_during_a_search_run_after_it) {
+  // the position and the second "go" arrive while the first search runs: they neither
+  // stop it nor get lost
+  const string out = run_uci(game, "position startpos\ngo movetime 100\nposition startpos moves e2e4\ngo depth 2\n");
+  const auto first = out.find("bestmove ");
+  ASSERT_NE(first, string::npos);
+  const auto second = out.find("bestmove ", first + 1);
+  ASSERT_NE(second, string::npos);
+  EXPECT_EQ(board().state.side, black);
+  // a black move: from the 7th or 8th rank
+  const char rank = out[second + 10];
+  EXPECT_TRUE(rank == '7' || rank == '8') << out.substr(second);
+}
+
+TEST_F(search_test_fixture, uci_go_infinite_holds_the_move_until_stop) {
+  // king against king is searched to the last depth at once; the move still waits
+  // for "stop", so the "isready" before it is answered first
+  const string out = run_uci(game, "position fen 8/8/8/4k3/8/8/4K3/8 w - - 0 1\ngo infinite\nisready\nstop\nisready\n");
+  const auto ready = out.find("readyok");
+  const auto best = out.find("bestmove ");
+  ASSERT_NE(ready, string::npos);
+  ASSERT_NE(best, string::npos);
+  EXPECT_LT(ready, best);
+  // the "isready" after "stop" is answered by the loop, after the move
+  EXPECT_NE(out.find("readyok", best), string::npos);
+}
+
+TEST_F(search_test_fixture, uci_go_infinite_ends_with_the_input) {
+  const string out = run_uci(game, "position fen 8/8/8/4k3/8/8/4K3/8 w - - 0 1\ngo infinite\n");
+  EXPECT_NE(out.find("bestmove "), string::npos);
 }
 
 // Lazy SMP (run_search with more than one thread)

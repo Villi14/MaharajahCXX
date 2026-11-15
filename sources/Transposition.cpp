@@ -28,6 +28,17 @@ void TranspositionTable::clear() {
   }
 }
 
+int TranspositionTable::hashfull() const {
+  const std::size_t sample = std::min<std::size_t>(table_.size(), 1000);
+  if(sample == 0)
+    return 0;
+
+  std::size_t used{ };
+  for(std::size_t index{ }; index < sample; ++index)
+    used += table_[index].checked_key.load(std::memory_order_relaxed) != 0;
+  return static_cast<int>(used * 1000 / sample);
+}
+
 u64 TranspositionTable::pack(const int score, const int depth, const HashFlag flag, const int move) {
   return (u64{ static_cast<std::uint32_t>(score) } & ((u64{ 1 } << score_bits) - 1)) |
          (u64{ static_cast<std::uint8_t>(std::clamp(depth, 0, 0xFF)) } << depth_shift) |

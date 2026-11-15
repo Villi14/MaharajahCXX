@@ -2,6 +2,7 @@
 
 #include "Engine.h"
 
+#include <deque>
 #include <string>
 #include <string_view>
 
@@ -15,6 +16,9 @@ struct Game {
   static constexpr int max_hash_mb{ 1024 };
 
   Game();
+  // the search's input callback refers to this object
+  Game(const Game&) = delete;
+  Game& operator=(const Game&) = delete;
   void play(bool debug = false);
   int shutdown();
   [[nodiscard]] GameState state() const;
@@ -27,7 +31,9 @@ struct Game {
   void print_move_list() const;
   int parse_move(std::string_view move_string) const;
   void parse_go(std::string_view command);
-  void search_position(int depth);
+  // Searches and prints "bestmove". With `wait_for_stop` ("go infinite") a search that
+  // ends by itself still holds the move back until "stop" or "quit" arrives.
+  void search_position(int depth, bool wait_for_stop = false);
   void parse_position(std::string_view command);
   void uci_loop();
 
@@ -38,7 +44,18 @@ struct Game {
 #endif
 
   private:
+  // Reads one line that arrived during a search: "stop" and "quit" (or the end of the
+  // input) end the search, "isready" is answered at once, anything else waits in
+  // pending_ until the search is over.
+  void read_search_input();
+  // the next command: one that arrived during a search, else a line of input
+  bool next_command(std::string& command);
+
   Engine engine_{ };
+  // commands that arrived during a search, oldest first
+  std::deque<std::string> pending_{ };
+  // "stop" or "quit" arrived for the current search
+  bool stop_requested_{ };
   GameState game_state_{ start_game };
   int score_{ };
   bool verbose_{ false };

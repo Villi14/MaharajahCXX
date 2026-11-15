@@ -12,6 +12,7 @@
 #include <cstdlib>
 #include <span>
 #include <thread>
+#include <utility>
 #include <vector>
 
 namespace maharajah {
@@ -75,6 +76,7 @@ void Search::reset() {
   follow_pv_ = false;
   score_pv_ = false;
   ply_ = 0;
+  root_repetition_index_ = board_.repetition_index;
 
   killer_moves_ = { };
   history_moves_ = { };
@@ -133,7 +135,11 @@ int Search::effective_depth(const int depth) const {
 }
 
 bool Search::should_return_draw_score() const {
-  return ply_ != 0 && board_.is_draw();
+  if(ply_ == 0)
+    return false;
+
+  const BoardState& state = board_.state;
+  return (state.standard_rules && state.halfmove >= 100) || board_.is_search_repetition(root_repetition_index_) || board_.is_insufficient_material();
 }
 
 void Search::print_info(std::ostream& out, const int score, const int depth, const int elapsed) const {
@@ -142,7 +148,8 @@ void Search::print_info(std::ostream& out, const int score, const int depth, con
     out << "info score mate " << mate_in;
   else
     out << "info score cp " << score;
-  out << " depth " << depth << " nodes " << nodes << " time " << elapsed << " pv ";
+  out << " depth " << depth << " nodes " << nodes << " nps " << nodes * 1000 / static_cast<u64>(std::max(elapsed, 1)) << " hashfull "
+      << engine_.transposition_table.hashfull() << " time " << elapsed << " pv ";
 
   for(int count{ }; count < pv_length_[0]; ++count)
     out << Board::move_to_string(pv_table_[0][count]) << ' ';
@@ -202,6 +209,25 @@ SearchResult Search::run(const int depth, std::ostream* info) {
     // the next iteration would most likely not finish before the hard limit
     if(!helper_ && engine_.time_control.soft_stoptime && now_ms() >= engine_.time_control.soft_stoptime)
       break;
+  }
+
+  // Stopped before the first iteration finished ("stop" right after "go", a time limit
+  // already in the past): a one-ply search that nothing interrupts still gives a move.
+  if(!helper_ && !result.best_move) {
+    TimeControl& time = engine_.time_control;
+    const bool timeset = std::exchange(time.timeset, false);
+    const bool poll_input = std::exchange(time.poll_input, false);
+    time.stopped = false;
+
+    follow_pv_ = false;
+    result.score = negamax(-infinity, infinity, 1);
+    result.depth = 1;
+    if(root_moves_.count > 0)
+      result.best_move = select_skill_move();
+
+    time.timeset = timeset;
+    time.poll_input = poll_input;
+    time.stopped = true;
   }
 
   if(helper_)
@@ -371,7 +397,11 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(nodes_ % communicate_interval == 0)
     communicate();
 
-  if(depth == 0)
+  const bool in_check = own_king && board_.is_square_attacked(get_ls1b_index(own_king), opponent(side));
+
+  // In check the search goes on (the check extension below) instead of dropping into
+  // quiescence, which would stand pat on a position that may be mate.
+  if(depth == 0 && !in_check)
     return quiescence(alpha, beta);
 
   if(ply_ >= Limits::max_ply)
@@ -383,7 +413,6 @@ int Search::negamax(int alpha, int beta, int depth) {
 
   ++nodes_;
 
-  const bool in_check = board_.is_square_attacked(get_ls1b_index(own_king), opponent(side));
   // not evaluated in check: nothing below that uses it applies there
   const int static_eval = in_check ? 0 : evaluate();
 
@@ -400,8 +429,11 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(depth >= 4 && ply_ && !hash_entry.move)
     --depth;
 
-  // reverse futility pruning: so far above beta that a shallow search would fail high too
-  if(depth <= 2 && can_prune && static_eval - config.reverse_futility_margin_per_depth * depth >= beta)
+  // Reverse futility pruning: so far above beta that a shallow search would fail high
+  // too. Like the null move it assumes that some move keeps the evaluation, so beyond
+  // the last two plies it is skipped where zugzwang is likely (Morphy's mate below).
+  if(depth <= config.pruning_depth && can_prune && static_eval - config.reverse_futility_margin_per_depth * depth >= beta &&
+     (depth <= shallow_pruning_depth || !zugzwang_prone()))
     return static_eval;
 
   // null-move pruning: if the position still fails high after passing the turn, a real
@@ -421,7 +453,7 @@ int Search::negamax(int alpha, int beta, int depth) {
   if(follow_pv_)
     enable_pv_scoring(moves_list);
 
-  sort_moves(moves_list, hash_entry.move);
+  sort_moves(moves_list, hash_entry.move, true);
 
   HashFlag hash_flag = HashFlag::alpha;
   int best_move{ };
@@ -435,22 +467,36 @@ int Search::negamax(int alpha, int beta, int depth) {
   for(const int move : moves_list) {
     const bool capture = Move::get_move_capture(move);
     const bool is_quiet_move = !capture && !Move::is_promotion(move);
-    const bool prunable = depth <= 2 && can_prune && is_quiet_move;
+    const bool low_depth = depth <= config.pruning_depth && can_prune;
+    const bool prunable = low_depth && is_quiet_move;
 
     // Futility pruning: a quiet move cannot lift a static evaluation this far below
-    // alpha. Only after a legal move has been searched: pruning every move would fall
-    // through to the no-legal-moves branch and misreport mate/stalemate.
-    if(prunable && legal_moves > 0 && static_eval + config.futility_margin_per_depth * depth <= alpha)
+    // alpha. Late move pruning: past this many moves, quiet ones are not searched at all.
+    const bool futile = prunable && static_eval + config.futility_margin_per_depth * depth <= alpha;
+    const bool late = prunable && moves_searched >= config.late_move_pruning_base + config.late_move_pruning_scale * depth;
+    const bool shallow = depth <= shallow_pruning_depth;
+
+    // Futility only after a move has been searched: pruning every move would leave the
+    // node without a score, or fall through to the no-legal-moves branch and misreport
+    // mate/stalemate.
+    if(shallow && ((futile && moves_searched > 0) || late))
       continue;
 
-    // late move pruning: past this many moves, quiet ones are not searched at all
-    if(prunable && moves_searched >= config.late_move_pruning_base + config.late_move_pruning_scale * depth)
-      continue;
+    // a capture that loses this much material is not worth a search this shallow
+    const bool losing = low_depth && capture && moves_searched > 0 && see_evaluate(board_, move) < -losing_capture_margin_per_depth * depth;
 
     if(!make_move(move))
       continue;
 
     ++legal_moves;
+
+    // A losing capture, and deeper than the last two plies a futile or late quiet move,
+    // is dropped only now that it is known not to give check: there the next iteration
+    // would not find a pruned mate, it would stay hidden for several.
+    if((losing || (!shallow && moves_searched > 0 && (futile || late))) && !board_.in_check()) {
+      unmake_move();
+      continue;
+    }
 
     int score;
     if(moves_searched == 0) {
@@ -582,7 +628,7 @@ void Search::update_history(const int move, const int bonus) {
   entry += bonus - entry * std::abs(bonus) / history_limit;
 }
 
-int Search::score_move(const int move, const int hash_move) {
+int Search::score_move(const int move, const int hash_move, const bool see_order) {
   int promotion_bonus{ };
   if(Move::is_promotion(move))
     promotion_bonus = MoveOrder::promotion_bonus + Evaluation::piece_value[Move::get_move_promoted(move)];
@@ -599,7 +645,13 @@ int Search::score_move(const int move, const int hash_move) {
   if(Move::get_move_capture(move)) {
     // en passant victims are not on the target square; they count as pawns
     const Pieces victim = board_.state.piece_on(Move::get_move_target(move), opponent(board_.state.side));
-    return MoveOrder::capture + mvv_lva[Move::get_move_piece(move)][victim == no_pieces ? P : victim] + promotion_bonus;
+    const int piece = Move::get_move_piece(move);
+    const int order = mvv_lva[piece][victim == no_pieces ? P : victim] + promotion_bonus;
+    // only a more valuable piece taking a less valuable one can lose material
+    const bool may_lose = victim != no_pieces && Evaluation::piece_value[piece] > Evaluation::piece_value[victim];
+    if(see_order && may_lose && !promotion_bonus && see_evaluate(board_, move) < 0)
+      return MoveOrder::losing_capture + order;
+    return MoveOrder::capture + order;
   }
 
   if(promotion_bonus > 0)
@@ -611,12 +663,12 @@ int Search::score_move(const int move, const int hash_move) {
   return history_moves_[Move::get_move_piece(move)][Move::get_move_target(move)];
 }
 
-void Search::sort_moves(MoveList& moves_list, const int hash_move) {
+void Search::sort_moves(MoveList& moves_list, const int hash_move, const bool see_order) {
   std::array<int, Limits::max_moves> move_scores;
   const std::size_t count = moves_list.size();
 
   for(std::size_t i{ }; i < count; ++i)
-    move_scores[i] = score_move(moves_list[i], hash_move);
+    move_scores[i] = score_move(moves_list[i], hash_move, see_order);
 
   sort_by_score(std::span(moves_list.moves).first(count), std::span(move_scores).first(count));
 }

@@ -1,0 +1,99 @@
+name: Release binaries
+
+# Builds the eight release archives. Run by hand from the Actions tab (the archives are
+# then the run's artifacts), or by pushing a tag v*, which also collects them in a draft
+# release to review and publish.
+on:
+  workflow_dispatch:
+  push:
+    tags: ["v*"]
+
+jobs:
+  linux:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            targets: linux-x64 linux-x64-avx2
+          - os: ubuntu-24.04-arm
+            targets: linux-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: tools/build_release_linux.sh ${{ matrix.targets }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  windows:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            targets: windows-x64 windows-x64-avx2
+          - os: windows-11-arm
+            targets: windows-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        shell: pwsh
+        run: tools\build_release_windows.ps1 ${{ matrix.targets }} -Generator "Visual Studio 17 2022"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  macos:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-15
+            target: macos-arm64
+          - os: macos-15-intel
+            target: macos-x64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: |
+          version=$(sed -n 's/^project(Maharajah VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
+          build=build-rel-${{ matrix.target }}
+          cmake -S . -B "$build" -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_DEPLOYMENT_TARGET=13.3
+          cmake --build "$build" --parallel
+          ctest --test-dir "$build" --output-on-failure
+          # a fixed-depth search runs to completion; every build must report the same node count
+          printf 'uci\nposition startpos\ngo depth 18\nquit\n' | "$build/sources/Maharajah" |
+            grep -E "^id name| depth 18 " | cut -c1-80
+          name=maharajah-$version-${{ matrix.target }}
+          mkdir -p "dist/$name"
+          cp "$build/sources/Maharajah" LICENSE "dist/$name/"
+          tar -C dist -czf "dist/$name.tar.gz" "$name"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.os }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  draft-release:
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [linux, windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+      - name: Create the draft release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "${{ github.ref_name }}" dist/* --repo "${{ github.repository }}" --draft --title "Maharajah engine ${GITHUB_REF_NAME#v}" --generate-notes

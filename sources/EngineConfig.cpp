@@ -15,6 +15,7 @@ struct SkillProfile {
   int weak_move_candidates;
   int reverse_futility_margin_per_depth;
   int futility_margin_per_depth;
+  int pruning_depth;
   int late_move_pruning_base;
   int late_move_pruning_scale;
   int history_bonus_scale;
@@ -22,18 +23,20 @@ struct SkillProfile {
 
 constexpr std::array<int, 5> ui_to_skill_level{ 2, 4, 6, 8, 10 };
 
+// The weaker levels keep the shallow pruning their strength was measured with
+// (STRENGTH.md); only full strength prunes deeper.
 // clang-format off
 constexpr std::array<SkillProfile, 10> skill_profiles{ {
-  { 1, 14, 240, 5, 80, 160, 6, 1, 1 },
-  { 1, 14, 220, 5, 80, 150, 6, 1, 1 },
-  { 2, 12, 205, 5, 85, 145, 7, 1, 1 },
-  { 2, 12, 190, 4, 85, 140, 7, 1, 1 },
-  { 3, 10, 170, 4, 90, 130, 8, 2, 1 },
-  { 4, 10, 150, 4, 90, 125, 8, 2, 1 },
-  { 5,  8, 120, 3, 95, 120, 8, 2, 1 },
-  { 6,  6,  90, 3, 95, 120, 8, 2, 1 },
-  { 8,  4,  50, 2, 100, 120, 8, 2, 1 },
-  { Limits::max_ply, 0, 0, 1, 90, 120, 8, 2, 2 },
+  { 1, 14, 240, 5, 80, 160, 2, 6, 1, 1 },
+  { 1, 14, 220, 5, 80, 150, 2, 6, 1, 1 },
+  { 2, 12, 205, 5, 85, 145, 2, 7, 1, 1 },
+  { 2, 12, 190, 4, 85, 140, 2, 7, 1, 1 },
+  { 3, 10, 170, 4, 90, 130, 2, 8, 2, 1 },
+  { 4, 10, 150, 4, 90, 125, 2, 8, 2, 1 },
+  { 5,  8, 120, 3, 95, 120, 2, 8, 2, 1 },
+  { 6,  6,  90, 3, 95, 120, 2, 8, 2, 1 },
+  { 8,  4,  50, 2, 100, 120, 2, 8, 2, 1 },
+  { Limits::max_ply, 0, 0, 1, 90, 120, 5, 8, 2, 2 },
 } };
 // clang-format on
 
@@ -51,6 +54,7 @@ SearchConfig SearchConfig::for_skill(const int skill_level) {
   config.weak_move_candidates = profile.weak_move_candidates;
   config.reverse_futility_margin_per_depth = profile.reverse_futility_margin_per_depth;
   config.futility_margin_per_depth = profile.futility_margin_per_depth;
+  config.pruning_depth = profile.pruning_depth;
   config.late_move_pruning_base = profile.late_move_pruning_base;
   config.late_move_pruning_scale = profile.late_move_pruning_scale;
   config.history_bonus_scale = profile.history_bonus_scale;

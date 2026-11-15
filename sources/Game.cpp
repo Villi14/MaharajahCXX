@@ -69,18 +69,6 @@ bool input_waiting() {
 #endif
 }
 
-// Any input stops a running search; "quit" also ends the UCI loop.
-void poll_input(TimeControl& time) {
-  if(!input_waiting())
-    return;
-
-  time.stopped = true;
-
-  string line;
-  if(!getline(cin, line) || line.starts_with("quit"))
-    time.quit = true;
-}
-
 // integer at the start of `text` after any spaces; 0 when there is none, as atoi
 int to_int(string_view text) {
   text.remove_prefix(min(text.find_first_not_of(' '), text.size()));
@@ -114,7 +102,50 @@ optional<string_view> option_value(const string_view input, const string_view na
 } // namespace
 
 Game::Game() {
-  engine_.time_control.poll = poll_input;
+  engine_.time_control.poll = [this](TimeControl&) {
+    if(input_waiting())
+      read_search_input();
+  };
+}
+
+void Game::read_search_input() {
+  TimeControl& time = engine_.time_control;
+  string line;
+
+  if(!getline(cin, line)) {
+    stop_requested_ = true;
+    time.stopped = true;
+    time.quit = true;
+    return;
+  }
+
+  if(!line.empty() && line.back() == '\r')
+    line.pop_back();
+
+  if(is_token(line, "stop") || is_token(line, "quit")) {
+    stop_requested_ = true;
+    time.stopped = true;
+    time.quit = is_token(line, "quit");
+  } else if(is_token(line, "isready")) {
+    cout << "readyok\n" << flush;
+  } else if(!line.empty()) {
+    pending_.push_back(std::move(line));
+  }
+}
+
+bool Game::next_command(string& command) {
+  if(!pending_.empty()) {
+    command = std::move(pending_.front());
+    pending_.pop_front();
+    return true;
+  }
+
+  if(!getline(cin, command))
+    return false;
+
+  if(!command.empty() && command.back() == '\r')
+    command.pop_back();
+  return true;
 }
 
 GameState Game::state() const {
@@ -254,8 +285,13 @@ int Game::parse_move(const string_view move_string) const {
 }
 
 // search position for the best move
-void Game::search_position(const int depth) {
+void Game::search_position(const int depth, const bool wait_for_stop) {
+  stop_requested_ = false;
   const SearchResult result = run_search(engine_, depth, &cout);
+
+  // the search ran out of depth (or found nothing to search) before "stop"
+  while(wait_for_stop && !stop_requested_)
+    read_search_input();
 
   cout << "bestmove " << (result.best_move ? Board::move_to_string(result.best_move) : "(none)") << '\n' << flush;
 }
@@ -279,6 +315,7 @@ void Game::parse_go(const string_view command) {
   int moves_to_go = go_argument(command, "movestogo", 30);
   const int movetime = go_argument(command, "movetime", -1);
   int depth = go_argument(command, "depth", -1);
+  const bool is_infinite = command.find("infinite") != string_view::npos;
 
   if(movetime != -1) {
     uci_time = movetime;
@@ -329,7 +366,7 @@ void Game::parse_go(const string_view command) {
   // a pure fixed-depth search runs to completion; anything else listens for "stop"
   time.poll_input = time.timeset || movetime != -1 || depth == Limits::max_ply;
 
-  search_position(depth);
+  search_position(depth, is_infinite);
 }
 
 /*  Example UCI commands to init position on chess board
@@ -393,10 +430,7 @@ void Game::uci_loop() {
   // a banner only: the id and options answer "uci", a second unasked uciok confuses GUIs
   cout << "Maharajah " << MAHARAJAH_VERSION << " by Villi\n" << flush;
 
-  while(getline(cin, input)) {
-    if(!input.empty() && input.back() == '\r')
-      input.pop_back();
-
+  while(next_command(input)) {
     if(input.empty())
       continue;
 

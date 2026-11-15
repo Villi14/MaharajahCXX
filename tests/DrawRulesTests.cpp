@@ -58,6 +58,38 @@ TEST_F(draw_rules_test_fixture, knight_shuffle_counts_repetitions) {
   EXPECT_GE(board.repetition_count(), 5);
 }
 
+TEST_F(draw_rules_test_fixture, search_repetition_needs_one_occurrence_in_the_line_or_two_before) {
+  ASSERT_TRUE(board.parse_fen(Fen::start_position));
+  const int game_start = board.repetition_index;
+
+  play_all({ "g1f3", "g8f6", "f3g1" });
+  // the same pieces as two plies ago, but with the other side to move
+  EXPECT_FALSE(board.is_search_repetition(game_start));
+
+  play("f6g8");
+  // the start position again: a draw for a search that began there, where the
+  // repetition is part of the line it searches
+  EXPECT_TRUE(board.is_search_repetition(game_start));
+  // one occurrence in the game before the search is not yet a draw
+  EXPECT_FALSE(board.is_search_repetition(board.repetition_index));
+
+  play_all({ "g1f3", "g8f6", "f3g1", "f6g8" });
+  // two occurrences before the search are
+  EXPECT_TRUE(board.is_search_repetition(board.repetition_index));
+  EXPECT_EQ(board.repetition_count(), 3);
+}
+
+TEST_F(draw_rules_test_fixture, search_repetition_looks_no_further_back_than_the_halfmove_clock) {
+  ASSERT_TRUE(board.parse_fen(Fen::start_position));
+  play_all({ "g1f3", "g8f6", "f3g1", "f6g8" });
+  ASSERT_TRUE(board.is_search_repetition(0));
+
+  // a position cannot repeat across a capture or pawn move; with the clock at zero
+  // nothing is compared
+  board.state.halfmove = 0;
+  EXPECT_FALSE(board.is_search_repetition(0));
+}
+
 TEST_F(draw_rules_test_fixture, halfmove_clock_reaches_the_fifty_and_seventy_five_move_marks) {
   ASSERT_TRUE(board.parse_fen("7k/8/8/8/8/8/6N1/7K w - - 99 1 "));
   EXPECT_TRUE(board.state.standard_rules);

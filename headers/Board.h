@@ -51,6 +51,11 @@ struct Board {
 
   // Occurrences of the current position, counting itself.
   [[nodiscard]] int repetition_count() const;
+  // Repetition as the search sees it: the current position has occurred once since
+  // entry `search_start` of the repetition table (inside the line being searched, where
+  // the side that could repeat can do so again), or twice before. Only the positions
+  // since the last capture or pawn move, with the same side to move, are compared.
+  [[nodiscard]] bool is_search_repetition(int search_start) const;
   // Draw by repetition, the fifty/seventy-five move rules or insufficient material.
   [[nodiscard]] bool is_draw() const;
   [[nodiscard]] bool is_insufficient_material() const;

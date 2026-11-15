@@ -16,6 +16,9 @@ struct SearchConfig {
   int weak_move_candidates{ };
   int reverse_futility_margin_per_depth{ };
   int futility_margin_per_depth{ };
+  // reverse futility, futility, late-move and losing-capture pruning apply up to
+  // this depth
+  int pruning_depth{ };
   int late_move_pruning_base{ };
   int late_move_pruning_scale{ };
   int history_bonus_scale{ };
