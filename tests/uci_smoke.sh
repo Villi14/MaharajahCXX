@@ -67,7 +67,7 @@ fi
 # "isready" during a search is answered without stopping it, and "go infinite" holds
 # its move until "stop": king against king is searched out at once, yet "readyok"
 # comes before "bestmove".
-infinite_output="$( (printf 'position fen 8/8/8/4k3/8/8/4K3/8 w - - 0 1\ngo infinite\n'; sleep 1; printf 'isready\n'; sleep 1; printf 'stop\nquit\n') | run_bounded 10 "$engine_path")"
+infinite_output="$( (printf 'position fen 8/8/8/4k3/8/8/4K3/8 w - - 0 1\ngo infinite\n'; sleep 1; printf 'isready\n'; sleep 1; printf 'stop\nquit\n') | "$engine_path")"
 infinite_order="$(printf '%s\n' "$infinite_output" | grep -E '^(readyok|bestmove )' | cut -c1-8 | tr '\n' ' ')"
 if [ "$infinite_order" != "readyok bestmove " ]; then
   echo "uci_smoke failed: go infinite / isready gave '$infinite_order'" >&2

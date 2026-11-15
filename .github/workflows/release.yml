@@ -43,7 +43,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build and test
         shell: pwsh
-        run: tools\build_release_windows.ps1 ${{ matrix.targets }} -Generator "Visual Studio 17 2022"
+        run: tools\build_release_windows.ps1 ${{ matrix.targets }}
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.os }}
