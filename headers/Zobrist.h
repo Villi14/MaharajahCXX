@@ -12,6 +12,9 @@ struct Random {
 
   unsigned int state{ seed };
 
+  // a nonzero seed from the system's entropy source (Engine.cpp)
+  static unsigned int entropy_seed();
+
   unsigned int next_u32() {
     unsigned int number = state;
     number ^= number << 0xD;
@@ -35,8 +38,6 @@ struct ZobristKeys {
   std::array<u64, BoardGeometry::squares> en_passant{ };
   std::array<u64, 16> castle{ };
   u64 side{ };
-  // generator state once every key has been drawn; the engine's random stream continues from here
-  unsigned int random_state{ };
 
   [[nodiscard]] static const ZobristKeys& get();
 };

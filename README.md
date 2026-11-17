@@ -153,8 +153,9 @@ node count must be the same in every build.
 
 UCI options: `Hash` (4-1024 MB), `Skill Level` (1-10), `Threads` (1-64, default 1; more
 than one thread searches faster but is no longer deterministic), `EvalFile` (a `.nnue`
-file; `<empty>` restores the built-in network) and `UseNNUE` (`false` for the classic
-evaluation). `go` accepts `depth`, `movetime`,
+file; `<empty>` restores the built-in network), `UseNNUE` (`false` for the classic
+evaluation) and `Seed` (0 = default: the random stream behind the weaker skill levels is
+seeded from the system, so a fresh engine varies its games; a nonzero value repeats them). `go` accepts `depth`, `movetime`,
 `wtime`/`btime`/`winc`/`binc`/`movestogo` and `infinite`; a running search stops on `stop`,
 answers `isready` without stopping, and keeps any other command until it is over. After
 `go infinite` the move is held back until `stop`. The `info` lines carry `nps` and `hashfull`.
@@ -207,7 +208,7 @@ maharajah_tool uci                                                   # UCI subse
 ```
 
 `uci` understands `uci`, `isready`, `ucinewgame`, `setoption` (`Hash`, `Skill Level`,
-`UI Difficulty`, `Threads`), `position` and `go depth|movetime`, plus `status`, `getfen [fullmove]`
+`UI Difficulty`, `Threads`, `EvalFile`, `UseNNUE`, `Seed`), `position` and `go depth|movetime`, plus `status`, `getfen [fullmove]`
 and `legalmoves` (ends with `endmoves`). Maharajah_lab uses it as the engine and match
 arbiter against Fairy-Stockfish. A `position` command that extends the previous one only
 applies the new moves, so the hash table survives between moves.

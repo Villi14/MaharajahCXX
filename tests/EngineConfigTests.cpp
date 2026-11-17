@@ -147,3 +147,13 @@ TEST_F(transposition_test_fixture, best_move_is_kept_at_any_depth) {
   EXPECT_EQ(exact.score, 12);
   EXPECT_EQ(exact.move, castling);
 }
+
+// A fresh engine (an app start, a site page load) must not replay the same weak-level
+// game every time, so its random stream is seeded from the system.
+TEST(engine_config_test, fresh_engines_seed_their_random_stream_differently) {
+  const auto first = make_unique<Engine>();
+  const auto second = make_unique<Engine>();
+  const auto third = make_unique<Engine>();
+  EXPECT_NE(first->random.state, 0U);
+  EXPECT_FALSE(first->random.state == second->random.state && second->random.state == third->random.state);
+}

@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <charconv>
 #include <cstdio>
+#include <cstdlib>
 #include <iomanip>
 #include <iostream>
 #include <optional>
@@ -421,6 +422,7 @@ void Game::print_uci_info() {
   cout << "option name Threads type spin default " << Engine::min_threads << " min " << Engine::min_threads << " max " << Engine::max_threads << "\n";
   cout << "option name EvalFile type string default <empty>\n";
   cout << "option name UseNNUE type check default true\n";
+  cout << "option name Seed type spin default 0 min 0 max 4294967295\n";
   cout << "uciok\n" << flush;
 }
 
@@ -491,6 +493,13 @@ void Game::uci_loop() {
     // "false" switches to the classic evaluation
     else if(const auto use_nnue = option_value(input, "UseNNUE")) {
       engine_.eval_config.eval_mode = *use_nnue == "false" ? EvalMode::classic : EvalMode::nnue;
+    }
+
+    // a nonzero seed makes the weaker skill levels repeat the same games; 0 keeps the
+    // system-random seed the engine started with
+    else if(const auto seed = option_value(input, "Seed")) {
+      if(const unsigned long value = strtoul(string{ *seed }.c_str(), nullptr, 10))
+        engine_.random.state = static_cast<unsigned int>(value);
     }
 
     // "quit" arrived during a search

@@ -2,6 +2,8 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Clock.h"
 
+#include <random>
+
 namespace maharajah {
 
 void TimeControl::set_movetime(const int movetime_ms) {
@@ -14,9 +16,18 @@ void TimeControl::set_movetime(const int movetime_ms) {
   timeset = true;
 }
 
+unsigned int Random::entropy_seed() {
+  std::random_device device;
+  const unsigned int seed = device();
+  // xorshift never leaves the zero state
+  return seed ? seed : Random::seed;
+}
+
 Engine::Engine() {
-  // the skill-level random stream continues where hash key generation stopped
-  random.state = ZobristKeys::get().random_state;
+  // weaker skill levels pick among near-best moves with this stream; seeding it
+  // from the system makes a fresh engine (an app start, a site page load) vary
+  // its first game. Tools that need repeatable games set the state themselves.
+  random.state = Random::entropy_seed();
   (void)board.parse_fen(Fen::start_position);
   nnue.load_default_weights();
 }

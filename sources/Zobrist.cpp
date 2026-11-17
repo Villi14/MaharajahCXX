@@ -20,7 +20,6 @@ const ZobristKeys& ZobristKeys::get() {
       key = random.next_u64();
 
     generated.side = random.next_u64();
-    generated.random_state = random.state;
     return generated;
   }();
 

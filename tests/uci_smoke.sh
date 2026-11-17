@@ -74,6 +74,19 @@ if [ "$infinite_order" != "readyok bestmove " ]; then
   exit 1
 fi
 
+# A nonzero Seed repeats a weak level's choices; without it every engine seeds itself
+# from the system (EngineConfigTests: fresh_engines_seed_their_random_stream_differently).
+printf '%s\n' "$output" | grep -q '^option name Seed '
+seeded_moves() {
+  { printf 'setoption name Skill Level value 1\nsetoption name Seed value 7\n'
+    i=0; while [ $i -lt 8 ]; do printf 'position startpos\ngo depth 3\n'; i=$((i + 1)); done
+    printf 'quit\n'; } | "$engine_path" | grep '^bestmove ' | tr '\n' ' '
+}
+if [ "$(seeded_moves)" != "$(seeded_moves)" ]; then
+  echo "uci_smoke failed: the same Seed gave different moves" >&2
+  exit 1
+fi
+
 if printf '%s\n' "$output" | grep -q '^bestmove a8a8$'; then
   echo "uci_smoke failed: invalid null bestmove from non-terminal position" >&2
   exit 1

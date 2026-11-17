@@ -491,6 +491,7 @@ void UciSession::identify() {
   std::printf("option name Threads type spin default 1 min 1 max 64\n");
   std::printf("option name EvalFile type string default <empty>\n");
   std::printf("option name UseNNUE type check default true\n");
+  std::printf("option name Seed type spin default 0 min 0 max 4294967295\n");
   std::printf("uciok\n");
 }
 
@@ -516,6 +517,15 @@ void UciSession::setoption(const std::string_view command) {
   // "false" switches to the classic evaluation
   if(command.find("name UseNNUE") != std::string_view::npos) {
     mah_set_eval_mode(command.substr(value + std::strlen(" value ")) == "false" ? 0 : 1);
+    return;
+  }
+
+  // a nonzero seed makes the weaker skill levels repeat the same games; 0 keeps the
+  // engine's system-random seed
+  if(command.find("name Seed") != std::string_view::npos) {
+    const unsigned long seed = std::strtoul(std::string(command.substr(value + std::strlen(" value "))).c_str(), nullptr, 10);
+    if(seed)
+      maharajah::ffi::live_engine().random.state = static_cast<unsigned int>(seed);
     return;
   }
 
