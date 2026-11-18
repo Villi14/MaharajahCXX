@@ -114,12 +114,15 @@ TEST(custom_setup_test, wide_training_armies_cover_the_shapes_players_build) {
     }
   }
 
-  // 800 armies; floors well under what seeds 1-400 give (knight armies: 26)
+  // 800 armies. std::rand differs between C libraries (glibc drew 66 nearly pawnless
+  // armies where macOS drew 82), so the floors sit about five standard deviations under
+  // the means of 40000 seeds: swarms 216, nearly pawnless 85, without compound 165,
+  // knight armies 30, several queens 56.
   EXPECT_GE(swarms, 80);
-  EXPECT_GE(nearly_pawnless, 80);
+  EXPECT_GE(nearly_pawnless, 40);
   EXPECT_GE(without_compound, 80);
-  EXPECT_GE(knight_armies, 15);
-  EXPECT_GE(several_queens, 40);
+  EXPECT_GE(knight_armies, 8);
+  EXPECT_GE(several_queens, 20);
 }
 
 TEST(custom_setup_test, mixed_training_starts_put_the_orthodox_army_against_a_variant_one) {
