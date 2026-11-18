@@ -237,7 +237,180 @@ bool generate_side(BoardState& state, const Colors player) {
   return false;
 }
 
+// ---------------------------------------------------------------------------
+// training starts
+
+// a side's own half: 31 squares beside the king
+constexpr int max_army_squares{ 31 };
+
+int board_row(const Colors player, const int depth) {
+  return player == white ? 7 - depth : depth;
+}
+
+// a random free square on a row of the side's half, -1 if the row is full
+int random_free_square(const BoardState& state, const Colors player, const int depth) {
+  const int row = board_row(player, depth);
+  const int free_squares = free_squares_in_row(state, row);
+  if(free_squares == 0)
+    return -1;
+  int skip = std::rand() % free_squares;
+  for(int file{ }; file < 8; ++file) {
+    const int square = row * 8 + file;
+    if(is_occupied(state, square))
+      continue;
+    if(skip-- == 0)
+      return square;
+  }
+  return -1;
+}
+
+void put(BoardState& state, const Colors player, const int piece_index, const int square) {
+  const GeneratorPiece& piece = generator_pieces[piece_index];
+  set_bit(state.bitboards[player == white ? piece.white_piece : piece.black_piece], to_square(square));
+}
+
+// half the armies draw 0-27 pawns evenly, a quarter 0-4, a quarter 16-27
+int wide_pawn_count() {
+  switch(std::rand() % 4) {
+  case 0:
+    return std::rand() % 5;
+  case 1:
+    return 16 + std::rand() % 12;
+  default:
+    return std::rand() % 28;
+  }
+}
+
+// An army of any shape: the pawn count first, then pieces until the budget is spent,
+// half the time with one favourite piece type taken on four draws of five while it
+// fits (knight swarms, several queens); the 1-2 points no piece fits become pawns. Pieces take the
+// home rank in random files and spill forward; pawns go mostly to the second rank.
+bool generate_wide_side(BoardState& state, const Colors player) {
+  std::array<int, 8> counts{ };
+  counts[0] = wide_pawn_count();
+  const int favourite = std::rand() % 2 == 0 ? 1 + std::rand() % 7 : -1;
+  int remaining = army_budget - counts[0];
+
+  while(remaining >= cheapest_piece_weight()) {
+    if(favourite > 0 && generator_pieces[favourite].weight <= remaining && std::rand() % 5 != 0) {
+      ++counts[favourite];
+      remaining -= generator_pieces[favourite].weight;
+      continue;
+    }
+    int fitting{ };
+    for(int index{ 1 }; index < static_cast<int>(generator_pieces.size()); ++index)
+      fitting += generator_pieces[index].weight <= remaining;
+    int roll = std::rand() % fitting;
+    for(int index{ 1 }; index < static_cast<int>(generator_pieces.size()); ++index) {
+      if(generator_pieces[index].weight <= remaining && roll-- == 0) {
+        ++counts[index];
+        remaining -= generator_pieces[index].weight;
+        break;
+      }
+    }
+  }
+  counts[0] += remaining;
+
+  int squares_needed{ };
+  for(const int count : counts)
+    squares_needed += count;
+  if(squares_needed > max_army_squares)
+    return false;
+
+  // pieces: home rank first, then forward
+  for(int index{ 1 }; index < static_cast<int>(generator_pieces.size()); ++index) {
+    for(int placed{ }; placed < counts[index]; ++placed) {
+      int square = -1;
+      for(int depth{ }; depth < 4 && square < 0; ++depth)
+        square = random_free_square(state, player, depth);
+      if(square < 0)
+        return false;
+      put(state, player, index, square);
+    }
+  }
+
+  // pawns: ranks 2 / 3 / 4 weighted 6 / 3 / 1 among the rows with room, the home rank last
+  constexpr std::array<int, 4> pawn_row_weights{ 0, 6, 3, 1 };
+  for(int placed{ }; placed < counts[0]; ++placed) {
+    int total_weight{ };
+    for(int depth{ 1 }; depth < 4; ++depth) {
+      if(free_squares_in_row(state, board_row(player, depth)) > 0)
+        total_weight += pawn_row_weights[depth];
+    }
+    int depth{ };
+    if(total_weight > 0) {
+      int roll = std::rand() % total_weight;
+      for(depth = 1; depth < 4; ++depth) {
+        if(free_squares_in_row(state, board_row(player, depth)) == 0)
+          continue;
+        roll -= pawn_row_weights[depth];
+        if(roll < 0)
+          break;
+      }
+    }
+    const int square = random_free_square(state, player, depth);
+    if(square < 0)
+      return false;
+    put(state, player, 0, square);
+  }
+  return true;
+}
+
+// the orthodox army: home rank beside the king on e1 / e8, pawns in front
+void put_orthodox_side(BoardState& state, const Colors player) {
+  constexpr std::array<int, 8> home_rank{ 3, 1, 2, 4, -1, 2, 1, 3 };
+  for(int file{ }; file < 8; ++file) {
+    if(home_rank[file] >= 0)
+      put(state, player, home_rank[file], board_row(player, 0) * 8 + file);
+    put(state, player, 0, board_row(player, 1) * 8 + file);
+  }
+}
+
+// a quarter generate_custom_position's kind, the rest any shape
+bool generate_training_army(BoardState& state, const Colors player) {
+  return std::rand() % 4 == 0 ? generate_side(state, player) : generate_wide_side(state, player);
+}
+
 } // namespace
+
+bool generate_training_position(Board& board, const TrainingStart start, const unsigned int seed) {
+  std::srand(seed);
+
+  for(int attempt{ }; attempt < max_attempts; ++attempt) {
+    (void)board.parse_fen("4k3/8/8/8/8/8/8/4K3 w - - 0 1");
+    BoardState& state = board.state;
+    state.castle = 0;
+
+    if(start == TrainingStart::mixed) {
+      const Colors orthodox = std::rand() % 2 == 0 ? white : black;
+      const Colors variant = orthodox == white ? black : white;
+      put_orthodox_side(state, orthodox);
+      const bool built = std::rand() % 2 == 0 ? generate_side(state, variant) : generate_wide_side(state, variant);
+      if(!built)
+        continue;
+      state.castle = orthodox == white ? (wk | wq) : (bk | bq);
+      state.side_variant = { variant == white, variant == black };
+    } else {
+      if(!generate_training_army(state, white) || !generate_training_army(state, black))
+        continue;
+      state.side_variant = { true, true };
+    }
+
+    state.side = static_cast<Colors>(std::rand() % 2);
+    state.en_passant = no_square;
+    state.halfmove = 0;
+    state.standard_rules = !state.has_compound_pieces();
+    // every pawn of a fresh variant army is unmoved
+    state.pawn_unmoved = state.variant_pawns();
+    board.update_occupancies();
+    state.hash_key = generate_hash_key(state);
+
+    if(!board.in_check() && board.has_legal_move())
+      return true;
+  }
+
+  return false;
+}
 
 bool generate_custom_position(Board& board, int side_to_move, const unsigned int seed) {
   std::srand(seed);

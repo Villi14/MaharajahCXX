@@ -54,8 +54,9 @@ for node counts and speed of this engine alone.
   with the UCI engine and compares the result with the tablebase one.
 - `bare_king_combos.py` — every set of 1–2 pieces (orthodox and compound) against a bare
   king, random positions, several levels, old vs new build; Lichess tablebase as reference.
-- `nnue/NET6_ENDGAME.md` — the plan for an endgame-aware net6 (gen without win
-  adjudication: `WIN_SCORE=0`) with the commands for the training machine.
+- `nnue/NET6_ENDGAME.md` — the plan for net6: endgames (gen without win adjudication:
+  `WIN_SCORE=0`) and the armies the old data lacked (`WIDE_SHARE`, `MIXED_SHARE`), with the
+  commands for the training machine.
 
 ## Setup (port-era comparison with MaharajahC)
 

@@ -1,6 +1,7 @@
-# net6: a network that knows endgames
+# net6: a network that knows endgames and every kind of army
 
-Plan of 2026-11-06, after engine 1.3.0. Run on the training machine (Ubuntu, `~/nnue-data`).
+Plan of 2026-11-06, after engine 1.3.0; the armies added 2026-11-18 (step 2). Run on the
+training machine (Ubuntu, `~/nnue-data`).
 
 **Optional.** Engine 1.3.0 already fixes what players saw: mates against a bare king on every
 level (the level 3 game that shuffled past move 249) and the simplest dead draws. net6 is
@@ -39,7 +40,7 @@ endgames played out.
 ## Steps
 
 ```sh
-cd ~/MaharajahCXX && git pull            # main with 1.3.0, the gen WIN_SCORE option and this file
+cd ~/MaharajahCXX && git pull            # main with the gen WIN_SCORE / WIDE_SHARE / MIXED_SHARE options
 cmake --build build-release -j           # Release; check.sh shows the build type
 pip install --user chess                 # for the endgame checks
 tools/nnue/check.sh                      # binaries, nets, data, memory, disk, turbo
@@ -52,25 +53,42 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    ```
    If the rate collapses (long shuffling games), use `WIN_SCORE=3000` as the middle ground:
    still past net5's range, much shorter games.
-2. **Data round r6**, as many hours as the machine can spare (target ≥ 20 M positions):
+2. **Data round r6: endgames and the missing armies** (2026-11-18, after H. G. Muller's
+   critique on chessvariants.com). The old rounds started custom games only from
+   `generate_custom_position`: 5-8 pawns, a compound piece, few repeated pieces, and never
+   the orthodox army against a variant one. NNUE scored the 27P+4N swarm 6-0 against the
+   orthodox army where the classic evaluation scored it 1-5. r6 adds only what was missing,
+   on top of the existing data (target 8-12 M positions, 15-25 % of the training set):
    ```sh
-   ROUND=r6 NET=net5 WIN_SCORE=0 tools/nnue/gen.sh 48     # in tmux; sudo once
+   ROUND=r6 NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 WIDE_SHARE=0.35 MIXED_SHARE=0.45 \
+     tools/nnue/gen.sh 48                                  # in tmux; sudo once
    ```
-   `CUSTOM_SHARE` (default 0.65) and `DEPTH` (default 7) stay as in round 5 unless the
-   pilot says otherwise.
+   - `MIXED_SHARE`: the orthodox army (castling) against a variant army.
+   - `WIDE_SHARE`: variant armies of any shape: 0-27 pawns, one favourite piece type
+     (knight swarms, several queens), compound piece optional.
+   - the remaining 20 % start from the start position: the orthodox endgames.
+   `generate_training_position` in CustomSetup draws these; players' armies are unchanged.
+   `DEPTH` (default 7) stays as in round 5 unless the pilot says otherwise. Give the pilot
+   the same shares, since swarm games may run longer.
 3. **Train net6** on the old rounds plus r6. The trainer's limit is 115 M positions, and
    `train.sh` prints the total, memory and time first:
    ```sh
-   R5_GLOB="$HOME/nnue-data/r5/chunk_*.txt $HOME/nnue-data/r6/chunk_*.txt" tools/nnue/train.sh net6
+   tools/nnue/train.sh net6                 # n3d7 + r4 + r5 + r6 (R6_GLOB) by default
    ```
    Same recipe as net5 (mirror, λ 0.75, 20 epochs). If over the limit, drop n3d7 first:
    `N3D7_GLOB=/dev/null/none`.
-4. **Match net6 vs net5.** The default SPRT 30,50 expects a big jump. For an endgame net, ask
+4. **Armies check.** `Maharajah_ffi/tool/army_match.py` (monorepo) on the pairs from the
+   Muller thread, net5 vs net6 and each against `--classic-eval`; the wall vs orthodox at
+   levels 1-5, 10 games per colour (net5 2026-11-17: wall 68-29). net6 is right if it moves
+   towards the classic evaluation where the two disagreed, not if the orthodox side wins.
+   If one round leaves much of net5's error (λ 0.75 = three quarters of the target is the
+   teacher's score), a small r7 of mixed games with net6 as the teacher is the next step.
+5. **Match net6 vs net5.** The default SPRT 30,50 expects a big jump. For an endgame net, ask
    only "not worse":
    ```sh
    SPRT=-5,5 tools/nnue/match_nets.sh net6 net5
    ```
-5. **Endgame checks** with the UCI engine on each net (copy the binary into two
+6. **Endgame checks** with the UCI engine on each net (copy the binary into two
    directories, set the net with `EvalFile` or embed it with `tools/embed_net.py`):
    ```sh
    python3 tools/endgame_suite.py build-release/sources/Maharajah --skill 10 -j 12
@@ -78,7 +96,7 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    ```
    What to look for: the KPK draw, Philidor, Vancura and the outside-passer test drawn; the
    first score in dead draws near 0 *without* Endgame.h's help (the suite prints it).
-6. **Ship.** `python3 tools/embed_net.py nets/net6.nnue`, bump the version (CMakeLists here,
+7. **Ship.** `python3 tools/embed_net.py nets/net6.nnue`, bump the version (CMakeLists here,
    and in the monorepo `Maharajah_ffi/src/CMakeLists.txt`, `Maharajah_ffi/pubspec.yaml`,
    `Maharajah_ffi/CHANGELOG.md`). Copy the sources into `Maharajah/Maharajah_ffi/src`.
    For the site: `bash Maharajah_ffi/tool/build_wasm.sh`, then one new site-wide `?v=` in
