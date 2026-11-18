@@ -20,7 +20,7 @@ jobs:
             targets: linux-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build and test
         run: tools/build_release_linux.sh ${{ matrix.targets }}
       - uses: actions/upload-artifact@v4
@@ -40,7 +40,7 @@ jobs:
             targets: windows-arm64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build and test
         shell: pwsh
         run: tools\build_release_windows.ps1 ${{ matrix.targets }}
@@ -61,7 +61,7 @@ jobs:
             target: macos-x64
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Build and test
         run: |
           version=$(sed -n 's/^project(Maharajah VERSION \([0-9.]*\).*/\1/p' CMakeLists.txt)
