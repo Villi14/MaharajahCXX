@@ -193,12 +193,14 @@ TEST(custom_setup_test, wall_training_starts_put_a_swarm_behind_a_pawn_wall) {
     locked_starts += (board.state.bitboards[P] & (board.state.bitboards[p] << 8)) != zero;
   }
 
-  // means over 20000 seeds: 33138 variant armies in 20000 starts, 53 % with 12+ pawns and
-  // 3+ knights or bishops, a third against the orthodox army, 24 % with locked pawns
+  // per start over 20000 seeds (glibc / MSVC std::rand): 1.52 / 1.53 walls, 0.87 / 0.88
+  // swarms behind walls, 0.34 / 0.33 orthodox armies, 15.4 / 16.1 % locked starts. Seeds
+  // 1-300 gave 50 locked starts on glibc and 39 on MSVC (floor 40, CI 2026-11-19); the
+  // floors now sit about four standard deviations under the means.
   EXPECT_GE(walls, 300);
   EXPECT_GE(minor_swarms_behind_walls, 200);
   EXPECT_GE(against_orthodox, 60);
-  EXPECT_GE(locked_starts, 40);
+  EXPECT_GE(locked_starts, 20);
 }
 
 namespace {
@@ -228,8 +230,9 @@ TEST(custom_setup_test, every_training_army_is_placed_by_the_players_rule) {
     for(unsigned int seed{ 1 }; seed <= 200U; ++seed) {
       ASSERT_TRUE(generate_training_position(board, start, seed)) << "seed " << seed;
       for(const Colors side : { white, black }) {
-        if(is_variant_army(board, side))
+        if(is_variant_army(board, side)) {
           EXPECT_TRUE(placed_by_players_rule(board, side)) << board.to_fen();
+        }
       }
     }
   }
