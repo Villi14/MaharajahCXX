@@ -497,6 +497,33 @@ TEST_F(search_test_fixture, uci_stop_ends_a_search_early) {
   EXPECT_LT(elapsed, 2500);
 }
 
+// Queens and knights in reach of each other across the board: the quiescence search of a
+// single ply runs for hours. The one-ply fallback after the time limit used to have no
+// limit of its own (r6 data generation, 2026-11-19: two threads stuck for an hour).
+TEST_F(search_test_fixture, a_search_that_cannot_finish_one_ply_still_moves_on_time) {
+  ASSERT_TRUE(game.parse_fen("4k3/8/nnnnnnnn/qqqqqqqq/QQQQQQQQ/NNNNNNNN/8/4K3 w - - 0 1"));
+  engine().time_control.set_movetime(50);
+  const auto start = chrono::steady_clock::now();
+  const SearchResult result = run_search(engine(), Limits::max_ply);
+  const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+
+  // the search's 50 ms, then the fallback's minimum of 100 ms
+  EXPECT_LT(elapsed, 1000);
+  EXPECT_EQ(result.depth, 0);
+  ASSERT_NE(result.best_move, 0);
+  EXPECT_TRUE(engine().apply_move(Board::move_to_string(result.best_move)));
+}
+
+TEST_F(search_test_fixture, uci_go_movetime_answers_in_a_position_full_of_captures) {
+  const auto start = chrono::steady_clock::now();
+  const string out = run_uci(game, "position fen 4k3/8/nnnnnnnn/qqqqqqqq/QQQQQQQQ/NNNNNNNN/8/4K3 w - - 0 1\ngo movetime 50\n");
+  const auto elapsed = chrono::duration_cast<chrono::milliseconds>(chrono::steady_clock::now() - start).count();
+
+  EXPECT_NE(out.find("bestmove "), string::npos);
+  EXPECT_EQ(out.find("bestmove (none)"), string::npos);
+  EXPECT_LT(elapsed, 1000);
+}
+
 TEST_F(search_test_fixture, uci_quit_during_a_search_ends_the_loop) {
   // the "go depth 1" after "quit" is never run
   const string out = run_uci(game, "position startpos\ngo movetime 5000\nquit\ngo depth 1\n");

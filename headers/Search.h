@@ -70,6 +70,10 @@ class Search {
   static constexpr int losing_capture_margin_per_depth{ 100 };
   // the clock and input are checked once per this many nodes
   static constexpr u64 communicate_interval{ 2048 };
+  // The one-ply search after a stop before the first iteration has a limit of its own:
+  // the search's time limit again, at least the minimum, or the default without one.
+  static constexpr int fallback_min_ms{ 100 };
+  static constexpr int fallback_default_ms{ 1000 };
 
   // Move-ordering scores; moves are searched highest score first.
   struct MoveOrder {
@@ -153,6 +157,8 @@ class Search {
   bool root_move_repeats_position(int move);
   int select_non_repeating_root_move(int best_move);
   int select_skill_move();
+  // the first legal move in move order, 0 without one
+  int first_legal_move();
 
   void print_info(std::ostream& out, int score, int depth, int elapsed) const;
 

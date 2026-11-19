@@ -99,10 +99,13 @@ std::vector<int> legal_moves(const Board& board) {
   return legal;
 }
 
-// Plays one game; returns false if the opening ended the game already.
 // searches stopped by search_limit_ms before the full depth
 std::atomic<long> cut_searches{ };
+// games dropped because a search did not finish even one ply (Search::run's fallback)
+std::atomic<long> dropped_games{ };
 
+// Plays one game; returns false if the opening ended the game already or the game was
+// dropped (nothing written).
 bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std::FILE* out, std::atomic<long>& positions) {
   std::string fen{ Fen::start_position };
   int opening_plies = std::uniform_int_distribution(6, 10)(rng);
@@ -163,6 +166,13 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
     const SearchResult searched = run_search(engine, options.depth);
     if(searched.depth < options.depth)
       ++cut_searches;
+    // Not even one ply in time (dozens of men in reach of each other: the quiescence
+    // search explodes): the score is no score, and a game cut here would give all its
+    // positions a draw it never had, so none of it is written.
+    if(searched.depth == 0) {
+      ++dropped_games;
+      return false;
+    }
     if(!searched.best_move)
       break;
 
@@ -235,6 +245,7 @@ int run_gen(const GenOptions& options) {
 
   std::fclose(out);
   std::cerr << "searches cut at " << search_limit_ms << " ms: " << cut_searches << '\n';
+  std::cerr << "games dropped without one full ply in time: " << dropped_games << '\n';
   std::cerr << "done: " << options.games << " games, " << positions << " positions\n";
   return 0;
 }

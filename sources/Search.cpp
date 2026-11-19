@@ -212,20 +212,30 @@ SearchResult Search::run(const int depth, std::ostream* info) {
   }
 
   // Stopped before the first iteration finished ("stop" right after "go", a time limit
-  // already in the past): a one-ply search that nothing interrupts still gives a move.
+  // already in the past): a one-ply search still gives a move. It has a limit of its own,
+  // not none: with dozens of men in reach of each other (pawn walls with swarms behind
+  // them) the quiescence search of that one ply ran for hours. Stopped again, it plays
+  // the best of the root moves it finished, or the first legal move; depth stays 0.
   if(!helper_ && !result.best_move) {
     TimeControl& time = engine_.time_control;
-    const bool timeset = std::exchange(time.timeset, false);
+    const bool timeset = time.timeset;
+    const int stoptime = time.stoptime;
     const bool poll_input = std::exchange(time.poll_input, false);
+    const int limit = timeset ? std::max(stoptime - time.starttime, fallback_min_ms) : fallback_default_ms;
+    time.timeset = true;
+    time.stoptime = now_ms() + limit;
     time.stopped = false;
 
     follow_pv_ = false;
-    result.score = negamax(-infinity, infinity, 1);
-    result.depth = 1;
-    if(root_moves_.count > 0)
-      result.best_move = select_skill_move();
+    const int score = negamax(-infinity, infinity, 1);
+    if(!stopped()) {
+      result.score = score;
+      result.depth = 1;
+    }
+    result.best_move = root_moves_.count > 0 ? select_skill_move() : first_legal_move();
 
     time.timeset = timeset;
+    time.stoptime = stoptime;
     time.poll_input = poll_input;
     time.stopped = true;
   }
@@ -749,6 +759,19 @@ int Search::select_non_repeating_root_move(const int best_move) {
 
 // Picks the root move to play: the best one, or for weaker skill levels early in the
 // game, a random near-best move that survives a tactical check.
+int Search::first_legal_move() {
+  MoveList moves_list;
+  board_.generate_moves(moves_list);
+  sort_moves(moves_list);
+  for(const int move : moves_list) {
+    if(!make_move(move))
+      continue;
+    unmake_move();
+    return move;
+  }
+  return 0;
+}
+
 int Search::select_skill_move() {
   if(root_moves_.count == 0)
     return 0;
