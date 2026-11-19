@@ -53,30 +53,59 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    ```
    If the rate collapses (long shuffling games), use `WIN_SCORE=3000` as the middle ground:
    still past net5's range, much shorter games.
-2. **Data round r6: endgames and the missing armies** (2026-11-18, after H. G. Muller's
-   critique on chessvariants.com). The old rounds started custom games only from
-   `generate_custom_position`: 5-8 pawns, a compound piece, few repeated pieces, and never
-   the orthodox army against a variant one. NNUE scored the 27P+4N swarm 6-0 against the
-   orthodox army where the classic evaluation scored it 1-5. r6 adds only what was missing,
-   on top of the existing data (target 8-12 M positions, 15-25 % of the training set):
+2. **Data round r6: every kind of game and every army, evened out** (2026-11-18/19,
+   after H. G. Muller's critique on chessvariants.com). net5's 40.25 M positions (r4,
+   `tools/nnue/data_mix.py`, 2026-11-19): orthodox against orthodox 55.6 %, variant
+   against variant 44.4 %, **orthodox against variant 0**. The variant armies all came
+   from `generate_custom_position`: 277 of the 2580 possible armies, the 50 commonest
+   87 % of them; 5-8 pawns in 86 %, one maharajah in 52 %, never 16+ pawns, never two
+   maharajahs, 5+ knights in 0.03 %. NNUE scored the 27P+4N swarm 6-0 against the
+   orthodox army where the classic evaluation scored it 1-5.
+
+   r6 evens out the three kinds of game on top of r4: each ends with as many positions
+   as the largest (orthodox against orthodox, 22.4 M), so r6 needs ~27 M positions,
+   ~22.4 M of them orthodox against variant and ~4.5 M variant against variant.
+   - `MIXED_SHARE`: the orthodox army (castling) against a balanced variant army.
+   - `ANY_SHARE`: two balanced variant armies, or one and its mirror image (a quarter;
+     equal armies teach that equal is equal).
+   - Balanced variant army: any of the 2580 armies a player can build (39 points, at
+     most 31 men; 313 pawnless; up to 13 knights or bishops, 7 rooks, 6 archbishops,
+     4 chancellors, 4 queens, 3 maharajahs) half the time — half of that evenly, half a
+     type and its number first, so 3 maharajahs or 4 queens are as common as the middle
+     of the range; all 2580 came up in 100000 starts, the rarest 22 times. A pawn wall
+     (1-3 solid ranks, 8-27 pawns) with a swarm behind it (knights 35 %, bishops 35 %,
+     both 15 %, rooks 10 %, queens 5 %) a fifth; a wide army or a players' army the rest.
+   - Every variant army is placed by the players' rule (game_rules.md §6: ranks filled
+     from the home rank outward), in a random order: pieces behind the pawns, all mixed,
+     or pawns on the home rank with the pieces in front.
+   - `WIDE_SHARE` and `WALL_SHARE` still exist but are not used: wall starts mix kinds
+     (a third against the orthodox army), so the shares would not set the mix exactly.
+     Their armies are part of the balanced variant army.
+
+   Pilot first, with all three kinds, to measure positions per game of each kind:
    ```sh
-   ROUND=r6 NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 WIDE_SHARE=0.35 MIXED_SHARE=0.45 \
-     tools/nnue/gen.sh 48                                  # in tmux; sudo once
+   ROUND=r6p NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 MIXED_SHARE=0.4 ANY_SHARE=0.4 tools/nnue/gen.sh 1
+   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4/chunk_*.txt" --pilot "$NNUE_DATA/r6p/chunk_*.txt"
    ```
-   - `MIXED_SHARE`: the orthodox army (castling) against a variant army.
-   - `WIDE_SHARE`: variant armies of any shape: 0-27 pawns, one favourite piece type
-     (knight swarms, several queens), compound piece optional.
-   - the remaining 20 % start from the start position: the orthodox endgames.
-   `generate_training_position` in CustomSetup draws these; players' armies are unchanged.
-   `DEPTH` (default 7) stays as in round 5 unless the pilot says otherwise. Give the pilot
-   the same shares, since swarm games may run longer.
+   `data_mix.py` prints the positions r6 needs and the shares per game (with equal
+   positions per game: MIXED_SHARE ≈ 0.83, ANY_SHARE ≈ 0.17, no start-position games).
+   If the rate collapses (long shuffling games), use `WIN_SCORE=3000` as the middle
+   ground. Then, in tmux (sudo once), until data_mix.py shows the three kinds even:
+   ```sh
+   ROUND=r6 NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 MIXED_SHARE=<printed> ANY_SHARE=<printed> \
+     tools/nnue/gen.sh 48
+   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4/chunk_*.txt" "$NNUE_DATA/r6/chunk_*.txt"
+   ```
+   The old variant-against-variant data still holds its 277 armies; `--target 30e6`
+   (or more) adds more balanced variant games and dilutes them, at more hours.
+   `DEPTH` (default 7) stays as in round 5 unless the pilot says otherwise.
 3. **Train net6** on the old rounds plus r6. The trainer's limit is 115 M positions, and
    `train.sh` prints the total, memory and time first:
    ```sh
-   tools/nnue/train.sh net6                 # n3d7 + r4 + r5 + r6 (R6_GLOB) by default
+   N3D7_GLOB=/dev/null/none tools/nnue/train.sh net6     # r4 + r6, the mix data_mix.py evened out
    ```
-   Same recipe as net5 (mirror, λ 0.75, 20 epochs). If over the limit, drop n3d7 first:
-   `N3D7_GLOB=/dev/null/none`.
+   Same recipe as net5 (mirror, λ 0.75, 20 epochs). n3d7 would add orthodox games again
+   and undo the even mix (net5 trained on r4 only).
 4. **Armies check.** `Maharajah_ffi/tool/army_match.py` (monorepo) on the pairs from the
    Muller thread, net5 vs net6 and each against `--classic-eval`; the wall vs orthodox at
    levels 1-5, 10 games per colour (net5 2026-11-17: wall 68-29). net6 is right if it moves

@@ -1,11 +1,13 @@
 // Texel tuning of the classic evaluation weights (Evaluation::weights).
 //
 //   maharajah_texel gen OUT [games] [depth] [threads] [seed] [custom_share] [network] [win_score]
-//                       [wide_share] [mixed_share]
+//                       [wide_share] [mixed_share] [wall_share] [any_share]
 //     Self-play at a fixed depth from random openings (the start position plus random
 //     plies, or a generated start plus random plies). The start is drawn per game:
 //     mixed_share the orthodox army against a variant one, wide_share variant armies of
-//     any shape (both: generate_training_position), custom_share two armies of the
+//     any shape, wall_share a pawn wall with a swarm of one piece type behind it,
+//     any_share any of the 2580 armies a player can build (all four:
+//     generate_training_position), custom_share two armies of the
 //     players' generator (generate_custom_position), the rest the start position. Writes "FEN;score;result"
 //     per position after the opening where the side to move is not in check and the
 //     best move is quiet: the search score and the result 1 / 0.5 / 0, both from
@@ -40,6 +42,7 @@
 #include <iostream>
 #include <iterator>
 #include <mutex>
+#include <numeric>
 #include <random>
 #include <string>
 #include <thread>
@@ -62,6 +65,8 @@ struct GenOptions {
   double custom_share{ 0.3 };
   double wide_share{ 0.0 };
   double mixed_share{ 0.0 };
+  double wall_share{ 0.0 };
+  double any_share{ 0.0 };
   std::string network;
   // 0 = no win adjudication
   int win_score{ 1000 };
@@ -95,18 +100,23 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
   std::string fen{ Fen::start_position };
   int opening_plies = std::uniform_int_distribution(6, 10)(rng);
 
-  // one draw picks the start, so with wide_share = mixed_share = 0 a seed plays the
-  // same games as before those two existed
+  // one draw picks the start, so with wide_share = mixed_share = wall_share = any_share = 0
+  // a seed plays the same games as before those four existed
   const double start_roll = std::uniform_real_distribution(0.0, 1.0)(rng);
-  if(start_roll < options.mixed_share + options.wide_share) {
+  const double training_share = options.mixed_share + options.wide_share + options.wall_share + options.any_share;
+  if(start_roll < training_share) {
     const std::lock_guard lock(rand_mutex);
     Board board;
-    const TrainingStart start = start_roll < options.mixed_share ? TrainingStart::mixed : TrainingStart::wide;
+    const TrainingStart start = start_roll < options.mixed_share                        ? TrainingStart::mixed
+                                : start_roll < options.mixed_share + options.wide_share ? TrainingStart::wide
+                                : start_roll < options.mixed_share + options.wide_share + options.wall_share
+                                    ? TrainingStart::wall
+                                    : TrainingStart::any;
     if(!generate_training_position(board, start, static_cast<unsigned>(rng())))
       return false;
     fen = board.to_fen();
     opening_plies = std::uniform_int_distribution(0, 3)(rng);
-  } else if(start_roll < options.mixed_share + options.wide_share + options.custom_share) {
+  } else if(start_roll < training_share + options.custom_share) {
     const std::lock_guard lock(rand_mutex);
     Board board;
     if(!generate_custom_position(board, -1, static_cast<unsigned>(rng())))
@@ -545,10 +555,12 @@ int main(const int argc, char** argv) {
     options.win_score = arg(9, options.win_score);
     options.wide_share = arg(10, options.wide_share);
     options.mixed_share = arg(11, options.mixed_share);
-    const double shares[]{ options.custom_share, options.wide_share, options.mixed_share };
+    options.wall_share = arg(12, options.wall_share);
+    options.any_share = arg(13, options.any_share);
+    const double shares[]{ options.custom_share, options.wide_share, options.mixed_share, options.wall_share, options.any_share };
     if(std::any_of(std::begin(shares), std::end(shares), [](const double share) { return share < 0.0; }) ||
-       options.custom_share + options.wide_share + options.mixed_share > 1.0 + 1e-9) {
-      std::cerr << "custom_share, wide_share and mixed_share must be >= 0 and add up to at most 1\n";
+       std::accumulate(std::begin(shares), std::end(shares), 0.0) > 1.0 + 1e-9) {
+      std::cerr << "custom_share, wide_share, mixed_share, wall_share and any_share must be >= 0 and add up to at most 1\n";
       return 2;
     }
     return run_gen(options);
@@ -557,7 +569,7 @@ int main(const int argc, char** argv) {
   if(command == "tune" && argc > 2)
     return run_tune(argv[2], arg(3, 1000), arg(4, 1), argc > 5 ? argv[5] : "texel_weights.txt");
 
-  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share] [network] [win_score] [wide_share] [mixed_share]\n"
+  std::cerr << "usage: " << argv[0] << " gen OUT [games] [depth] [threads] [seed] [custom_share] [network] [win_score] [wide_share] [mixed_share] [wall_share] [any_share]\n"
             << "       " << argv[0] << " tune DATA [epochs] [threads] [out]\n";
   return 2;
 }

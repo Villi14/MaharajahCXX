@@ -2,7 +2,9 @@
 #include "../headers/Bitboard.h"
 #include "../headers/Zobrist.h"
 
+#include <algorithm>
 #include <cstdlib>
+#include <vector>
 
 namespace maharajah {
 
@@ -269,6 +271,58 @@ void put(BoardState& state, const Colors player, const int piece_index, const in
   set_bit(state.bitboards[player == white ? piece.white_piece : piece.black_piece], to_square(square));
 }
 
+// men of one army by generator_pieces index, pawns first
+using ArmyCounts = std::array<int, 8>;
+
+enum class PlacementOrder { pieces_first, shuffled, pawns_first };
+
+// pieces behind the pawns 11 times in 20, all mixed 5, pawns on the home rank 4
+PlacementOrder random_order() {
+  const int roll = std::rand() % 20;
+  return roll < 11 ? PlacementOrder::pieces_first : roll < 16 ? PlacementOrder::shuffled : PlacementOrder::pawns_first;
+}
+
+// The players' placement rule (docs/ui/game_rules.md section 6): ranks are filled from
+// the home rank outward, a farther rank only once the nearer ones are full. The men go
+// in `order`, each to a random free file of the nearest rank with room.
+bool place_dense(BoardState& state, const Colors player, const ArmyCounts& counts, const PlacementOrder order) {
+  std::array<int, max_army_squares> men{ };
+  int pieces{ }, total{ };
+  for(int index{ 1 }; index < static_cast<int>(counts.size()); ++index) {
+    for(int copy{ }; copy < counts[index]; ++copy) {
+      if(total == max_army_squares)
+        return false;
+      men[total++] = index;
+    }
+  }
+  pieces = total;
+  for(int copy{ }; copy < counts[0]; ++copy) {
+    if(total == max_army_squares)
+      return false;
+    men[total++] = 0;
+  }
+
+  // pieces in random order among themselves; then the order between pieces and pawns
+  for(int i{ pieces - 1 }; i > 0; --i)
+    std::swap(men[i], men[std::rand() % (i + 1)]);
+  if(order == PlacementOrder::shuffled) {
+    for(int i{ total - 1 }; i > 0; --i)
+      std::swap(men[i], men[std::rand() % (i + 1)]);
+  } else if(order == PlacementOrder::pawns_first) {
+    std::rotate(men.begin(), men.begin() + pieces, men.begin() + total);
+  }
+
+  for(int i{ }; i < total; ++i) {
+    int square = -1;
+    for(int depth{ }; depth < 4 && square < 0; ++depth)
+      square = random_free_square(state, player, depth);
+    if(square < 0)
+      return false;
+    put(state, player, men[i], square);
+  }
+  return true;
+}
+
 // half the armies draw 0-27 pawns evenly, a quarter 0-4, a quarter 16-27
 int wide_pawn_count() {
   switch(std::rand() % 4) {
@@ -283,10 +337,10 @@ int wide_pawn_count() {
 
 // An army of any shape: the pawn count first, then pieces until the budget is spent,
 // half the time with one favourite piece type taken on four draws of five while it
-// fits (knight swarms, several queens); the 1-2 points no piece fits become pawns. Pieces take the
-// home rank in random files and spill forward; pawns go mostly to the second rank.
+// fits (knight swarms, several queens); the 1-2 points no piece fits become pawns.
+// Placed by the players' rule (place_dense).
 bool generate_wide_side(BoardState& state, const Colors player) {
-  std::array<int, 8> counts{ };
+  ArmyCounts counts{ };
   counts[0] = wide_pawn_count();
   const int favourite = std::rand() % 2 == 0 ? 1 + std::rand() % 7 : -1;
   int remaining = army_budget - counts[0];
@@ -317,43 +371,7 @@ bool generate_wide_side(BoardState& state, const Colors player) {
   if(squares_needed > max_army_squares)
     return false;
 
-  // pieces: home rank first, then forward
-  for(int index{ 1 }; index < static_cast<int>(generator_pieces.size()); ++index) {
-    for(int placed{ }; placed < counts[index]; ++placed) {
-      int square = -1;
-      for(int depth{ }; depth < 4 && square < 0; ++depth)
-        square = random_free_square(state, player, depth);
-      if(square < 0)
-        return false;
-      put(state, player, index, square);
-    }
-  }
-
-  // pawns: ranks 2 / 3 / 4 weighted 6 / 3 / 1 among the rows with room, the home rank last
-  constexpr std::array<int, 4> pawn_row_weights{ 0, 6, 3, 1 };
-  for(int placed{ }; placed < counts[0]; ++placed) {
-    int total_weight{ };
-    for(int depth{ 1 }; depth < 4; ++depth) {
-      if(free_squares_in_row(state, board_row(player, depth)) > 0)
-        total_weight += pawn_row_weights[depth];
-    }
-    int depth{ };
-    if(total_weight > 0) {
-      int roll = std::rand() % total_weight;
-      for(depth = 1; depth < 4; ++depth) {
-        if(free_squares_in_row(state, board_row(player, depth)) == 0)
-          continue;
-        roll -= pawn_row_weights[depth];
-        if(roll < 0)
-          break;
-      }
-    }
-    const int square = random_free_square(state, player, depth);
-    if(square < 0)
-      return false;
-    put(state, player, 0, square);
-  }
-  return true;
+  return place_dense(state, player, counts, random_order());
 }
 
 // the orthodox army: home rank beside the king on e1 / e8, pawns in front
@@ -371,6 +389,130 @@ bool generate_training_army(BoardState& state, const Colors player) {
   return std::rand() % 4 == 0 ? generate_side(state, player) : generate_wide_side(state, player);
 }
 
+// A pawn wall with a swarm of one piece type behind it: 1-3 solid pawn ranks (8-27 pawns)
+// and the rest of the budget on knights, bishops, knights and bishops, rooks or queens.
+// The 1-2 points no piece fits become pawns. Pieces take the home rank, the pawns fill
+// the rest of it and the ranks in front rank by rank (the players' rule).
+bool generate_wall_side(BoardState& state, const Colors player) {
+  ArmyCounts counts{ };
+  const int full_ranks = 1 + std::rand() % 3;
+  counts[0] = std::min(8 * full_ranks + std::rand() % 8, 27);
+
+  // swarm kinds: knights 35 %, bishops 35 %, knights and bishops 15 %, rooks 10 %, queens 5 %
+  const int kind = std::rand() % 20;
+  const std::array<int, 2> swarm = kind < 7    ? std::array{ 1, 1 }
+                                   : kind < 14 ? std::array{ 2, 2 }
+                                   : kind < 17 ? std::array{ 1, 2 }
+                                   : kind < 19 ? std::array{ 3, 3 }
+                                               : std::array{ 4, 4 };
+  int remaining = army_budget - counts[0];
+  // one piece in six is another type, so a swarm is not always pure
+  while(remaining >= cheapest_piece_weight()) {
+    int index = swarm[std::rand() % 2];
+    if(std::rand() % 6 == 0)
+      index = 1 + std::rand() % 7;
+    if(generator_pieces[index].weight > remaining)
+      index = generator_pieces[swarm[0]].weight <= remaining ? swarm[0] : (generator_pieces[swarm[1]].weight <= remaining ? swarm[1] : 1);
+    ++counts[index];
+    remaining -= generator_pieces[index].weight;
+  }
+  counts[0] += remaining;
+
+  int squares_needed{ };
+  for(const int count : counts)
+    squares_needed += count;
+  if(squares_needed > max_army_squares)
+    return false;
+
+  return place_dense(state, player, counts, PlacementOrder::pieces_first);
+}
+
+// Every army a player can build: 39 points, at most 31 men besides the king. 2580 of
+// them, 313 without pawns; the most copies are 13 knights or bishops, 7 rooks, 6
+// archbishops, 4 chancellors, 4 queens, 3 maharajahs.
+const std::vector<ArmyCounts>& all_army_counts() {
+  static const std::vector<ArmyCounts> armies = [] {
+    std::vector<ArmyCounts> list;
+    ArmyCounts counts{ };
+    const auto fill = [&](const auto& self, const int index, const int left) -> void {
+      if(index == static_cast<int>(counts.size())) {
+        counts[0] = left;
+        int men{ };
+        for(const int count : counts)
+          men += count;
+        if(men <= max_army_squares)
+          list.push_back(counts);
+        return;
+      }
+      for(int copies{ }; copies * generator_pieces[index].weight <= left; ++copies) {
+        counts[index] = copies;
+        self(self, index + 1, left - copies * generator_pieces[index].weight);
+      }
+      counts[index] = 0;
+    };
+    fill(fill, 1, army_budget);
+    return list;
+  }();
+  return armies;
+}
+
+// Half the time any of the 2580 armies, evenly. Otherwise one type (pawns or a piece)
+// and a number of it, both even, then an army with that number: 3 maharajahs or 4
+// queens are single armies among 2580 and come up as often as 1 maharajah. A piece
+// type takes 1 or more copies; pawns take any number, 0 included.
+const ArmyCounts& random_army_counts() {
+  const std::vector<ArmyCounts>& armies = all_army_counts();
+  if(std::rand() % 2 == 0)
+    return armies[static_cast<std::size_t>(std::rand()) % armies.size()];
+
+  const int type = std::rand() % static_cast<int>(generator_pieces.size());
+  const int least = type == 0 ? 0 : 1;
+  int most{ };
+  for(const ArmyCounts& army : armies)
+    most = std::max(most, army[type]);
+  // pawn numbers 0..max all occur; so does every piece number up to its maximum
+  const int copies = least + std::rand() % (most - least + 1);
+  int matching{ };
+  for(const ArmyCounts& army : armies)
+    matching += army[type] == copies;
+  int pick = std::rand() % matching;
+  for(const ArmyCounts& army : armies) {
+    if(army[type] == copies && pick-- == 0)
+      return army;
+  }
+  return armies.front();
+}
+
+// any army a player can build, placed by the players' rule in a random order
+bool generate_any_side(BoardState& state, const Colors player) {
+  return place_dense(state, player, random_army_counts(), random_order());
+}
+
+// the same army for the other side, mirrored across the middle of the board
+void mirror_army(BoardState& state, const Colors from, const Colors to) {
+  for(int index{ }; index < static_cast<int>(generator_pieces.size()); ++index) {
+    const GeneratorPiece& piece = generator_pieces[index];
+    const u64 men = state.bitboards[from == white ? piece.white_piece : piece.black_piece];
+    for(int square{ }; square < 64; ++square) {
+      if(get_bit(men, to_square(square)))
+        put(state, to, index, (7 - square / 8) * 8 + square % 8);
+    }
+  }
+}
+
+// The variant army of the balanced starts (any, mixed): any of the 2580 armies half the
+// time (random_army_counts), a pawn wall with a swarm a fifth, a wide army and a
+// players' army (generate_side) the rest, so every army comes up and the shapes players
+// really build come up more often.
+bool generate_variant_army(BoardState& state, const Colors player) {
+  const int roll = std::rand() % 20;
+  if(roll < 10)
+    return generate_any_side(state, player);
+  if(roll < 14)
+    return generate_wall_side(state, player);
+  return roll < 17 ? generate_wide_side(state, player) : generate_side(state, player);
+}
+
 } // namespace
 
 bool generate_training_position(Board& board, const TrainingStart start, const unsigned int seed) {
@@ -381,12 +523,38 @@ bool generate_training_position(Board& board, const TrainingStart start, const u
     BoardState& state = board.state;
     state.castle = 0;
 
-    if(start == TrainingStart::mixed) {
+    if(start == TrainingStart::any) {
+      // variant against variant: two balanced variant armies, or one and its mirror
+      // image (equal armies) a quarter of the time
+      if(!generate_variant_army(state, white))
+        continue;
+      if(std::rand() % 4 == 0)
+        mirror_army(state, white, black);
+      else if(!generate_variant_army(state, black))
+        continue;
+      state.side_variant = { true, true };
+    } else if(start == TrainingStart::wall) {
+      // a wall army against the orthodox army (a third), another wall army (a third,
+      // closed positions) or a variant army of any kind
+      const Colors wall_side = std::rand() % 2 == 0 ? white : black;
+      const Colors other = wall_side == white ? black : white;
+      if(!generate_wall_side(state, wall_side))
+        continue;
+      const int opponent = std::rand() % 3;
+      if(opponent == 0) {
+        put_orthodox_side(state, other);
+        state.castle = other == white ? (wk | wq) : (bk | bq);
+        state.side_variant = { wall_side == white, wall_side == black };
+      } else {
+        if(!(opponent == 1 ? generate_wall_side(state, other) : generate_training_army(state, other)))
+          continue;
+        state.side_variant = { true, true };
+      }
+    } else if(start == TrainingStart::mixed) {
       const Colors orthodox = std::rand() % 2 == 0 ? white : black;
       const Colors variant = orthodox == white ? black : white;
       put_orthodox_side(state, orthodox);
-      const bool built = std::rand() % 2 == 0 ? generate_side(state, variant) : generate_wide_side(state, variant);
-      if(!built)
+      if(!generate_variant_army(state, variant))
         continue;
       state.castle = orthodox == white ? (wk | wq) : (bk | bq);
       state.side_variant = { variant == white, variant == black };

@@ -11,7 +11,11 @@
 #   every game out (won endgames converted in the data, fewer positions per hour)
 #   WIDE_SHARE=0 MIXED_SHARE=0: games from variant armies of any shape (0-27 pawns,
 #   swarms of one piece type) and from the orthodox army against a variant one; the
-#   three shares add up to at most 1, the rest starts from the start position.
+#   WALL_SHARE=0: a pawn wall (1-3 solid ranks) with a swarm of knights, bishops, rooks
+#   or queens behind it, against the orthodox army, another wall or any variant army.
+#   ANY_SHARE=0: any of the 2580 armies a player can build (1-3 maharajahs, 1-4 queens,
+#   pawnless armies, ...) against the orthodox army, its mirror image or another army.
+#   The five shares add up to at most 1, the rest starts from the start position.
 #   Round r6 (NET6_ENDGAME.md): CUSTOM_SHARE=0 WIDE_SHARE=0.35 MIXED_SHARE=0.45 WIN_SCORE=0
 # Run it in tmux: it asks for sudo once at the start.
 set -euo pipefail
@@ -28,6 +32,8 @@ SEED_BASE="${SEED_BASE:-50000}"
 WIN_SCORE="${WIN_SCORE:-1000}"
 WIDE_SHARE="${WIDE_SHARE:-0}"
 MIXED_SHARE="${MIXED_SHARE:-0}"
+WALL_SHARE="${WALL_SHARE:-0}"
+ANY_SHARE="${ANY_SHARE:-0}"
 
 need_file "$TEXEL"
 check_release
@@ -37,7 +43,7 @@ mkdir -p "$OUT_DIR/log"
 
 deadline=$(( $(date +%s) + $(awk -v h="$HOURS" 'BEGIN { printf "%d", h * 3600 }') ))
 start=$(date +%s)
-echo "round $ROUND: teacher $NET, depth $DEPTH, custom share $CUSTOM_SHARE, wide share $WIDE_SHARE, mixed share $MIXED_SHARE, win score $WIN_SCORE, $THREADS threads,"
+echo "round $ROUND: teacher $NET, depth $DEPTH, custom share $CUSTOM_SHARE, wide share $WIDE_SHARE, mixed share $MIXED_SHARE, wall share $WALL_SHARE, any share $ANY_SHARE, win score $WIN_SCORE, $THREADS threads,"
 echo "  $GAMES_PER_CHUNK games per chunk, until $(date -d "@$deadline" '+%F %T')"
 
 # the next free chunk number
@@ -53,7 +59,7 @@ while :; do
   chunk_start=$(date +%s)
   set +e
   timeout --signal=TERM "$remaining" "$TEXEL" gen "$part" "$GAMES_PER_CHUNK" "$DEPTH" "$THREADS" \
-    "$((SEED_BASE + chunk))" "$CUSTOM_SHARE" "$NET" "$WIN_SCORE" "$WIDE_SHARE" "$MIXED_SHARE" 2>"$OUT_DIR/log/$name.log"
+    "$((SEED_BASE + chunk))" "$CUSTOM_SHARE" "$NET" "$WIN_SCORE" "$WIDE_SHARE" "$MIXED_SHARE" "$WALL_SHARE" "$ANY_SHARE" 2>"$OUT_DIR/log/$name.log"
   rc=$?
   set -e
   if (( rc != 0 && rc != 124 )); then

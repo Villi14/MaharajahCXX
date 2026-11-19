@@ -55,8 +55,10 @@ for node counts and speed of this engine alone.
 - `bare_king_combos.py` — every set of 1–2 pieces (orthodox and compound) against a bare
   king, random positions, several levels, old vs new build; Lichess tablebase as reference.
 - `nnue/NET6_ENDGAME.md` — the plan for net6: endgames (gen without win adjudication:
-  `WIN_SCORE=0`) and the armies the old data lacked (`WIDE_SHARE`, `MIXED_SHARE`), with the
+  `WIN_SCORE=0`) and the armies the old data lacked (`WIDE_SHARE`, `MIXED_SHARE`, `WALL_SHARE`, `ANY_SHARE`), with the
   commands for the training machine.
+- `nnue/data_mix.py` — the kinds of game in training data (orthodox / mixed / variant,
+  FEN field 7) and the gen shares that even them out after a pilot.
 
 ## Setup (port-era comparison with MaharajahC)
 

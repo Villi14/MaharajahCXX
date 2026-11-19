@@ -6,7 +6,7 @@
 # Usage: tools/nnue/train.sh NAME
 #   DATA=a.txt,b.txt (instead of the globs below)
 #   N3D7_GLOB="$NNUE_DATA/n3d7_s*.txt" R4_GLOB="$NNUE_DATA/r4/*.txt" R5_GLOB="$NNUE_DATA/r5/chunk_*.txt"
-#   R6_GLOB="$NNUE_DATA/r6/chunk_*.txt" (the armies round, gen.sh WIDE_SHARE / MIXED_SHARE)
+#   R6_GLOB="$NNUE_DATA/r6/chunk_*.txt" (the armies round, gen.sh WIDE_SHARE / MIXED_SHARE / WALL_SHARE / ANY_SHARE)
 #   EPOCHS=20 THREADS=24 LAMBDA=0.75 SEED=1 HIDDEN=768 DECAY=0.3 MIRROR=1 YES=1 PREPARE=1
 # The defaults are net5a's recipe (n3d7 + r4) plus rounds 5 and 6 where they exist.
 set -euo pipefail
