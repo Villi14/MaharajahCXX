@@ -79,6 +79,10 @@ constexpr int win_plies{ 6 };
 constexpr int draw_score{ 15 };
 constexpr int draw_plies{ 12 };
 constexpr int draw_from_ply{ 80 };
+// A search stops after this long and plays the move of its last full iteration. Depth 7
+// takes 13 ms in the median start and under 1 s in 99 %, but fully locked pawn walls
+// (27 pawns a side) took 21 s, and their ~100-ply games held up a whole chunk.
+constexpr int search_limit_ms{ 1000 };
 
 std::mutex rand_mutex;
 std::mutex out_mutex;
@@ -96,6 +100,9 @@ std::vector<int> legal_moves(const Board& board) {
 }
 
 // Plays one game; returns false if the opening ended the game already.
+// searches stopped by search_limit_ms before the full depth
+std::atomic<long> cut_searches{ };
+
 bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std::FILE* out, std::atomic<long>& positions) {
   std::string fen{ Fen::start_position };
   int opening_plies = std::uniform_int_distribution(6, 10)(rng);
@@ -152,7 +159,10 @@ bool play_game(Engine& engine, std::mt19937& rng, const GenOptions& options, std
     if(board.is_draw())
       break;
 
+    engine.time_control.set_movetime(search_limit_ms);
     const SearchResult searched = run_search(engine, options.depth);
+    if(searched.depth < options.depth)
+      ++cut_searches;
     if(!searched.best_move)
       break;
 
@@ -224,6 +234,7 @@ int run_gen(const GenOptions& options) {
     thread.join();
 
   std::fclose(out);
+  std::cerr << "searches cut at " << search_limit_ms << " ms: " << cut_searches << '\n';
   std::cerr << "done: " << options.games << " games, " << positions << " positions\n";
   return 0;
 }
