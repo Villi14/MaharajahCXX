@@ -97,10 +97,12 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    `data_mix.py` prints the positions r6 needs and the shares per game (with equal
    positions per game: MIXED_SHARE = ANY_SHARE = 0.5, no start-position games).
    If the rate collapses (long shuffling games), use `WIN_SCORE=3000` as the middle
-   ground. Then, in tmux (sudo once), until data_mix.py shows the three kinds even:
+   ground. A chunk ends with its longest game: in the pilot's 2000-game chunks the last
+   minute of six ran one game on one thread, so the main run takes 20000-game chunks
+   (pilot 2026-11-19: 1.66 M positions/h, 71 searches cut at 1 s per chunk). Then, in tmux (sudo once), until data_mix.py shows the three kinds even:
    ```sh
    ROUND=r6 NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 MIXED_SHARE=<printed> ANY_SHARE=<printed> \
-     tools/nnue/gen.sh 48
+     GAMES_PER_CHUNK=20000 tools/nnue/gen.sh 48
    python3 tools/nnue/data_mix.py "$NNUE_DATA/r4o/chunk_*.txt" "$NNUE_DATA/r6/chunk_*.txt"
    ```
    `DEPTH` (default 7) stays as in round 5 unless the pilot says otherwise.
