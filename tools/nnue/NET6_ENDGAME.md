@@ -62,9 +62,16 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    maharajahs, 5+ knights in 0.03 %. NNUE scored the 27P+4N swarm 6-0 against the
    orthodox army where the classic evaluation scored it 1-5.
 
-   r6 evens out the three kinds of game on top of r4: each ends with as many positions
-   as the largest (orthodox against orthodox, 22.4 M), so r6 needs ~27 M positions,
-   ~22.4 M of them orthodox against variant and ~4.5 M variant against variant.
+   Decided 2026-11-19 (owner): keep only r4's orthodox games, drop its variant ones
+   (their 277 armies would outweigh the balanced ones), and generate both other kinds
+   anew. r4's orthodox positions, 22,376,330, are in `$NNUE_DATA/r4o` (r4 itself kept):
+   ```sh
+   mkdir "$NNUE_DATA/r4o" && for f in "$NNUE_DATA"/r4/chunk_*.txt; do
+     awk -F';' '{ n = split($1, a, " "); if(n < 7 || a[7] == "-") print }' "$f" > "$NNUE_DATA/r4o/${f##*/}"
+   done
+   ```
+   r6 then needs ~22.4 M orthodox against variant and ~22.4 M variant against variant,
+   ~45 M positions, no start-position games; the three kinds a third each.
    - `MIXED_SHARE`: the orthodox army (castling) against a balanced variant army.
    - `ANY_SHARE`: two balanced variant armies, or one and its mirror image (a quarter;
      equal armies teach that equal is equal).
@@ -85,27 +92,27 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
    Pilot first, with all three kinds, to measure positions per game of each kind:
    ```sh
    ROUND=r6p NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 MIXED_SHARE=0.4 ANY_SHARE=0.4 tools/nnue/gen.sh 1
-   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4/chunk_*.txt" --pilot "$NNUE_DATA/r6p/chunk_*.txt"
+   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4o/chunk_*.txt" --pilot "$NNUE_DATA/r6p/chunk_*.txt"
    ```
    `data_mix.py` prints the positions r6 needs and the shares per game (with equal
-   positions per game: MIXED_SHARE ≈ 0.83, ANY_SHARE ≈ 0.17, no start-position games).
+   positions per game: MIXED_SHARE = ANY_SHARE = 0.5, no start-position games).
    If the rate collapses (long shuffling games), use `WIN_SCORE=3000` as the middle
    ground. Then, in tmux (sudo once), until data_mix.py shows the three kinds even:
    ```sh
    ROUND=r6 NET=net5 WIN_SCORE=0 CUSTOM_SHARE=0 MIXED_SHARE=<printed> ANY_SHARE=<printed> \
      tools/nnue/gen.sh 48
-   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4/chunk_*.txt" "$NNUE_DATA/r6/chunk_*.txt"
+   python3 tools/nnue/data_mix.py "$NNUE_DATA/r4o/chunk_*.txt" "$NNUE_DATA/r6/chunk_*.txt"
    ```
-   The old variant-against-variant data still holds its 277 armies; `--target 30e6`
-   (or more) adds more balanced variant games and dilutes them, at more hours.
    `DEPTH` (default 7) stays as in round 5 unless the pilot says otherwise.
 3. **Train net6** on the old rounds plus r6. The trainer's limit is 115 M positions, and
    `train.sh` prints the total, memory and time first:
    ```sh
-   N3D7_GLOB=/dev/null/none tools/nnue/train.sh net6     # r4 + r6, the mix data_mix.py evened out
+   N3D7_GLOB=/dev/null/none R4_GLOB="$NNUE_DATA/r4o/chunk_*.txt" tools/nnue/train.sh net6   # r4o + r6
    ```
-   Same recipe as net5 (mirror, λ 0.75, 20 epochs). n3d7 would add orthodox games again
-   and undo the even mix (net5 trained on r4 only).
+   Same recipe as net5 (mirror, λ 0.75, 20 epochs), ~67 M positions (limit 115 M).
+   n3d7 or r4's variant games would undo the even mix. Check net6 against net5 in the
+   classic match (step 5) before anything else: it lost r4's 17.9 M variant positions
+   and gained 22.4 M orthodox-against-variant ones, so classic strength must hold.
 4. **Armies check.** `Maharajah_ffi/tool/army_match.py` (monorepo) on the pairs from the
    Muller thread, net5 vs net6 and each against `--classic-eval`; the wall vs orthodox at
    levels 1-5, 10 games per colour (net5 2026-11-17: wall 68-29). net6 is right if it moves
