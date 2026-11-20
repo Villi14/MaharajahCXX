@@ -38,6 +38,15 @@ bigger the gain. On our test computer, level 5 on 4 cores scored 49 % against St
 The cost is faster battery drain and a warmer phone during long games. If battery life matters
 more, turn the switch off.
 
+## SSE2 and AVX2 builds
+
+Every rating on this page was measured with the basic `x64` build (SSE2), which runs on any
+64-bit Intel or AMD processor. The `x64-avx2` build (processors from about 2013–2015 on)
+calculates the same moves about 18 % faster. In a quick test (1200 games, 50 ms per move) it
+scored about **+33** against the `x64` build; at the time control above we expect roughly
++15 to +25. Rating lists that test the `x64-avx2` build may therefore show a somewhat higher
+rating than ours.
+
 ## How we measured
 
 - Matches in cutechess-cli 1.5.1, time control 60 seconds + 0.6 seconds per move, 1 core, 64 MB hash.
@@ -45,7 +54,8 @@ more, turn the switch off.
 - Openings from the 8moves_v3 book; every opening played with both colours.
 - Level 5: 400 games each against Stash 25.0 (CCRL 2933) and Stash 27.0 (CCRL 3049).
   Levels 1–4: 100 games each against several Stash versions.
-- Engine: Maharajah 1.4.0 (commit 3ab5b58) with the net5 network, played on 2026-11-15;
+- Engine: Maharajah 1.4.0 (commit 3ab5b58) with the net5 network, basic x86-64 build (SSE2,
+  no AVX2), played on 2026-11-15;
   anchor ratings from the CCRL Blitz list of 2026-10-17.
 - The matches were played with [tools/nnue/ccrl_match.sh](tools/nnue/ccrl_match.sh), which
   lists the full cutechess-cli command (`ccrl_match.sh all`).
