@@ -109,9 +109,12 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
 3. **Train net6** on the old rounds plus r6. The trainer's limit is 115 M positions, and
    `train.sh` prints the total, memory and time first:
    ```sh
-   N3D7_GLOB=/dev/null/none R4_GLOB="$NNUE_DATA/r4o/chunk_*.txt" tools/nnue/train.sh net6   # r4o + r6
+   N3D7_GLOB="/nonexistent/*" R4_GLOB="$NNUE_DATA/r4o/chunk_*.txt" tools/nnue/train.sh net6   # r4o + r6
    ```
    Same recipe as net5 (mirror, λ 0.75, 20 epochs), ~67 M positions (limit 115 M).
+   After a power cut, run the same command again: `net6.nnue.ckpt` (written after every
+   epoch) lets the trainer continue after the last finished epoch, with the same result
+   as an uninterrupted run. At most the current epoch (~25 min) and the data load are lost.
    n3d7 or r4's variant games would undo the even mix. Check net6 against net5 in the
    classic match (step 5) before anything else: it lost r4's 17.9 M variant positions
    and gained 22.4 M orthodox-against-variant ones, so classic strength must hold.

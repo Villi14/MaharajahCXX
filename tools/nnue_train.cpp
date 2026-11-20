@@ -11,6 +11,10 @@
 //     mirror 1: a training position without castling rights is mirrored a<->h with
 //     probability 1/2 in each epoch (castling is the only file-asymmetric rule).
 //     Writes OUT.nnue after every epoch and the float network to OUT.nnue.pt at the end.
+//     Checkpoint: after every epoch OUT.nnue.ckpt holds the float network, AdamW's state
+//     and the epoch. A run with an existing checkpoint continues after its epoch (the
+//     arguments and the data must be the same) and trains exactly as an uninterrupted run;
+//     the checkpoint is removed when the run ends.
 //     Built only when CMake finds libtorch (CMAKE_PREFIX_PATH=~/libtorch).
 #include "../headers/Board.h"
 #include "../headers/Nnue.h"
@@ -24,6 +28,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <fstream>
 #include <iostream>
 #include <numbers>
@@ -33,6 +38,11 @@
 #include <string>
 #include <thread>
 #include <vector>
+
+#ifndef _WIN32
+#include <fcntl.h>
+#include <unistd.h>
+#endif
 
 using namespace maharajah;
 namespace F = torch::nn::functional;
@@ -286,6 +296,46 @@ void check_quantization(Network& network, const Dataset& validation, const std::
             << " cp (mean |eval| " << abs_eval / static_cast<double>(n) << " cp)\n";
 }
 
+// The run's settings and training size: a checkpoint resumes only the same run.
+using Settings = std::vector<double>;
+
+void save_checkpoint(Network& network, torch::optim::AdamW& optimizer, const int epoch, const Settings& settings, const std::string& path) {
+  torch::serialize::OutputArchive archive, network_archive, optimizer_archive;
+  network->save(network_archive);
+  optimizer.save(optimizer_archive);
+  archive.write("network", network_archive);
+  archive.write("optimizer", optimizer_archive);
+  archive.write("epoch", torch::tensor(static_cast<std::int64_t>(epoch)));
+  archive.write("settings", torch::tensor(settings, torch::kFloat64));
+  // a power cut leaves the old checkpoint or the new one, never half a file
+  const std::string temporary = path + ".tmp";
+  archive.save_to(temporary);
+#ifndef _WIN32
+  if(const int fd = ::open(temporary.c_str(), O_RDONLY); fd >= 0) {
+    ::fsync(fd);
+    ::close(fd);
+  }
+#endif
+  std::filesystem::rename(temporary, path);
+}
+
+// the epoch the checkpoint ends with, or -1 when it belongs to another run
+int load_checkpoint(Network& network, torch::optim::AdamW& optimizer, const Settings& settings, const std::string& path) {
+  torch::serialize::InputArchive archive, network_archive, optimizer_archive;
+  archive.load_from(path);
+  torch::Tensor saved_settings, epoch;
+  archive.read("settings", saved_settings);
+  if(saved_settings.numel() != static_cast<std::int64_t>(settings.size()) ||
+     !torch::equal(saved_settings, torch::tensor(settings, torch::kFloat64)))
+    return -1;
+  archive.read("network", network_archive);
+  archive.read("optimizer", optimizer_archive);
+  network->load(network_archive);
+  optimizer.load(optimizer_archive);
+  archive.read("epoch", epoch);
+  return static_cast<int>(epoch.item<std::int64_t>());
+}
+
 int run(const std::string& data_paths, const std::string& out_path, const int epochs, const int threads, const float lambda, const unsigned seed, const int hidden,
         const double decay, const bool mirror) {
   torch::set_num_threads(threads);
@@ -305,9 +355,27 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
   std::mt19937 rng(seed);
   std::vector<std::uint32_t> order(training.size());
   std::iota(order.begin(), order.end(), 0u);
-  std::cerr << "validation loss " << validation_loss(network, validation, lambda) << " before training\n";
 
-  for(int epoch{ 1 }; epoch <= epochs; ++epoch) {
+  const std::string checkpoint = out_path + ".ckpt";
+  const Settings settings{ static_cast<double>(epochs), lambda, static_cast<double>(seed), static_cast<double>(hidden), decay,
+                           mirror ? 1.0 : 0.0, static_cast<double>(training.size()), static_cast<double>(validation.size()) };
+  int done{ };
+  if(std::filesystem::exists(checkpoint)) {
+    done = load_checkpoint(network, optimizer, settings, checkpoint);
+    if(done < 0) {
+      std::cerr << checkpoint << " belongs to a run with other arguments or data; remove it to start anew\n";
+      return 1;
+    }
+    // the order of each epoch follows from the previous one: replay the finished epochs' shuffles
+    for(int epoch{ 1 }; epoch <= done; ++epoch)
+      std::shuffle(order.begin(), order.end(), rng);
+    std::cerr << "resuming after epoch " << done << " of " << epochs << " from " << checkpoint << ", validation loss "
+              << validation_loss(network, validation, lambda) << '\n';
+  } else {
+    std::cerr << "validation loss " << validation_loss(network, validation, lambda) << " before training\n";
+  }
+
+  for(int epoch = done + 1; epoch <= epochs; ++epoch) {
     // the rate drops tenfold over the last `decay` share of the epochs, cosine-shaped
     const double progress = std::clamp((static_cast<double>(epoch - 1) / epochs - (1 - decay)) / decay, 0.0, 1.0);
     const double rate = start_rate * (0.1 + 0.9 * 0.5 * (1 + std::cos(std::numbers::pi * progress)));
@@ -330,9 +398,11 @@ int run(const std::string& data_paths, const std::string& out_path, const int ep
     std::fprintf(stderr, "epoch %d  rate %.2e  train %.6f  validation %.6f  (%.0f s)\n", epoch, rate,
                  sum / static_cast<double>(training.size() / batch_size * batch_size), validation_loss(network, validation, lambda), seconds);
     write_network(network, out_path);
+    save_checkpoint(network, optimizer, epoch, settings, checkpoint);
   }
 
   torch::save(network, out_path + ".pt");
+  std::filesystem::remove(checkpoint);
   check_quantization(network, validation, out_path);
   std::cerr << "network written to " << out_path << '\n';
   return 0;

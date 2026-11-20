@@ -2,6 +2,8 @@
 # Trains a network on several data rounds: prints the files and position counts, the
 # expected memory and time, asks once, then runs maharajah_nnue_train with mirroring.
 # Output $NETS_DIR/NAME.nnue (written after every epoch), log $NETS_DIR/NAME.log.
+# Interrupted (power cut, Ctrl-C)? Run the same command again: with NAME.nnue.ckpt there
+# the trainer continues after the last finished epoch (same settings and data needed).
 #
 # Usage: tools/nnue/train.sh NAME
 #   DATA=a.txt,b.txt (instead of the globs below)
@@ -16,7 +18,13 @@ NAME="${1:-}"
 [[ -n "$NAME" ]] || die "usage: $0 NAME"
 OUT="$NETS_DIR/${NAME%.nnue}.nnue"
 LOG="$NETS_DIR/${NAME%.nnue}.log"
-[[ ! -e "$OUT" ]] || die "$OUT exists"
+RESUME=0
+if [[ -f "$OUT.ckpt" ]]; then
+  RESUME=1
+  echo "$OUT.ckpt found: continuing the interrupted run (same settings and data as before)"
+else
+  [[ ! -e "$OUT" ]] || die "$OUT exists"
+fi
 EPOCHS="${EPOCHS:-20}" LAMBDA="${LAMBDA:-0.75}" SEED="${SEED:-1}" HIDDEN="${HIDDEN:-768}"
 DECAY="${DECAY:-0.3}" MIRROR="${MIRROR:-1}"
 
@@ -61,5 +69,8 @@ fi
 
 data_list="$(IFS=,; echo "${files[*]}")"
 echo "started $(date '+%F %T'), log $LOG"
-"$TRAIN" "$data_list" "$OUT" "$EPOCHS" "$THREADS" "$LAMBDA" "$SEED" "$HIDDEN" "$DECAY" "$MIRROR" 2>&1 | tee "$LOG"
+# a resumed run appends to the log of the interrupted one
+tee_args=("$LOG")
+(( RESUME )) && tee_args=(-a "$LOG")
+"$TRAIN" "$data_list" "$OUT" "$EPOCHS" "$THREADS" "$LAMBDA" "$SEED" "$HIDDEN" "$DECAY" "$MIRROR" 2>&1 | tee "${tee_args[@]}"
 echo "finished $(date '+%F %T')"
