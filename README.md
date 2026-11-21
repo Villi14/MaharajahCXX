@@ -40,7 +40,7 @@ give check are kept), killer/history ordering with losing captures last, and SEE
 quiescence. Strength is set with `difficulty 1..5` (the level shown to players)
 or the lower-level `skill 1..10`.
 
-Evaluation: an NNUE network compiled into the engine (`nets/net5.nnue`: 18 piece kinds ×
+Evaluation: an NNUE network compiled into the engine (`nets/net6.nnue`: 18 piece kinds ×
 64 squares → 768 × 2 perspectives → SCReLU → 1, the compound pieces as inputs of their
 own), trained only on the engine's own self-play. The classic hand-written evaluation
 remains as a fallback.

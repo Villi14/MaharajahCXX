@@ -16,7 +16,7 @@ for node counts and speed of this engine alone.
   smoke tests are in `tests/`.
 - `build_wasm.sh` — builds the browser module (`mah_wasm_*`) with Emscripten.
 - `embed_net.py` — writes `sources/NnueDefault.cpp`, the network compiled into the
-  engine, from a `.nnue` file (`python3 tools/embed_net.py nets/net5.nnue`). Every
+  engine, from a `.nnue` file (`python3 tools/embed_net.py nets/net6.nnue`). Every
   engine starts with it; UCI `EvalFile` loads another file (`<empty>` restores the
   built-in one) and `UseNNUE false` switches to the classic evaluation.
 - `compare_wasm.mjs` — loads MaharajahC's and this engine's browser modules in Node and

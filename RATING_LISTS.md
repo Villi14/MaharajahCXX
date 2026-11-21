@@ -42,6 +42,35 @@ a release on a forum and asks for testing:
 
 Submit 1.4.0, never 1.3.1: at 40/15 1.3.1 would lose about one game in five on time.
 
+## Lists that already test Maharajah
+
+### Computer Chess Index (CCI)
+
+[CCI](https://github.com/computer-chess-index/cci) is a rating list run by one person, who
+follows new releases on GitHub (they starred the repository) and tests them without being
+asked. Maharajah's page: [engines/Maharajah.md](https://github.com/computer-chess-index/cci/blob/main/engines/Maharajah.md).
+
+Ratings as of 2026-11-21, one thread, Intel Core Ultra 7 265T (1.50 GHz), E-core:
+
+| Version | STC 8+0.08s | LTC 60+0.6s | VLTC 2'24"+1.12s |
+|---|---|---|---|
+| 1.3.2 | 2394 | 2726 | 2898 |
+| 1.4.0 | 2553 | 2866 | 2948 |
+| 1.4.1 | 2595 | 2878 | 3029 |
+
+On the P-core of the same CPU, 1.4.1 has 2614 / 2882 / 2928.
+
+- The scale is CCI's own. BayesElo is anchored to a random mover at 0, and the result is
+  multiplied by 1.35. The author writes that the scale is compressed and not yet calibrated
+  against CCRL, so these figures are not comparable with our CCRL estimate in STRENGTH.md.
+- All three time controls play in one tournament, so the columns are comparable with each
+  other: 1.4.1 gains about 430 from STC to VLTC.
+- Conditions: cutechess-cli, book `8moves_v3`, no pondering, one thread.
+- New versions can also be submitted through the "Submit new version" link on the engine page.
+- CCI accepts a voluntary declaration of AI use in an engine's development (an issue
+  template, section 5 of its [METHODOLOGY.md](https://github.com/computer-chess-index/cci/blob/main/METHODOLOGY.md)).
+  None has been submitted for Maharajah.
+
 ## A faster public rating
 
 The engine can run as a Lichess bot through [lichess-bot](https://github.com/lichess-bot-devs/lichess-bot).

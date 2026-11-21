@@ -56,10 +56,11 @@ TEST_F(search_sanity_test_fixture, does_not_grab_the_poisoned_pawn_and_punishes_
   EXPECT_EQ(best_move("rnb1kbnr/ppp1pppp/8/8/8/5N2/PqPP1PPP/RNBQK2R w KQkq - 0 5 ", 1), "c1b2");
 }
 
+// on b2 the king or the bishop takes the piece (both leave the same king and bishop)
 TEST_F(search_sanity_test_fixture, captures_hanging_compound_pieces) {
-  EXPECT_EQ(best_move("7k/8/8/8/8/8/1m6/K1B5 w - - 0 1 ", 1), "c1b2");
+  EXPECT_THAT(best_move("7k/8/8/8/8/8/1m6/K1B5 w - - 0 1 ", 1), testing::AnyOf("c1b2", "a1b2"));
   EXPECT_EQ(best_move("7k/8/7c/8/8/8/8/K1B5 w - - 0 1 ", 1), "c1h6");
-  EXPECT_EQ(best_move("7k/8/8/8/8/8/1a6/K1B5 w - - 0 1 ", 1), "c1b2");
+  EXPECT_THAT(best_move("7k/8/8/8/8/8/1a6/K1B5 w - - 0 1 ", 1), testing::AnyOf("c1b2", "a1b2"));
 }
 
 TEST_F(search_sanity_test_fixture, weak_timed_search_does_not_hang_the_queen) {
