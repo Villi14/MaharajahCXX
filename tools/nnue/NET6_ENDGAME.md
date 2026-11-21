@@ -109,8 +109,10 @@ tools/nnue/check.sh                      # binaries, nets, data, memory, disk, t
 3. **Train net6** on the old rounds plus r6. The trainer's limit is 115 M positions, and
    `train.sh` prints the total, memory and time first:
    ```sh
-   N3D7_GLOB="/nonexistent/*" R4_GLOB="$NNUE_DATA/r4o/chunk_*.txt" tools/nnue/train.sh net6   # r4o + r6
+   tools/nnue/train.sh net6   # r4o + r6
    ```
+   (The defaults since 2026-11-21. net6 itself was trained with the older form
+   `N3D7_GLOB="/nonexistent/*" R4_GLOB="$NNUE_DATA/r4o/chunk_*.txt"`, the same 271 files.)
    Same recipe as net5 (mirror, λ 0.75, 20 epochs), ~67 M positions (limit 115 M).
    After a power cut, run the same command again: `net6.nnue.ckpt` (written after every
    epoch) lets the trainer continue after the last finished epoch, with the same result

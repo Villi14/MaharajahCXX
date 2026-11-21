@@ -7,10 +7,13 @@
 #
 # Usage: tools/nnue/train.sh NAME
 #   DATA=a.txt,b.txt (instead of the globs below)
-#   N3D7_GLOB="$NNUE_DATA/n3d7_s*.txt" R4_GLOB="$NNUE_DATA/r4/*.txt" R5_GLOB="$NNUE_DATA/r5/chunk_*.txt"
+#   R4O_GLOB="$NNUE_DATA/r4o/chunk_*.txt" (r4's orthodox games) R5_GLOB="$NNUE_DATA/r5/chunk_*.txt"
 #   R6_GLOB="$NNUE_DATA/r6/chunk_*.txt" (the armies round, gen.sh WIDE_SHARE / MIXED_SHARE / WALL_SHARE / ANY_SHARE)
+#   R7_GLOB="$NNUE_DATA/r7/chunk_*.txt"
 #   EPOCHS=20 THREADS=24 LAMBDA=0.75 SEED=1 HIDDEN=768 DECAY=0.3 MIRROR=1 YES=1 PREPARE=1
-# The defaults are net5a's recipe (n3d7 + r4) plus rounds 5 and 6 where they exist.
+# The defaults are net6's recipe (r4o + r6) plus rounds 5 and 7 where they exist. A glob
+# that matches nothing is skipped, so a round missing from $NNUE_DATA is left out silently:
+# check the file list printed below. (net5a's n3d7 and r4's chunks were deleted 2026-11-21.)
 set -euo pipefail
 source "$(dirname -- "${BASH_SOURCE[0]}")/env.sh"
 
@@ -36,7 +39,8 @@ if [[ -n "${DATA:-}" ]]; then
 else
   shopt -s nullglob
   # shellcheck disable=SC2206 # the globs are meant to expand
-  files=(${N3D7_GLOB:-$NNUE_DATA/n3d7_s*.txt} ${R4_GLOB:-$NNUE_DATA/r4/*.txt} ${R5_GLOB:-$NNUE_DATA/r5/chunk_*.txt} ${R6_GLOB:-$NNUE_DATA/r6/chunk_*.txt})
+  files=(${R4O_GLOB:-$NNUE_DATA/r4o/chunk_*.txt} ${R5_GLOB:-$NNUE_DATA/r5/chunk_*.txt}
+         ${R6_GLOB:-$NNUE_DATA/r6/chunk_*.txt} ${R7_GLOB:-$NNUE_DATA/r7/chunk_*.txt})
   shopt -u nullglob
 fi
 (( ${#files[@]} > 0 )) || die "no data files"
